@@ -49,18 +49,20 @@ public final class AutoTabs {
                     vanilla("bread"), 0xFF8AB36B,
                     List.of(SortRule.predicate(PredicateKind.IS_FOOD), sortTagRule("food"))),
 
-            new Auto("auto:tools", "packwork.tab.tools",
-                    vanilla("iron_pickaxe"), 0xFFB9905A,
-                    List.of(SortRule.predicate(PredicateKind.IS_TOOL),
-                            SortRule.tag("minecraft:shears"),
-                            sortTagRule("tools"))),
-
+            // Combat before Tools on purpose: NeoForge tags swords under c:tools, so a
+            // weapon must get first claim or it lands with the pickaxes.
             new Auto("auto:combat", "packwork.tab.combat",
                     vanilla("iron_sword"), 0xFFB4595A,
                     List.of(SortRule.predicate(PredicateKind.IS_WEAPON),
                             SortRule.predicate(PredicateKind.IS_ARMOR),
                             SortRule.tag("minecraft:arrows"),
                             sortTagRule("combat"))),
+
+            new Auto("auto:tools", "packwork.tab.tools",
+                    vanilla("iron_pickaxe"), 0xFFB9905A,
+                    List.of(SortRule.predicate(PredicateKind.IS_TOOL),
+                            SortRule.tag("minecraft:shears"),
+                            sortTagRule("tools"))),
 
             new Auto("auto:ores", "packwork.tab.ores",
                     vanilla("raw_iron"), 0xFF6E7B8B,
@@ -71,10 +73,6 @@ public final class AutoTabs {
                             SortRule.tag("c:nuggets"),
                             SortRule.tag("c:storage_blocks"),
                             sortTagRule("ores"))),
-
-            new Auto("auto:blocks", "packwork.tab.blocks",
-                    vanilla("bricks"), 0xFF9C8265,
-                    List.of(SortRule.predicate(PredicateKind.IS_BLOCK), sortTagRule("blocks"))),
 
             new Auto("auto:brewing", "packwork.tab.brewing",
                     vanilla("brewing_stand"), 0xFF7A5A9B,
@@ -90,7 +88,13 @@ public final class AutoTabs {
                             SortRule.tag("minecraft:leaves"),
                             SortRule.tag("c:seeds"),
                             SortRule.tag("c:crops"),
-                            sortTagRule("nature")))
+                            sortTagRule("nature"))),
+
+            // Blocks is the broad IS_BLOCK catch, so it sits LAST before Loose - the
+            // specific tabs above (ores, nature, brewing) claim their blocks first.
+            new Auto("auto:blocks", "packwork.tab.blocks",
+                    vanilla("bricks"), 0xFF9C8265,
+                    List.of(SortRule.predicate(PredicateKind.IS_BLOCK), sortTagRule("blocks")))
     );
 
     /** Default tab order when a pack has no custom order: all autos, then Loose. */

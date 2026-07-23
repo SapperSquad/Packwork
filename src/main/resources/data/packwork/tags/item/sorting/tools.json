@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#c:tools", "required": false },
+    { "id": "#c:tools/shears", "required": false },
+    { "id": "minecraft:flint_and_steel", "required": false },
+    { "id": "minecraft:compass", "required": false },
+    { "id": "minecraft:clock", "required": false },
+    { "id": "minecraft:lead", "required": false }
+  ]
+}
