@@ -1,0 +1,2 @@
+{ "type": "packwork:pack_upgrade", "from": "canvas", "to": "leather",
+  "material": { "item": "minecraft:leather" }, "count": 4 }

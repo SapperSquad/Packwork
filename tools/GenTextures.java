@@ -38,6 +38,16 @@ public class GenTextures {
         genGui(base + "/gui/pack.png");
         genTab(base + "/gui/tab.png");
 
+        // trinket fittings - a leather charm with a brass loop and a coloured emblem
+        genTrinket(base + "/item/lodestone_charm.png", 0xFF6E5A8B, 0);
+        genTrinket(base + "/item/feather_charm.png", 0xFFE8E8F0, 1);
+        genTrinket(base + "/item/compass_rose.png", 0xFFCF9A3B, 2);
+        genTrinket(base + "/item/restock_strap.png", 0xFF9C6B3A, 3);
+        genTrinket(base + "/item/bottomless_lining.png", 0xFF4A3A6A, 4);
+        genTrinket(base + "/item/repair_kit.png", 0xFF9AA0A6, 2);
+        genTrinket(base + "/item/quick_draw_straps.png", 0xFFB4595A, 3);
+        genTrinket(base + "/item/quill_and_ledger.png", 0xFF6E8BB9, 4);
+
         // per-tier pack sprites, tinted brass fittings on leather
         genPack(base + "/item/canvas_pack.png", 0xFFCFC09A, 0xFFB4A47C, false);
         genPack(base + "/item/leather_pack.png", 0xFF7A5636, 0xFF5E4128, false);
@@ -201,6 +211,52 @@ public class GenTextures {
             img.setRGB(4, 12, BRASS_HI); img.setRGB(11, 12, BRASS_HI);
             img.setRGB(4, 14, BRASS); img.setRGB(11, 14, BRASS);
         }
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A 16x16 leather charm: brass loop up top, a leather tag, and a coloured emblem. */
+    static void genTrinket(String path, int accent, int emblem) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(accent);
+        // brass loop (top)
+        for (int y = 1; y <= 3; y++)
+            for (int x = 6; x <= 9; x++)
+                if (x == 6 || x == 9 || y == 1) img.setRGB(x, y, y == 1 ? BRASS_HI : BRASS);
+        // leather tag body 3..12 x, 4..14 y (rounded)
+        for (int y = 4; y <= 14; y++) {
+            for (int x = 3; x <= 12; x++) {
+                boolean corner = (x <= 3 || x >= 12) && (y <= 4 || y >= 14);
+                if (corner) continue;
+                int c = lerp(LEATHER_HI, LEATHER_LO, (y - 4) / 10f);
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 6) - 0.5f) * 12));
+                img.setRGB(x, y, c);
+            }
+        }
+        // stitched border hint
+        for (int x = 5; x <= 10; x += 2) { img.setRGB(x, 5, STITCH); img.setRGB(x, 13, STITCH); }
+        // emblem in the accent colour
+        int a = accent;
+        switch (emblem) {
+            case 0 -> { // swirl / dot cluster
+                img.setRGB(7, 8, a); img.setRGB(8, 8, a); img.setRGB(8, 9, a);
+                img.setRGB(7, 9, shade(a, -20)); img.setRGB(6, 10, a);
+            }
+            case 1 -> { // feather (vertical quill)
+                for (int y = 7; y <= 12; y++) img.setRGB(8, y, a);
+                img.setRGB(7, 8, a); img.setRGB(9, 9, a); img.setRGB(7, 10, a); img.setRGB(9, 11, a);
+            }
+            case 2 -> { // ring / compass
+                for (int[] d : new int[][]{{7,7},{8,7},{6,8},{9,8},{6,9},{9,9},{7,10},{8,10}}) img.setRGB(d[0], d[1], a);
+                img.setRGB(8, 8, shade(a, 30));
+            }
+            case 3 -> { // cross / strap
+                for (int i = 6; i <= 9; i++) { img.setRGB(i, i + 1, a); img.setRGB(i, 10 - (i - 6), a); }
+            }
+            default -> { // bar block / book
+                for (int y = 8; y <= 11; y++) for (int x = 6; x <= 9; x++) img.setRGB(x, y, x == 6 ? shade(a, 30) : a);
+            }
+        }
+        outline(img, LEATHER_EDGE);
         ImageIO.write(img, "PNG", new File(path));
     }
 

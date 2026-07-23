@@ -1,5 +1,8 @@
 package com.sappersquad.packwork.gametest;
 
+import com.sappersquad.packwork.pack.PackInventory;
+import com.sappersquad.packwork.pack.PackTier;
+import com.sappersquad.packwork.pack.PackTrinketInventory;
 import com.sappersquad.packwork.reg.ModComponents;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.sort.AutoTabs;
@@ -106,7 +109,8 @@ public class PackworkGameTests {
         order.add("custom:0");
         PackLayout layout = new PackLayout(order,
                 List.of(custom),
-                List.of(new PackLayout.Pin(breadId, "custom:0")));
+                List.of(new PackLayout.Pin(breadId, "custom:0")),
+                List.of());
 
         List<TabView> tabs = SortEngine.tabsFor(layout);
         // stick now claimed by the custom tab's name rule instead of Loose
@@ -149,6 +153,86 @@ public class PackworkGameTests {
         PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         helper.assertTrue(layout.customTabs().isEmpty() && layout.pins().isEmpty(),
                 "fresh pack has default layout");
+        helper.succeed();
+    }
+
+    /** A Bottomless Lining grows the pack's slot count; the extra slots are real. */
+    @GameTest(template = "empty")
+    public static void bottomlessGrowsCapacity(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+        int before = com.sappersquad.packwork.trinket.TrinketAccess.capacity(pack);
+        helper.assertTrue(before == PackTier.LEATHER.capacity(), "leather pack starts at tier capacity");
+
+        PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.LEATHER);
+        ItemStack lining = new ItemStack(ModItems.trinket(
+                com.sappersquad.packwork.trinket.TrinketType.BOTTOMLESS).get());
+        helper.assertTrue(sockets.insertItem(0, lining, false).isEmpty(), "lining installs into a socket");
+
+        int after = com.sappersquad.packwork.trinket.TrinketAccess.capacity(pack);
+        helper.assertTrue(after == before + com.sappersquad.packwork.trinket.TrinketAccess.BOTTOMLESS_BONUS,
+                "capacity grows by the bonus, got " + after);
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        helper.assertTrue(store.getSlots() == after, "the pack store exposes the grown slot count");
+        helper.succeed();
+    }
+
+    /** Trinket sockets take one of each fitting and refuse non-fittings. */
+    @GameTest(template = "empty")
+    public static void socketsRejectNonTrinketsAndDupes(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.STUDDED);
+        ItemStack feather = new ItemStack(ModItems.trinket(
+                com.sappersquad.packwork.trinket.TrinketType.FEATHER).get());
+
+        helper.assertTrue(sockets.insertItem(0, feather.copy(), false).isEmpty(), "first feather installs");
+        helper.assertTrue(!sockets.insertItem(1, feather.copy(), false).isEmpty(),
+                "a duplicate feather is refused");
+        helper.assertTrue(!sockets.insertItem(1, new ItemStack(Items.DIRT), false).isEmpty(),
+                "a non-trinket is refused");
+        helper.succeed();
+    }
+
+    /** The void list is opt-in and exact; it starts empty on a fresh pack. */
+    @GameTest(template = "empty")
+    public static void voidListIsOptInAndExact(GameTestHelper helper) {
+        ResourceLocation dirt = BuiltInRegistries.ITEM.getKey(Items.DIRT);
+        ResourceLocation stone = BuiltInRegistries.ITEM.getKey(Items.STONE);
+        helper.assertTrue(!PackLayout.EMPTY.voids(dirt), "fresh pack voids nothing");
+        PackLayout marked = PackLayout.EMPTY.withVoidList(List.of(dirt));
+        helper.assertTrue(marked.voids(dirt) && !marked.voids(stone), "only the marked item is voided");
+        helper.succeed();
+    }
+
+    /** A tier upgrade carries the pack's contents and trinkets over - never eats them. */
+    @GameTest(template = "empty")
+    public static void upgradePreservesContents(GameTestHelper helper) {
+        net.minecraft.core.HolderLookup.Provider reg = helper.getLevel().registryAccess();
+
+        ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.DIAMOND, 12), false);
+        new PackTrinketInventory(() -> pack, PackTier.LEATHER).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
+
+        var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
+                PackTier.LEATHER, PackTier.STUDDED,
+                net.minecraft.world.item.crafting.Ingredient.of(Items.IRON_INGOT), 4,
+                net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
+
+        // a 3x3 crafting input: the pack + 4 iron ingots
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
+                pack, new ItemStack(Items.IRON_INGOT, 4), ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "recipe should match pack + 4 iron");
+
+        ItemStack out = recipe.assemble(input, reg);
+        helper.assertTrue(out.getItem() == ModItems.pack(PackTier.STUDDED).get(), "result is a Studded pack");
+        PackInventory upgraded = new PackInventory(out, PackTier.STUDDED);
+        helper.assertTrue(upgraded.getStackInSlot(0).is(Items.DIAMOND)
+                && upgraded.getStackInSlot(0).getCount() == 12, "diamonds carried into the upgrade");
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketAccess.has(out,
+                com.sappersquad.packwork.trinket.TrinketType.LODESTONE), "trinket carried into the upgrade");
         helper.succeed();
     }
 

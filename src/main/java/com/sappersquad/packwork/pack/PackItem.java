@@ -78,12 +78,23 @@ public class PackItem extends Item {
                 return com.sappersquad.packwork.pack.PackMenu.server(id, playerInv, slot);
             }
         };
-        player.openMenu(provider, buf -> buf.writeVarInt(slot));
+        // The tier rides in the open packet so the client builds the SAME number of
+        // trinket sockets as the server, even before its inventory slot syncs - a
+        // mismatch there overruns the container-content packet and drops the player.
+        PackTier tier = tierOf(player.getInventory().getItem(slot));
+        player.openMenu(provider, buf -> {
+            buf.writeVarInt(slot);
+            buf.writeVarInt(tier.ordinal());
+        });
     }
 
-    /** Client menu factory: reads the bound slot from the open packet. */
+    /** Client menu factory: reads the bound slot and tier from the open packet. */
     public static final IContainerFactory<PackMenu> CLIENT_FACTORY =
-            (id, playerInv, buf) -> PackMenu.client(id, playerInv, buf.readVarInt());
+            (id, playerInv, buf) -> {
+                int slot = buf.readVarInt();
+                PackTier tier = PackTier.values()[buf.readVarInt()];
+                return PackMenu.client(id, playerInv, slot, tier);
+            };
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {

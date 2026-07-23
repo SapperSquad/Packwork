@@ -89,6 +89,28 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
         g.blit(BG, leftPos, topPos, 0f, 0f, imageWidth, imageHeight, imageWidth, imageHeight);
         drawTabRail(g, mouseX, mouseY);
+        drawTrinketRail(g);
+    }
+
+    /** Brass sockets on the right rail; the socket items render themselves as normal slots. */
+    private void drawTrinketRail(GuiGraphics g) {
+        int n = menu.trinketSlotCount();
+        if (n <= 0) return;
+        int railX = leftPos + PackMenu.TRINKET_X - 4;
+        int railY = topPos + PackMenu.TRINKET_Y0 - 4;
+        int railH = n * PackMenu.TRINKET_PITCH + 6;
+        // a strip of stitched brass backing the sockets
+        g.fill(railX - 1, railY - 1, railX + 24, railY + railH, 0xFF3E2A18);
+        g.renderOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
+        for (int i = 0; i < n; i++) {
+            int x = leftPos + PackMenu.TRINKET_X - 1;
+            int y = topPos + PackMenu.TRINKET_Y0 + i * PackMenu.TRINKET_PITCH - 1;
+            g.fill(x, y, x + 18, y + 18, 0xFF3C2A19);
+            g.fill(x, y, x + 17, y + 1, 0xFF2A1C10);
+            g.fill(x, y, x + 1, y + 17, 0xFF2A1C10);
+            g.fill(x, y + 17, x + 18, y + 18, 0xFF8A6540);
+            g.fill(x + 17, y, x + 18, y + 18, 0xFF8A6540);
+        }
     }
 
     private void drawTabRail(GuiGraphics g, int mouseX, int mouseY) {
@@ -312,6 +334,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 }
             }
             case GLFW.GLFW_KEY_R -> { if (isActiveCustom()) { beginRename(); return true; } }
+            case GLFW.GLFW_KEY_O -> { // toggle hovered item on the Compass Rose void list
+                if (overGrid && menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE)) {
+                    String id = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem()).toString();
+                    PackClientActions.voidToggle(menu, id);
+                    return true;
+                }
+            }
             case GLFW.GLFW_KEY_LEFT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), -1); return true; }
             case GLFW.GLFW_KEY_RIGHT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), 1); return true; }
             default -> {}

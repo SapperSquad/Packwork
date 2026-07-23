@@ -24,10 +24,12 @@ import java.util.List;
  * @param tabOrder   ordered tab ids (mix of {@code auto:*} and {@code custom:*}); empty = default
  * @param customTabs player-made tab definitions
  * @param pins       item-to-tab overrides that beat every rule
+ * @param voidList   items the Compass Rose trinket discards on insert (opt-in; the ONLY void path)
  */
-public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins) {
+public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
+                         List<ResourceLocation> voidList) {
 
-    public static final PackLayout EMPTY = new PackLayout(List.of(), List.of(), List.of());
+    public static final PackLayout EMPTY = new PackLayout(List.of(), List.of(), List.of(), List.of());
 
     /** A manual override: this exact item always lands in this tab. */
     public record Pin(ResourceLocation item, String tabId) {
@@ -45,13 +47,15 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
     public static final Codec<PackLayout> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.listOf().optionalFieldOf("tab_order", List.of()).forGetter(PackLayout::tabOrder),
             TabDef.CODEC.listOf().optionalFieldOf("custom_tabs", List.of()).forGetter(PackLayout::customTabs),
-            Pin.CODEC.listOf().optionalFieldOf("pins", List.of()).forGetter(PackLayout::pins)
+            Pin.CODEC.listOf().optionalFieldOf("pins", List.of()).forGetter(PackLayout::pins),
+            ResourceLocation.CODEC.listOf().optionalFieldOf("void_list", List.of()).forGetter(PackLayout::voidList)
     ).apply(inst, PackLayout::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, PackLayout> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()), PackLayout::tabOrder,
             TabDef.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::customTabs,
             Pin.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::pins,
+            ResourceLocation.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::voidList,
             PackLayout::new);
 
     /** The tab id a manual pin sends this item to, or null if unpinned. */
@@ -63,15 +67,24 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
     }
 
     public PackLayout withPins(List<Pin> newPins) {
-        return new PackLayout(tabOrder, customTabs, newPins);
+        return new PackLayout(tabOrder, customTabs, newPins, voidList);
     }
 
     public PackLayout withCustomTabs(List<TabDef> newTabs) {
-        return new PackLayout(tabOrder, newTabs, pins);
+        return new PackLayout(tabOrder, newTabs, pins, voidList);
     }
 
     public PackLayout withTabOrder(List<String> newOrder) {
-        return new PackLayout(newOrder, customTabs, pins);
+        return new PackLayout(newOrder, customTabs, pins, voidList);
+    }
+
+    public PackLayout withVoidList(List<ResourceLocation> newVoid) {
+        return new PackLayout(tabOrder, customTabs, pins, newVoid);
+    }
+
+    /** Is this item marked for the Compass Rose to discard? */
+    public boolean voids(ResourceLocation itemId) {
+        return voidList.contains(itemId);
     }
 
     /** Custom tab matching an id, or null. */

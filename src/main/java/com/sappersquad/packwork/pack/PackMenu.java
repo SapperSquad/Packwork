@@ -35,14 +35,21 @@ public class PackMenu extends AbstractContainerMenu {
     public static final int HOTBAR_Y = 216;
     public static final int IMAGE_W = 176;
     public static final int IMAGE_H = 240;
+    // right-side trinket rail (sockets protrude past the panel's right edge)
+    public static final int TRINKET_X = IMAGE_W + 4;
+    public static final int TRINKET_Y0 = 26;
+    public static final int TRINKET_PITCH = 20;
 
     private static final int VIEW_SLOTS = PackTier.VIEW_SLOTS;
+    private static final int PLAYER_SLOTS = 36;
 
     private final Inventory playerInv;
     private final int boundSlot;
     private final PackTier tier;
     private final PackInventory packInv;
+    private final PackTrinketInventory trinketInv;
     private final List<PackViewSlot> viewSlots = new ArrayList<>();
+    private final int trinketStart; // menu index where trinket slots begin
 
     private PackLayout layout;
     private List<TabView> tabs;
@@ -57,19 +64,20 @@ public class PackMenu extends AbstractContainerMenu {
     // ---- factories ----
 
     public static PackMenu server(int id, Inventory playerInv, int boundSlot) {
-        return new PackMenu(id, playerInv, boundSlot);
+        return new PackMenu(id, playerInv, boundSlot, PackItem.tierOf(playerInv.getItem(boundSlot)));
     }
 
-    public static PackMenu client(int id, Inventory playerInv, int boundSlot) {
-        return new PackMenu(id, playerInv, boundSlot);
+    public static PackMenu client(int id, Inventory playerInv, int boundSlot, PackTier tier) {
+        return new PackMenu(id, playerInv, boundSlot, tier);
     }
 
-    private PackMenu(int id, Inventory playerInv, int boundSlot) {
+    private PackMenu(int id, Inventory playerInv, int boundSlot, PackTier tier) {
         super(ModMenus.PACK.get(), id);
         this.playerInv = playerInv;
         this.boundSlot = boundSlot;
-        this.tier = PackItem.tierOf(playerInv.getItem(boundSlot));
+        this.tier = tier;
         this.packInv = new PackInventory(this::liveStack, tier);
+        this.trinketInv = new PackTrinketInventory(this::liveStack, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         this.tabs = SortEngine.tabsFor(layout);
         this.activeTab = firstRealTab();
@@ -85,6 +93,14 @@ public class PackMenu extends AbstractContainerMenu {
         }
 
         addPlayerInventory(playerInv);
+
+        // Trinket sockets on the right rail (component-backed copy slots).
+        this.trinketStart = slots.size();
+        for (int i = 0; i < tier.trinketSlots(); i++) {
+            addSlot(new net.neoforged.neoforge.items.ItemHandlerCopySlot(
+                    trinketInv, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
+        }
+
         rebuildView();
     }
 
@@ -200,16 +216,29 @@ public class PackMenu extends AbstractContainerMenu {
         ItemStack inSlot = slot.getItem();
         ItemStack original = inSlot.copy();
 
+        int playerStart = VIEW_SLOTS;
+        int playerEnd = VIEW_SLOTS + PLAYER_SLOTS;
+
         if (index < VIEW_SLOTS) {
-            // pack -> player inventory
-            if (!moveItemStackTo(inSlot, VIEW_SLOTS, slots.size(), true)) return ItemStack.EMPTY;
+            // pack view -> player inventory (never into trinket sockets)
+            if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
+            slot.setChanged();
+        } else if (index >= trinketStart) {
+            // trinket socket -> player inventory
+            if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
             slot.setChanged();
         } else {
-            // player -> pack backing store, auto-routed into the flat inventory
-            ItemStack leftover = insertIntoPack(inSlot.copy());
-            int moved = inSlot.getCount() - leftover.getCount();
-            if (moved <= 0) return ItemStack.EMPTY;
-            inSlot.shrink(moved);
+            // player -> a trinket socket if it's a fitting, else into the pack (auto-routed)
+            if (inSlot.getItem() instanceof com.sappersquad.packwork.trinket.TrinketItem
+                    && trinketStart < slots.size()
+                    && moveItemStackTo(inSlot, trinketStart, slots.size(), false)) {
+                // installed into a socket
+            } else {
+                ItemStack leftover = insertIntoPack(inSlot.copy());
+                int moved = inSlot.getCount() - leftover.getCount();
+                if (moved <= 0) return ItemStack.EMPTY;
+                inSlot.shrink(moved);
+            }
         }
 
         if (inSlot.isEmpty()) {
@@ -222,7 +251,14 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     /** Insert into the whole backing store: merge into existing stacks first, then fill empties. */
-    private ItemStack insertIntoPack(ItemStack stack) {
+    ItemStack insertIntoPack(ItemStack stack) {
+        // Compass Rose: the ONLY void path, opt-in. If this exact item is on the
+        // trinket's discard list, it never enters the pack.
+        ItemStack pack = liveStack();
+        if (com.sappersquad.packwork.trinket.TrinketAccess.has(pack, com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE)
+                && layout.voids(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()))) {
+            return ItemStack.EMPTY;
+        }
         ItemStack remaining = stack;
         for (int i = 0; i < packInv.getSlots() && !remaining.isEmpty(); i++) {
             if (!packInv.getStackInSlot(i).isEmpty()) {
@@ -241,6 +277,15 @@ public class PackMenu extends AbstractContainerMenu {
 
     public List<TabView> tabs() {
         return tabs;
+    }
+
+    /** Number of trinket sockets this pack shows (0 for Canvas). */
+    public int trinketSlotCount() {
+        return tier.trinketSlots();
+    }
+
+    public boolean hasTrinket(com.sappersquad.packwork.trinket.TrinketType type) {
+        return com.sappersquad.packwork.trinket.TrinketAccess.has(liveStack(), type);
     }
 
     public String activeTab() {
@@ -290,7 +335,19 @@ public class PackMenu extends AbstractContainerMenu {
             case SET_TAB_ICON -> applyTabIcon(s1, s2);
             case PIN_ITEM -> applyPin(s1, s2);
             case UNPIN_ITEM -> applyUnpin(s2);
+            case VOID_TOGGLE -> applyVoidToggle(s2);
         }
+    }
+
+    /** Add/remove an item from the Compass Rose discard list. */
+    public void applyVoidToggle(String itemId) {
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+        if (r == null) return;
+        PackLayout cur = currentLayout();
+        List<net.minecraft.resources.ResourceLocation> voids = new ArrayList<>(cur.voidList());
+        if (voids.contains(r)) voids.remove(r);
+        else voids.add(r);
+        saveLayout(cur.withVoidList(voids));
     }
 
     public void applySelectTab(String id) {
@@ -342,7 +399,7 @@ public class PackMenu extends AbstractContainerMenu {
         customs.add(def);
         List<String> order = ensureOrder(cur);
         order.add(id);
-        saveLayout(new PackLayout(order, customs, cur.pins()));
+        saveLayout(new PackLayout(order, customs, cur.pins(), cur.voidList()));
         this.activeTab = id;
         this.flatten = false;
         rebuildView();
@@ -357,7 +414,7 @@ public class PackMenu extends AbstractContainerMenu {
         order.remove(id);
         List<PackLayout.Pin> pins = new ArrayList<>();
         for (var p : cur.pins()) if (!p.tabId().equals(id)) pins.add(p);
-        saveLayout(new PackLayout(order, customs, pins));
+        saveLayout(new PackLayout(order, customs, pins, cur.voidList()));
         if (activeTab.equals(id)) activeTab = firstRealTab();
         rebuildView();
     }
