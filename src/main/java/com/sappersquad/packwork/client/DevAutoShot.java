@@ -74,8 +74,8 @@ public final class DevAutoShot {
                 }
             }
             case SHOOT_1 -> {
-                grab(mc, "packwork_food");
-                switchTab(mc, "auto:ores");
+                grab(mc, "packwork_tabs");       // default: Food tab active, rail visible
+                switchTab(mc, "auto:combat");
                 phase = Phase.SWITCH;
                 wait = 0;
             }
@@ -83,16 +83,16 @@ public final class DevAutoShot {
                 if (++wait > 6) { phase = Phase.SHOOT_2; }
             }
             case SHOOT_2 -> {
-                grab(mc, "packwork_ores");
-                toggleFlatten(mc);
+                grab(mc, "packwork_combat");      // a different compartment
+                newTab(mc);                        // make a custom tab, selects it
                 phase = Phase.FLATTEN;
                 wait = 0;
             }
             case FLATTEN -> {
-                if (++wait > 6) { phase = Phase.SHOOT_3; }
+                if (++wait > 8) { phase = Phase.SHOOT_3; }
             }
             case SHOOT_3 -> {
-                grab(mc, "packwork_flatten");
+                grab(mc, "packwork_newtab");       // rail now shows the new leather tab
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
@@ -136,13 +136,19 @@ public final class DevAutoShot {
 
     private static void switchTab(Minecraft mc, String tab) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
-            menu.applySelectTab(tab);
+            PackClientActions.selectTab(menu, tab);
         }
     }
 
     private static void toggleFlatten(Minecraft mc) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
-            menu.applyFlatten(true);
+            PackClientActions.toggleFlatten(menu);
+        }
+    }
+
+    private static void newTab(Minecraft mc) {
+        if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
+            PackClientActions.newTab(menu);
         }
     }
 

@@ -50,7 +50,7 @@ public class PackMenu extends AbstractContainerMenu {
     // View state (menu-only; never persisted on the item to avoid churn).
     private String activeTab;
     private String search = "";
-    private boolean flatten = true; // Phase 0 default: one grid. Phase 1 flips this off.
+    private boolean flatten = false; // tabs are the default experience; flatten is opt-in
     private int page = 0;
     private int pageCount = 1;
 
