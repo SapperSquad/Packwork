@@ -1,0 +1,2 @@
+{ "type": "packwork:pack_upgrade", "from": "leather", "to": "studded",
+  "material": { "item": "minecraft:iron_ingot" }, "count": 4 }

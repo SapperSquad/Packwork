@@ -127,7 +127,8 @@ public final class DevAutoShot {
                     ? null : server.getPlayerList().getPlayers().get(0);
             if (sp == null) return;
 
-            ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+            // a Reinforced pack (3 trinket sockets) so the right rail is on show
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.REINFORCED).get());
             IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
@@ -145,6 +146,14 @@ public final class DevAutoShot {
                     new ItemStack(Items.STICK, 20), new ItemStack(Items.STRING, 14),
             };
             for (int i = 0; i < spread.length; i++) h.insertItem(i, spread[i], false);
+
+            // fit two trinkets so the right rail shows a filled socket + a slot for the Compass Rose
+            var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.REINFORCED);
+            sockets.insertItem(0, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
+            sockets.insertItem(1, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.BOTTOMLESS).get()), false);
 
             sp.getInventory().items.set(0, pack);
             sp.getInventory().selected = 0;

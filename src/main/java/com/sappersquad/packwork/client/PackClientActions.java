@@ -72,6 +72,10 @@ public final class PackClientActions {
         send(menu, PackAction.UNPIN_ITEM, 0, "", itemId);
     }
 
+    public static void voidToggle(PackMenu menu, String itemId) {
+        send(menu, PackAction.VOID_TOGGLE, 0, "", itemId);
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

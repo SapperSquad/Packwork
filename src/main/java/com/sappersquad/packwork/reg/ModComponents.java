@@ -26,9 +26,15 @@ public class ModComponents {
                     .persistent(ItemContainerContents.CODEC)
                     .networkSynchronized(ItemContainerContents.STREAM_CODEC));
 
-    /** Custom tabs, manual pins, and per-pack view settings. */
+    /** Custom tabs, manual pins, the void-filter list, and per-pack view settings. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<PackLayout>> PACK_LAYOUT =
             COMPONENTS.registerComponentType("pack_layout", builder -> builder
                     .persistent(PackLayout.CODEC)
                     .networkSynchronized(PackLayout.STREAM_CODEC));
+
+    /** The trinket fittings slotted into the pack (a tiny item container). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> PACK_TRINKETS =
+            COMPONENTS.registerComponentType("pack_trinkets", builder -> builder
+                    .persistent(ItemContainerContents.CODEC)
+                    .networkSynchronized(ItemContainerContents.STREAM_CODEC));
 }

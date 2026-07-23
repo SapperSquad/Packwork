@@ -1,0 +1,4 @@
+{ "type": "minecraft:crafting_shaped", "category": "equipment",
+  "pattern": ["IHI", "LLL"],
+  "key": { "I": { "item": "minecraft:iron_ingot" }, "H": { "item": "minecraft:anvil" }, "L": { "item": "minecraft:leather" } },
+  "result": { "id": "packwork:repair_kit", "count": 1 } }

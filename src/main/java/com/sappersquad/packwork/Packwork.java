@@ -33,6 +33,7 @@ public class Packwork {
         ModItems.ITEMS.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
+        com.sappersquad.packwork.reg.ModRecipes.SERIALIZERS.register(modEventBus);
 
         modEventBus.addListener(PackworkCapabilities::registerCapabilities);
         modEventBus.addListener(PackworkNetwork::register);

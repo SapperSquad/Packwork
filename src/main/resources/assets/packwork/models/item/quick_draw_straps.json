@@ -1,0 +1,4 @@
+{
+  "parent": "item/generated",
+  "textures": { "layer0": "packwork:item/quick_draw_straps" }
+}
