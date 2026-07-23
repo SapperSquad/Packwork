@@ -33,7 +33,9 @@ public enum PackAction {
     /** s2 = item id to unpin. */
     UNPIN_ITEM,
     /** s2 = item id to toggle on the Compass Rose void list. */
-    VOID_TOGGLE;
+    VOID_TOGGLE,
+    /** fill/drain the Waterskin tank with the item on the cursor. */
+    FLUID_INTERACT;
 
     private static final PackAction[] VALUES = values();
 

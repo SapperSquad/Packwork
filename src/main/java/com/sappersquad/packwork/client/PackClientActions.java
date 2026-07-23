@@ -76,6 +76,10 @@ public final class PackClientActions {
         send(menu, PackAction.VOID_TOGGLE, 0, "", itemId);
     }
 
+    public static void fluidInteract(PackMenu menu) {
+        send(menu, PackAction.FLUID_INTERACT, 0, "", "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

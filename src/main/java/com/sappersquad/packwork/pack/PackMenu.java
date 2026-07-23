@@ -336,7 +336,42 @@ public class PackMenu extends AbstractContainerMenu {
             case PIN_ITEM -> applyPin(s1, s2);
             case UNPIN_ITEM -> applyUnpin(s2);
             case VOID_TOGGLE -> applyVoidToggle(s2);
+            case FLUID_INTERACT -> applyFluidInteract();
         }
+    }
+
+    /** Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.). */
+    public void applyFluidInteract() {
+        if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;
+        ItemStack carried = getCarried();
+        if (carried.isEmpty()) return;
+        ItemStack pack = liveStack();
+        PackFluidHandler tank = new PackFluidHandler(pack, PackFluidHandler.capacityFor(pack));
+
+        // first try to empty a filled container INTO the tank, else fill an empty one FROM it
+        var emptied = net.neoforged.neoforge.fluids.FluidUtil.tryEmptyContainer(
+                carried, tank, Integer.MAX_VALUE, null, true);
+        if (emptied.isSuccess()) {
+            setCarried(emptied.getResult());
+            rebuildView();
+            return;
+        }
+        var filled = net.neoforged.neoforge.fluids.FluidUtil.tryFillContainer(
+                carried, tank, Integer.MAX_VALUE, null, true);
+        if (filled.isSuccess()) {
+            setCarried(filled.getResult());
+            rebuildView();
+        }
+    }
+
+    /** The fluid currently in the Waterskin tank (empty if none / no rack). */
+    public net.neoforged.neoforge.fluids.FluidStack fluidStack() {
+        return liveStack().getOrDefault(ModComponents.PACK_FLUID.get(),
+                net.neoforged.neoforge.fluids.SimpleFluidContent.EMPTY).copy();
+    }
+
+    public int fluidCapacity() {
+        return PackFluidHandler.capacityFor(liveStack());
     }
 
     /** Add/remove an item from the Compass Rose discard list. */

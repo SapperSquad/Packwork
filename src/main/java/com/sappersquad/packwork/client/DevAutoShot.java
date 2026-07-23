@@ -153,7 +153,15 @@ public final class DevAutoShot {
             sockets.insertItem(0, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
             sockets.insertItem(1, new ItemStack(ModItems.trinket(
-                    com.sappersquad.packwork.trinket.TrinketType.BOTTOMLESS).get()), false);
+                    com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+
+            // half-fill the waterskin so the gauge shows a fluid level
+            var tank = new com.sappersquad.packwork.pack.PackFluidHandler(
+                    pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
+            tank.fill(new net.neoforged.neoforge.fluids.FluidStack(
+                            net.minecraft.world.level.material.Fluids.WATER,
+                            com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) / 2),
+                    net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
 
             sp.getInventory().items.set(0, pack);
             sp.getInventory().selected = 0;

@@ -236,6 +236,31 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /** The fluid tank is trinket-gated, respects capacity, and drains back exactly. */
+    @GameTest(template = "empty")
+    public static void waterskinTankGatedAndConserves(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+        // no Waterskin yet -> no fluid capability
+        helper.assertTrue(pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM) == null,
+                "a pack without a Waterskin exposes no tank");
+
+        new PackTrinketInventory(() -> pack, PackTier.LEATHER).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+        var tank = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM);
+        helper.assertTrue(tank != null, "a Waterskin fits a tank");
+
+        int cap = com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack);
+        var water = new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, cap + 5000);
+        int filled = tank.fill(water, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(filled == cap, "fill is clamped to capacity, got " + filled);
+
+        var drained = tank.drain(Integer.MAX_VALUE, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        helper.assertTrue(drained.getAmount() == cap && drained.is(net.minecraft.world.level.material.Fluids.WATER),
+                "drains back exactly what was stored");
+        helper.assertTrue(tank.getFluidInTank(0).isEmpty(), "tank empty after drain");
+        helper.succeed();
+    }
+
     private static void assertRoute(GameTestHelper helper, List<TabView> tabs, PackLayout layout,
                                     net.minecraft.world.item.Item item, String expectedTab) {
         String got = SortEngine.route(new ItemStack(item), tabs, layout);

@@ -37,4 +37,10 @@ public class ModComponents {
             COMPONENTS.registerComponentType("pack_trinkets", builder -> builder
                     .persistent(ItemContainerContents.CODEC)
                     .networkSynchronized(ItemContainerContents.STREAM_CODEC));
+
+    /** The Waterskin Rack's fluid tank (one fluid at a time). Gated by the trinket. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<net.neoforged.neoforge.fluids.SimpleFluidContent>> PACK_FLUID =
+            COMPONENTS.registerComponentType("pack_fluid", builder -> builder
+                    .persistent(net.neoforged.neoforge.fluids.SimpleFluidContent.CODEC)
+                    .networkSynchronized(net.neoforged.neoforge.fluids.SimpleFluidContent.STREAM_CODEC));
 }
