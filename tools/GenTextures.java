@@ -36,6 +36,7 @@ public class GenTextures {
         new File(base + "/item").mkdirs();
 
         genGui(base + "/gui/pack.png");
+        genTab(base + "/gui/tab.png");
 
         // per-tier pack sprites, tinted brass fittings on leather
         genPack(base + "/item/canvas_pack.png", 0xFFCFC09A, 0xFFB4A47C, false);
@@ -93,6 +94,38 @@ public class GenTextures {
         for (int c = 0; c < 9; c++)
             slot(img, 8 + c * 18, 216);
 
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /**
+     * A leather category tab, 26x24. Left edge is a brass binding; the leather body
+     * carries a grain and a stitched border; the right edge is dark so it tucks under
+     * the panel frame. The screen draws the item icon on top and dims inactive tabs.
+     */
+    static void genTab(String path) throws Exception {
+        int tw = 26, th = 24;
+        BufferedImage img = new BufferedImage(tw, th, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(5);
+        for (int y = 0; y < th; y++) {
+            for (int x = 0; x < tw; x++) {
+                int c;
+                if (x >= tw - 2) {
+                    c = LEATHER_EDGE; // right edge tucks under the panel
+                } else if (x < 3) {
+                    c = x == 0 ? BRASS_LO : (x == 1 ? BRASS : BRASS_HI); // brass binding
+                } else {
+                    float t = y / (float) th;
+                    c = lerp(LEATHER_HI, LEATHER_LO, t);
+                    int n = (int) ((valueNoise(x, y, rnd, 2) - 0.5f) * 14);
+                    c = shade(c, n);
+                }
+                img.setRGB(x, y, c);
+            }
+        }
+        // rounded-ish corners on the left (bite out a couple pixels)
+        img.setRGB(0, 0, 0); img.setRGB(0, th - 1, 0);
+        // stitched top & bottom on the leather body
+        for (int x = 5; x < tw - 3; x += 3) { img.setRGB(x, 2, STITCH); img.setRGB(x, th - 3, STITCH); }
         ImageIO.write(img, "PNG", new File(path));
     }
 

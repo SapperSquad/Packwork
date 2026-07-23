@@ -1,0 +1,81 @@
+package com.sappersquad.packwork.client;
+
+import com.sappersquad.packwork.net.PackAction;
+import com.sappersquad.packwork.net.PackActionPayload;
+import com.sappersquad.packwork.pack.PackMenu;
+import net.minecraft.client.Minecraft;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+/**
+ * Client-side glue for the pack GUI: apply every action to the open menu
+ * immediately (so the rail feels instant) and send it to the server (the
+ * authority) in the same breath. Both sides run the same apply logic, so their
+ * views agree.
+ */
+public final class PackClientActions {
+
+    public static void send(PackMenu menu, PackAction action, int arg, String s1, String s2) {
+        // optimistic local apply for responsiveness
+        menu.handleAction(action.ordinal(), arg, s1 == null ? "" : s1, s2 == null ? "" : s2);
+        PacketDistributor.sendToServer(PackActionPayload.of(action, arg, s1, s2));
+    }
+
+    public static void selectTab(PackMenu menu, String tabId) {
+        send(menu, PackAction.SELECT_TAB, 0, tabId, "");
+    }
+
+    public static void setSearch(PackMenu menu, String text) {
+        send(menu, PackAction.SET_SEARCH, 0, text, "");
+    }
+
+    public static void toggleFlatten(PackMenu menu) {
+        send(menu, PackAction.TOGGLE_FLATTEN, 0, "", "");
+    }
+
+    public static void page(PackMenu menu, int delta) {
+        send(menu, PackAction.PAGE, delta, "", "");
+    }
+
+    public static void tidyUp(PackMenu menu) {
+        send(menu, PackAction.TIDY_UP, 0, "", "");
+    }
+
+    public static void newTab(PackMenu menu) {
+        send(menu, PackAction.CREATE_TAB, 0, "", "");
+    }
+
+    public static void deleteTab(PackMenu menu, String tabId) {
+        send(menu, PackAction.DELETE_TAB, 0, tabId, "");
+    }
+
+    public static void renameTab(PackMenu menu, String tabId, String name) {
+        send(menu, PackAction.RENAME_TAB, 0, tabId, name);
+    }
+
+    public static void moveTab(PackMenu menu, String tabId, int delta) {
+        send(menu, PackAction.MOVE_TAB, delta, tabId, "");
+    }
+
+    public static void tabColor(PackMenu menu, String tabId, int argb) {
+        send(menu, PackAction.SET_TAB_COLOR, argb, tabId, "");
+    }
+
+    public static void tabIcon(PackMenu menu, String tabId, String itemId) {
+        send(menu, PackAction.SET_TAB_ICON, 0, tabId, itemId);
+    }
+
+    public static void pin(PackMenu menu, String tabId, String itemId) {
+        send(menu, PackAction.PIN_ITEM, 0, tabId, itemId);
+    }
+
+    public static void unpin(PackMenu menu, String itemId) {
+        send(menu, PackAction.UNPIN_ITEM, 0, "", itemId);
+    }
+
+    public static PackMenu openMenu() {
+        return Minecraft.getInstance().player != null
+                && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;
+    }
+
+    private PackClientActions() {}
+}
