@@ -26,7 +26,8 @@ public enum TrinketType {
     QUICK_DRAW("quick_draw_straps", Kind.PASSIVE),
     QUILL_LEDGER("quill_and_ledger", Kind.PASSIVE),
     // resource-store fittings (Phase 3)
-    WATERSKIN("waterskin_rack", Kind.STORE);
+    WATERSKIN("waterskin_rack", Kind.STORE),
+    SOUL_VIAL("soul_vial", Kind.STORE);
 
     public enum Kind { PASSIVE, TICK, STORE }
 

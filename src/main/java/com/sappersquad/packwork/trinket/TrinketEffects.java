@@ -50,6 +50,27 @@ public final class TrinketEffects {
             if (installed.contains(TrinketType.LODESTONE) && time % 4 == 0) magnet(sp, packStack, pack);
             if (installed.contains(TrinketType.RESTOCK) && time % 10 == 0) restock(sp, pack);
             if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
+            if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
+        }
+    }
+
+    /** Soul Vial: spend stored XP to mend Mending-enchanted gear you're wearing/holding. */
+    private static void autoMend(ServerPlayer sp, ItemStack packStack) {
+        if (com.sappersquad.packwork.pack.PackXpStore.stored(packStack) <= 0) return;
+        var mending = sp.level().registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
+                .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.MENDING);
+        List<ItemStack> gear = new java.util.ArrayList<>(List.of(sp.getMainHandItem(), sp.getOffhandItem()));
+        sp.getArmorSlots().forEach(gear::add);
+        for (ItemStack g : gear) {
+            if (g.isEmpty() || !g.isDamageableItem() || !g.isDamaged()) continue;
+            if (net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(mending, g) <= 0) continue;
+            int wantPoints = Math.min(10, (g.getDamageValue() + 1) / 2); // up to 20 durability/tick
+            int spent = com.sappersquad.packwork.pack.PackXpStore.spend(packStack, wantPoints);
+            if (spent > 0) {
+                g.setDamageValue(Math.max(0, g.getDamageValue() - spent * 2));
+                return;
+            }
         }
     }
 

@@ -154,6 +154,11 @@ public final class DevAutoShot {
                     com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
             sockets.insertItem(1, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+            sockets.insertItem(2, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL).get()), false);
+            // stash some XP so the soul-vial gauge shows a level
+            pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_XP.get(),
+                    com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack) * 2 / 3);
 
             // half-fill the waterskin so the gauge shows a fluid level
             var tank = new com.sappersquad.packwork.pack.PackFluidHandler(

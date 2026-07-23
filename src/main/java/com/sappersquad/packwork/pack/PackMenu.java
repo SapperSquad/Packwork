@@ -337,7 +337,31 @@ public class PackMenu extends AbstractContainerMenu {
             case UNPIN_ITEM -> applyUnpin(s2);
             case VOID_TOGGLE -> applyVoidToggle(s2);
             case FLUID_INTERACT -> applyFluidInteract();
+            case XP_SIPHON -> applyXpSiphon();
+            case XP_POUR -> applyXpPour();
         }
+    }
+
+    public void applyXpSiphon() {
+        if (hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
+            PackXpStore.siphon(liveStack(), playerInv.player);
+            rebuildView();
+        }
+    }
+
+    public void applyXpPour() {
+        if (hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
+            PackXpStore.pour(liveStack(), playerInv.player);
+            rebuildView();
+        }
+    }
+
+    public int xpStored() {
+        return PackXpStore.stored(liveStack());
+    }
+
+    public int xpCapacity() {
+        return PackXpStore.capacityFor(liveStack());
     }
 
     /** Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.). */

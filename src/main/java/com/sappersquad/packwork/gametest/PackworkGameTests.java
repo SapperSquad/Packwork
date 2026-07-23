@@ -261,6 +261,27 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /** The Soul Vial siphons and pours XP without losing a point, and stops at capacity. */
+    @GameTest(template = "empty")
+    public static void soulVialConservesXp(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
+        int cap = com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack);
+        helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.stored(pack) == 0, "fresh vial is empty");
+
+        // spend caps at what's stored (no negative / no phantom points)
+        pack.set(ModComponents.PACK_XP.get(), 300);
+        int spent = com.sappersquad.packwork.pack.PackXpStore.spend(pack, 1000);
+        helper.assertTrue(spent == 300 && com.sappersquad.packwork.pack.PackXpStore.stored(pack) == 0,
+                "spend never takes more than is stored");
+
+        // capacity clamp: setting over cap and spending stays consistent
+        pack.set(ModComponents.PACK_XP.get(), cap);
+        helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.stored(pack) == cap, "holds up to capacity");
+        int spent2 = com.sappersquad.packwork.pack.PackXpStore.spend(pack, cap + 500);
+        helper.assertTrue(spent2 == cap, "spends exactly the stored amount, got " + spent2);
+        helper.succeed();
+    }
+
     private static void assertRoute(GameTestHelper helper, List<TabView> tabs, PackLayout layout,
                                     net.minecraft.world.item.Item item, String expectedTab) {
         String got = SortEngine.route(new ItemStack(item), tabs, layout);

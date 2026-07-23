@@ -80,6 +80,14 @@ public final class PackClientActions {
         send(menu, PackAction.FLUID_INTERACT, 0, "", "");
     }
 
+    public static void xpSiphon(PackMenu menu) {
+        send(menu, PackAction.XP_SIPHON, 0, "", "");
+    }
+
+    public static void xpPour(PackMenu menu) {
+        send(menu, PackAction.XP_POUR, 0, "", "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

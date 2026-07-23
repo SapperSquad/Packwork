@@ -46,6 +46,7 @@ and trinkets straight up — a craft never eats what's inside.
 | **Bottomless Lining** | Adds another run of slots (and never voids them if you pull it). |
 | **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
 | **Waterskin Rack** | Fits a fluid tank: a glass gauge you fill with a bucket or flask. |
+| **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
 
 *(Feather Charm, Quick-Draw Straps, and Quill & Ledger are craftable and slot in, but
 their effects are still on the bench — see the changelog.)*
@@ -78,10 +79,10 @@ Textures are generated procedurally — `java tools/GenTextures.java` after edit
 
 ## On the roadmap
 
-The other resource stores are coming, each a physical fitting, never a tank-and-cable
-panel: a **Soul Vial** for XP, a **Charge Crystal** for arcane charge (bridging
-Forgework Flux 1:1), and an **Alchemist's Flask Harness** for bottled vapors (Mekanism
-chemicals). Plus Curios back-slot wear, an in-house Outfitter's Handbook, and JEI.
+Two more resource stores are coming, each a physical fitting, never a tank-and-cable
+panel: a **Charge Crystal** for arcane charge (bridging Forgework Flux 1:1) and an
+**Alchemist's Flask Harness** for bottled vapors (Mekanism chemicals). Plus Curios
+back-slot wear, an in-house Outfitter's Handbook, and JEI.
 
 ---
 

@@ -61,6 +61,7 @@ full pack carries everything inside straight up. Then slot brass **trinkets** in
 | Bottomless Lining | more slots, never voided |
 | Compass Rose | the only way a pack throws anything out — and it's opt-in |
 | Waterskin Rack | a real fluid tank, shown as a glass gauge |
+| Soul Vial | stores your XP and auto-mends your gear from it |
 
 ## Needs nothing, plays with everything
 
@@ -68,9 +69,8 @@ Zero hard dependencies. The pack speaks NeoForge's own item and fluid capabiliti
 hoppers and pipes from any mod feed a placed pack with no special support. Pantrywork
 food tags fold in when it's installed, and are ignored when it isn't.
 
-*More stores are coming — a Soul Vial for XP, a Charge Crystal for arcane charge, an
-Alchemist's Flask Harness for bottled vapors — each a fitting you can see, never a
-tank-and-cable panel.*
+*More stores are coming — a Charge Crystal for arcane charge and an Alchemist's Flask
+Harness for bottled vapors — each a fitting you can see, never a tank-and-cable panel.*
 
 ---
 
@@ -85,8 +85,8 @@ tank-and-cable panel.*
 | `card_trinkets.png` (TODO) | The six working fittings. |
 
 **Art carrying version-specific claims** (trinket counts, resource-store list, MC
-version): keep it in step with the changelog. Right now only **fluids** ship among the
-resource stores — don't let a banner claim four.
+version): keep it in step with the changelog. Right now **fluids and XP** ship among the
+resource stores (energy and gas don't yet) — don't let a banner claim four.
 
 ---
 

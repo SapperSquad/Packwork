@@ -52,7 +52,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private int tabPitch = 25;
     private final List<int[]> tabRects = new ArrayList<>(); // x,y,w,h per rendered tab (screen coords)
-    private int[] gaugeRect = null; // x,y,w,h of the fluid gauge, or null when there's no rack
+    private int[] gaugeRect = null;   // fluid gauge, or null when there's no rack
+    private int[] xpGaugeRect = null; // soul-vial gauge, or null when there's no vial
 
     public PackScreen(PackMenu menu, Inventory playerInv, Component title) {
         super(menu, playerInv, title);
@@ -167,7 +168,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (renaming) renameBox.render(g, mouseX, mouseY, partialTick);
         drawButtons(g, mouseX, mouseY);
         drawPageNav(g, mouseX, mouseY);
-        drawFluidGauge(g);
+        drawStoreGauges(g);
         drawHoverTooltips(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
     }
@@ -200,40 +201,63 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(newBtnX() + 3, btnY() + 5, newBtnX() + 9, btnY() + 7, gl);
     }
 
-    /** A glass waterskin gauge below the trinket sockets, shown only when a Rack is fitted. */
-    private void drawFluidGauge(GuiGraphics g) {
+    /** Glass store gauges under the trinket sockets: a waterskin, then a soul vial. */
+    private void drawStoreGauges(GuiGraphics g) {
         gaugeRect = null;
-        if (!menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;
+        xpGaugeRect = null;
         int n = menu.trinketSlotCount();
         int x = leftPos + PackMenu.TRINKET_X - 1;
         int y = topPos + PackMenu.TRINKET_Y0 + Math.max(n, 1) * PackMenu.TRINKET_PITCH + 4;
         int w = 16, h = 48;
-        gaugeRect = new int[]{x, y, w, h};
 
-        // brass frame + dark glass recess
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) {
+            gaugeRect = new int[]{x, y, w, h};
+            drawFluidGauge(g, x, y, w, h);
+            y += h + 6;
+        }
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
+            xpGaugeRect = new int[]{x, y, w, h};
+            drawXpGauge(g, x, y, w, h);
+        }
+    }
+
+    private void gaugeFrame(GuiGraphics g, int x, int y, int w, int h, int glass) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF3E2A18);
         g.renderOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
-        g.fill(x, y, x + w, y + h, 0xFF20303A);
+        g.fill(x, y, x + w, y + h, glass);
+    }
 
+    private void drawFluidGauge(GuiGraphics g, int x, int y, int w, int h) {
+        gaugeFrame(g, x, y, w, h, 0xFF20303A);
         FluidStack fs = menu.fluidStack();
         int cap = menu.fluidCapacity();
         if (!fs.isEmpty() && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
             IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fs.getFluid());
-            ResourceLocation still = ext.getStillTexture(fs);
             TextureAtlasSprite sprite = Minecraft.getInstance()
-                    .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(still);
+                    .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ext.getStillTexture(fs));
             int tint = ext.getTintColor(fs);
-            float r = ((tint >> 16) & 0xFF) / 255f, gr = ((tint >> 8) & 0xFF) / 255f, b = (tint & 0xFF) / 255f;
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(r, gr, b, 1f);
-            // tile the fluid sprite up from the bottom
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
+                    ((tint >> 16) & 0xFF) / 255f, ((tint >> 8) & 0xFF) / 255f, (tint & 0xFF) / 255f, 1f);
             for (int yy = 0; yy < filled; yy += 16) {
                 int hh = Math.min(16, filled - yy);
                 g.blit(x, y + h - yy - hh, 0, w, hh, sprite);
             }
             com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
-        // glassy highlight
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
+    }
+
+    private void drawXpGauge(GuiGraphics g, int x, int y, int w, int h) {
+        gaugeFrame(g, x, y, w, h, 0xFF1C241A);
+        int stored = menu.xpStored();
+        int cap = menu.xpCapacity();
+        if (stored > 0 && cap > 0) {
+            int filled = Math.max(1, (int) ((long) h * Math.min(stored, cap) / cap));
+            // experience green, with a lighter top edge
+            g.fill(x, y + h - filled, x + w, y + h, 0xFF74C043);
+            g.fill(x, y + h - filled, x + w, y + h - filled + 1, 0xFFB6F27A);
+        }
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
@@ -290,6 +314,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }
+        if (xpGaugeRect != null && inRect(mouseX, mouseY, xpGaugeRect[0], xpGaugeRect[1], xpGaugeRect[2], xpGaugeRect[3])) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.soul_vial"));
+            lines.add(Component.literal(menu.xpStored() + " / " + menu.xpCapacity() + " XP")
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
+            lines.add(Component.translatable("packwork.ui.vial_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            return;
+        }
         if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
             g.renderTooltip(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN))
@@ -327,6 +360,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             }
             if (gaugeRect != null && inRect((int) mx, (int) my, gaugeRect[0], gaugeRect[1], gaugeRect[2], gaugeRect[3])) {
                 PackClientActions.fluidInteract(menu); // fill/drain with the item on the cursor
+                return true;
+            }
+            if (xpGaugeRect != null && inRect((int) mx, (int) my, xpGaugeRect[0], xpGaugeRect[1], xpGaugeRect[2], xpGaugeRect[3])) {
+                if (hasShiftDown()) PackClientActions.xpPour(menu);
+                else PackClientActions.xpSiphon(menu);
                 return true;
             }
         }
