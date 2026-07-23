@@ -29,5 +29,10 @@
   "packwork.ui.rename_tab": "Rename",
   "packwork.ui.page": "Page %s / %s",
   "packwork.ui.pin_hint": "Pin an item here so it always lands in this compartment.",
-  "packwork.ui.loose_hint": "Anything no compartment claims ends up here, so nothing is ever lost."
+  "packwork.ui.loose_hint": "Anything no rule claims ends up here, so nothing is ever lost.",
+  "packwork.ui.tab_pin_hint": "Hover an item, press P to pin it here.",
+  "packwork.ui.tab_edit_hint": "Right-click: remove - Middle-click: dye - R: rename - I: stamp icon - [ ]: reorder",
+  "packwork.ui.open_key": "Open pack",
+  "key.packwork.open": "Open Pack",
+  "key.categories.packwork": "Packwork"
 }
