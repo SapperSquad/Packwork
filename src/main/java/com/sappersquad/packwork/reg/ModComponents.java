@@ -43,4 +43,10 @@ public class ModComponents {
             COMPONENTS.registerComponentType("pack_fluid", builder -> builder
                     .persistent(net.neoforged.neoforge.fluids.SimpleFluidContent.CODEC)
                     .networkSynchronized(net.neoforged.neoforge.fluids.SimpleFluidContent.STREAM_CODEC));
+
+    /** The Soul Vial's stored experience, in points. Gated by the trinket. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PACK_XP =
+            COMPONENTS.registerComponentType("pack_xp", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
 }

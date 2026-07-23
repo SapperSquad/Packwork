@@ -25,6 +25,9 @@ framework, and the first resource store.
 - **Fluids store** — the Waterskin Rack fits a tier-scaled fluid tank shown as a glass
   gauge; fill or drain it with a bucket or flask. Exposes NeoForge's fluid capability only
   when the Rack is fitted.
+- **XP store** — the Soul Vial stores experience: click the green gauge to siphon your XP
+  in, Shift-click to pour it back, and it auto-mends your Mending-enchanted gear from the
+  reservoir.
 - **Standard capabilities** — an item handler always, a fluid handler when a Rack is
   fitted, so any mod's automation works against a placed pack. Zero hard dependencies.
 - **Open Pack keybind** (default B) plus native right-click use. Pantrywork food tags fold
@@ -33,7 +36,7 @@ framework, and the first resource store.
 ### Known / on the bench
 - **Feather Charm, Quick-Draw Straps, and Quill & Ledger** are craftable and slot in, but
   their effects aren't wired yet. Feather is waiting on a pack-weight decision.
-- **Resource stores:** only fluids so far — XP, energy, and gas are next.
+- **Resource stores:** fluids and XP ship; energy and gas are next.
 - **No Curios wear-slot** compat yet (native use + keybind cover carrying it); no in-game
   guide book or JEI integration yet.
 

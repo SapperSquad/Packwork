@@ -35,7 +35,11 @@ public enum PackAction {
     /** s2 = item id to toggle on the Compass Rose void list. */
     VOID_TOGGLE,
     /** fill/drain the Waterskin tank with the item on the cursor. */
-    FLUID_INTERACT;
+    FLUID_INTERACT,
+    /** siphon the player's XP into the Soul Vial. */
+    XP_SIPHON,
+    /** pour the Soul Vial back into the player. */
+    XP_POUR;
 
     private static final PackAction[] VALUES = values();
 

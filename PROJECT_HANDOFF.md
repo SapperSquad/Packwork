@@ -27,13 +27,15 @@ a hovered item). Feather / Quick-Draw / Quill&Ledger are registered + socketed b
 run server-side per `PlayerTickEvent`, throttled/bounded. Preserving tier-upgrade recipe
 (`packwork:pack_upgrade`) carries contents+trinkets+name up a tier so no craft eats a pack.
 
-**Phase 3 — fluids store, DONE & verified in-game.** Waterskin Rack trinket fits one
-fluid tank (`SimpleFluidContent` component, tier-scaled capacity). NeoForge
-`FluidHandler.ITEM` capability exposed **only when the Rack is fitted**. Glass-vial gauge
-under the sockets renders the fluid's own texture; click with a bucket/flask on the cursor
-to fill/drain (`FluidUtil`). **Still to do in Phase 3:** XP (Soul Vial), Energy (Charge
-Crystal + gated Forgework Flux bridge), Gas (Flask Harness + gated Mekanism). Follow the
-fluids store as the template: component + gated capability + trinket + gauge + gametest.
+**Phase 3 — fluids + XP stores, DONE & verified in-game.** Waterskin Rack fits one fluid
+tank (`SimpleFluidContent`, tier-scaled), exposing NeoForge `FluidHandler.ITEM` **only when
+fitted**; glass gauge renders the fluid's own texture, click with a bucket/flask on the
+cursor to fill/drain (`FluidUtil`). Soul Vial stores XP (`PackXpStore`, tier-scaled): click
+the green gauge to siphon, Shift-click to pour, and it auto-mends Mending gear from the
+reservoir. Both gauges stack on the right rail under the sockets. **Still to do in Phase 3:**
+Energy (Charge Crystal + gated Forgework Flux 1:1 bridge, use NeoForge `IEnergyStorage`) and
+Gas (Flask Harness + gated Mekanism chemical cap). Follow the fluids/XP stores as the
+template: component + (gated) capability + STORE trinket + gauge + gametest.
 
 **Still open:** Curios back-slot compat (needs the Curios API as a `compileOnly` dep + its
 maven repo — not in the local cache; native use + keybind already satisfy "wear it"). The
