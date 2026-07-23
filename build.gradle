@@ -52,6 +52,12 @@ runs {
         if (project.hasProperty('quickPlay')) {
             arguments.addAll '--quickPlaySingleplayer', project.property('quickPlay').toString()
         }
+
+        // Dev visual harness: ./gradlew runClient -Pautoshot boots a throwaway world,
+        // fills and opens a pack, and writes screenshots to run/client/screenshots.
+        if (project.hasProperty('autoshot')) {
+            systemProperty 'packwork.autoshot', '1'
+        }
     }
 
     server {

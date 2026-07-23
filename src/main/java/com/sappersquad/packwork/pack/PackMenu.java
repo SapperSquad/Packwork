@@ -40,7 +40,6 @@ public class PackMenu extends AbstractContainerMenu {
 
     private final Inventory playerInv;
     private final int boundSlot;
-    private final ItemStack packStack;
     private final PackTier tier;
     private final PackInventory packInv;
     private final List<PackViewSlot> viewSlots = new ArrayList<>();
@@ -69,10 +68,9 @@ public class PackMenu extends AbstractContainerMenu {
         super(ModMenus.PACK.get(), id);
         this.playerInv = playerInv;
         this.boundSlot = boundSlot;
-        this.packStack = playerInv.getItem(boundSlot);
-        this.tier = PackItem.tierOf(packStack);
-        this.packInv = new PackInventory(packStack, tier);
-        this.layout = packStack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        this.tier = PackItem.tierOf(playerInv.getItem(boundSlot));
+        this.packInv = new PackInventory(this::liveStack, tier);
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         this.tabs = SortEngine.tabsFor(layout);
         this.activeTab = firstRealTab();
 
@@ -131,8 +129,8 @@ public class PackMenu extends AbstractContainerMenu {
 
     /** Recompute which backing slots each grid cell shows. Runs identically on both sides. */
     public void rebuildView() {
-        // Re-read the durable layout from the (synced) stack so both sides stay current.
-        this.layout = packStack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        // Re-read the durable layout from the (synced) live stack so both sides stay current.
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         this.tabs = SortEngine.tabsFor(layout);
         List<Integer> order = new ArrayList<>();
         String q = search.toLowerCase(Locale.ROOT).trim();
@@ -423,8 +421,13 @@ public class PackMenu extends AbstractContainerMenu {
         if (changed) saveLayout(cur.withCustomTabs(customs));
     }
 
+    /** The pack as it currently sits in its bound slot - never a captured, possibly-stale copy. */
+    private ItemStack liveStack() {
+        return playerInv.getItem(boundSlot);
+    }
+
     private PackLayout currentLayout() {
-        return packStack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        return liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
     }
 
     private List<String> ensureOrder(PackLayout cur) {
@@ -435,14 +438,13 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     private void saveLayout(PackLayout newLayout) {
-        packStack.set(ModComponents.PACK_LAYOUT.get(), newLayout);
+        liveStack().set(ModComponents.PACK_LAYOUT.get(), newLayout);
         this.layout = newLayout;
         rebuildView();
     }
 
     @Override
     public boolean stillValid(Player player) {
-        ItemStack at = playerInv.getItem(boundSlot);
-        return at == packStack && at.getItem() instanceof PackItem;
+        return liveStack().getItem() instanceof PackItem;
     }
 }
