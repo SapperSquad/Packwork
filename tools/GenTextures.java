@@ -34,9 +34,16 @@ public class GenTextures {
         String base = "src/main/resources/assets/packwork/textures";
         new File(base + "/gui").mkdirs();
         new File(base + "/item").mkdirs();
+        new File(base + "/block").mkdirs();
 
         genGui(base + "/gui/pack.png");
         genTab(base + "/gui/tab.png");
+
+        // placed-pack block faces: a LIGHT leather base (tinted per tier by a block colour
+        // handler - multiply darkens, so the base is the lightest tier), and an untinted
+        // brass tile for the buckle + straps so brass stays brass on every tier.
+        genBlockLeather(base + "/block/pack_block.png");
+        genBlockBrass(base + "/block/pack_block_brass.png");
 
         // trinket fittings - a leather charm with a brass loop and a coloured emblem
         genTrinket(base + "/item/lodestone_charm.png", 0xFF6E5A8B, 0);
@@ -216,6 +223,48 @@ public class GenTextures {
             img.setRGB(4, 12, BRASS_HI); img.setRGB(11, 12, BRASS_HI);
             img.setRGB(4, 14, BRASS); img.setRGB(11, 14, BRASS);
         }
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    // ---------- placed-pack block faces ----------
+
+    /** A 16x16 LIGHT, fairly NEUTRAL leather tile - grain + a stitched seam. The base is kept
+     *  close to grey so the per-tier tint (multiply) controls the hue instead of a warm brown
+     *  base washing every tier the same colour. */
+    static void genBlockLeather(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(31);
+        int hi = 0xFFCDC6BA, lo = 0xFFB6B0A4; // light near-neutral leather so a tier tint reads
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                int c = lerp(hi, lo, y / 16f);
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 12) - 0.5f) * 18));
+                img.setRGB(x, y, c);
+            }
+        }
+        // a stitched flap seam a third of the way down
+        for (int x = 1; x < 15; x += 3) img.setRGB(x, 5, STITCH);
+        // darker leather edging
+        for (int i = 0; i < 16; i++) {
+            img.setRGB(0, i, shade(lo, -26)); img.setRGB(15, i, shade(lo, -26));
+            img.setRGB(i, 0, shade(lo, -26)); img.setRGB(i, 15, shade(lo, -26));
+        }
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A 16x16 brass tile for the buckle + straps (never tinted). */
+    static void genBlockBrass(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(37);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                int c = lerp(BRASS_HI, BRASS_LO, y / 16f);
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 15) - 0.5f) * 14));
+                img.setRGB(x, y, c);
+            }
+        }
+        // a couple of rivets
+        rivet(img, 4, 4); rivet(img, 11, 11);
         ImageIO.write(img, "PNG", new File(path));
     }
 

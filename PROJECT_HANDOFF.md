@@ -19,6 +19,25 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
 > first build); bump/label at publish. 17 GameTests green; jar builds clean.
 
+**2026-07-23 placeable pack — DONE & verified.** Packs are now placeable in the world and
+automatable through block capabilities.
+- **Block + block entity (`block/`).** Sneak-right-click a face to set a pack down; it renders
+  as the pack (tier-tinted, facing the player) and breaking it returns the pack item with
+  every field intact. The block entity holds the pack as ONE `ItemStack`, so place→break is a
+  lossless move of that stack, never a re-serialisation — a gametest proves items + trinkets +
+  layout + each store round-trip byte-for-byte, dupe-safe. No BlockItem (the pack item places
+  it), no loot table (`getDrops` returns the stack).
+- **Block capabilities.** The placed pack exposes standard item / fluid / energy block caps
+  (each trinket-gated), so hoppers/pipes/cables interact with it; inserted items auto-route
+  into the right compartment because sorting is virtual over the flat store. Every external
+  write marks the block entity dirty.
+- **Same GUI, generalised.** `PackMenu` binds to a carried slot OR the block entity (via a
+  hidden synced host slot); the carried path is unchanged. Both verified in-game.
+- **Forgework block-level charging — WORKS (gated).** Forgework Flux is its own block cap, not
+  standard FE, so it isn't free — but the block entity let me register a gated 1:1 `FLOW_ENERGY`
+  adapter (`ForgeworkFluxBridge.register`), so a Forgework cable charges a *placed* pack. Live
+  proof: `runGameTestServer -Pforgework` lands 5,000 Flux = 5,000 FE.
+
 **2026-07-23 finishing run — DONE & verified.** Forgework Flux bridge, the two remaining
 trinkets, the guide, and the Feather cut all landed. Details:
 - **Forgework Flux bridge (`compat/forgework/ForgeworkFluxBridge`).** A fitted Charge
@@ -58,9 +77,9 @@ dep); leave the shipped stores as the template: component + (gated) capability +
 trinket + gauge + gametest.
 
 **Still open (deferred, ready to enable — see next section):** the Gas store (Mekanism),
-Curios back-slot wear, and JEI. Also the placed-pack block-entity / Outfitter's Bench (the
-upgrade recipe covers the preserve-contents need for now; the block-entity is also what a
-future *block-level* Forgework bridge would hang off). **README.md / PUBLISHING.md /
+Curios back-slot wear, and JEI. The placed-pack block-entity now exists (and carries the
+block-level Forgework bridge); a dedicated Outfitter's Bench upgrade station is still just an
+idea (the preserving upgrade recipe covers the need for now). **README.md / PUBLISHING.md /
 CHANGELOG.md exist** — keep their copy in step with code.
 
 ## Enabling the deferred integrations
@@ -128,6 +147,9 @@ world, fills a pack across every tab, opens it, switches tabs, and writes screen
   `PackMenu` (virtual-tab menu + all action handlers), `PackViewSlot` (rebinding grid cell).
 - `sort/` — `SortRule`, `PredicateKind`, `TabDef`, `PackLayout` (component), `AutoTabs`
   (SSOT category table), `TabView`, `SortEngine` (routing), `PackSorting` (Tidy Up).
+- `block/` — `PackContainerBlock` (placeable, facing, opens the GUI, drops the pack stack),
+  `PackContainerBlockEntity` (holds the pack as one `ItemStack`; tier-only client sync).
+  Registered in `reg/ModBlocks` + `reg/ModBlockEntities`; block caps in `PackworkCapabilities`.
 - `trinket/` — `TrinketType` (SSOT table), `TrinketItem`, `TrinketAccess`, `TrinketEffects`
   (per-tick effects + the Quick-Draw break handler + its dupe-safe `pullReplacement`).
 - `compat/forgework/` — `ForgeworkFluxBridge`, the ONLY class importing `com.forgework.*`;

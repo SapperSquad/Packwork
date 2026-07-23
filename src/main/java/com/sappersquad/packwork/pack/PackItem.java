@@ -1,7 +1,10 @@
 package com.sappersquad.packwork.pack;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -11,7 +14,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.IContainerFactory;
 
 import java.util.List;
@@ -50,6 +56,45 @@ public class PackItem extends Item {
         return InteractionResultHolder.sidedSuccess(held, level.isClientSide());
     }
 
+    /**
+     * Sneak-right-click on a block face sets the pack down as a placed block, moving its
+     * ENTIRE state (layout, item store, trinkets, fluid/XP/energy) onto the block entity
+     * and consuming the item - a lossless move, never a copy. A normal (non-sneak) click
+     * falls through to {@link #use}, which opens the organizer instead.
+     */
+    @Override
+    public InteractionResult useOn(UseOnContext ctx) {
+        Player player = ctx.getPlayer();
+        if (player == null || !player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
+        }
+        Level level = ctx.getLevel();
+        BlockPlaceContext place = new BlockPlaceContext(ctx);
+        if (!place.canPlace()) {
+            return InteractionResult.PASS;
+        }
+        BlockPos pos = place.getClickedPos();
+        BlockState state = com.sappersquad.packwork.reg.ModBlocks.PACK.get().getStateForPlacement(place);
+        if (state == null || !state.canSurvive(level, pos)) {
+            return InteractionResult.PASS;
+        }
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        ItemStack held = ctx.getItemInHand();
+        if (!level.setBlock(pos, state, 3)) {
+            return InteractionResult.PASS;
+        }
+        if (level.getBlockEntity(pos) instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
+            ItemStack one = held.copy();
+            one.setCount(1);
+            be.setPackStack(one); // adopt the full pack state; nothing re-serialised
+        }
+        level.playSound(null, pos, state.getSoundType().getPlaceSound(), SoundSource.BLOCKS, 1f, 0.9f);
+        held.shrink(1);
+        return InteractionResult.CONSUME;
+    }
+
     /** The inventory slot index of the held stack, so the menu can rebind to it. */
     private static int findSlot(Player player, ItemStack held, InteractionHand hand) {
         Inventory inv = player.getInventory();
@@ -83,14 +128,25 @@ public class PackItem extends Item {
         // mismatch there overruns the container-content packet and drops the player.
         PackTier tier = tierOf(player.getInventory().getItem(slot));
         player.openMenu(provider, buf -> {
+            buf.writeBoolean(false); // carried pack, not a placed one
             buf.writeVarInt(slot);
             buf.writeVarInt(tier.ordinal());
         });
     }
 
-    /** Client menu factory: reads the bound slot and tier from the open packet. */
+    /**
+     * Client menu factory: a flag says whether this is a placed pack (bind to the block at
+     * the given pos) or a carried one (bind to the inventory slot); the tier rides along so
+     * the client builds the same slot count as the server before anything syncs.
+     */
     public static final IContainerFactory<PackMenu> CLIENT_FACTORY =
             (id, playerInv, buf) -> {
+                boolean isBlock = buf.readBoolean();
+                if (isBlock) {
+                    net.minecraft.core.BlockPos pos = buf.readBlockPos();
+                    PackTier tier = PackTier.values()[buf.readVarInt()];
+                    return PackMenu.clientForBlock(id, playerInv, pos, tier);
+                }
                 int slot = buf.readVarInt();
                 PackTier tier = PackTier.values()[buf.readVarInt()];
                 return PackMenu.client(id, playerInv, slot, tier);

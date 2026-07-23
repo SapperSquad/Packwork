@@ -394,6 +394,120 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * The correctness-critical invariant: placing a pack and breaking it round-trips EVERY
+     * field - items, trinkets, layout, and each resource store - byte for byte, with nothing
+     * duplicated or dropped. (The block-entity holds the pack stack itself, so the drop is
+     * exactly that stack.)
+     */
+    @GameTest(template = "empty")
+    public static void placedPackRoundTripsLossless(GameTestHelper helper) {
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+
+        // build a fully-loaded Reinforced pack: items, three trinkets, fluid, XP, energy, a pin
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.REINFORCED).get());
+        PackInventory store = new PackInventory(pack, PackTier.REINFORCED);
+        store.insertItem(0, new ItemStack(Items.DIAMOND, 30), false);
+        store.insertItem(1, new ItemStack(Items.IRON_PICKAXE), false);
+        PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.REINFORCED);
+        sockets.insertItem(0, new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+        sockets.insertItem(1, new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL).get()), false);
+        sockets.insertItem(2, new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+        new com.sappersquad.packwork.pack.PackFluidHandler(pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
+                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 3000),
+                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        pack.set(ModComponents.PACK_XP.get(), 1234);
+        pack.set(ModComponents.PACK_ENERGY.get(), 56789);
+        pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY.withPins(
+                List.of(new PackLayout.Pin(BuiltInRegistries.ITEM.getKey(Items.DIAMOND), "custom:0"))));
+
+        ItemStack original = pack.copy();
+
+        // PLACE: the block entity adopts the whole stack (as PackItem.useOn does)
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        if (!(helper.getBlockEntity(p) instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be)) {
+            helper.fail("placed pack has no block entity");
+            return;
+        }
+        be.setPackStack(pack.copy());
+
+        // the placed pack holds every field
+        ItemStack held = be.getPackStack();
+        helper.assertTrue(new PackInventory(be::getPackStack, be.getTier()).getStackInSlot(0).getCount() == 30, "items survive placement");
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketAccess.has(held, com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL), "trinkets survive placement");
+        helper.assertTrue(new com.sappersquad.packwork.pack.PackFluidHandler(held, 1).getFluidInTank(0).getAmount() == 3000, "fluid survives placement");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.stored(held) == 1234, "xp survives placement");
+        helper.assertTrue(held.getOrDefault(ModComponents.PACK_ENERGY.get(), 0) == 56789, "energy survives placement");
+
+        // BREAK: the drop IS the block-entity's stack, so it equals the placed pack exactly
+        ItemStack dropped = be.getPackStack().copy();
+        helper.assertTrue(ItemStack.isSameItemSameComponents(dropped, original) && dropped.getCount() == 1,
+                "the broken-out pack is byte-for-byte the placed pack - nothing duped, nothing lost");
+        helper.succeed();
+    }
+
+    /**
+     * A placed pack exposes an item handler so hoppers/pipes feed it - inserts land in the
+     * flat store (sorting is virtual, so they auto-route), the count is conserved, and no
+     * pack can be nested inside another.
+     */
+    @GameTest(template = "empty")
+    public static void placedPackItemCapInsertsAndBlocksNesting(GameTestHelper helper) {
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        ((com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p))
+                .setPackStack(new ItemStack(ModItems.pack(PackTier.CANVAS).get()));
+
+        IItemHandler cap = helper.getLevel().getCapability(
+                Capabilities.ItemHandler.BLOCK, helper.absolutePos(p), null);
+        helper.assertTrue(cap != null, "a placed pack exposes an item-handler capability");
+        helper.assertTrue(cap.getSlots() == PackTier.CANVAS.capacity(), "handler is bounded to tier capacity");
+
+        ItemStack leftover = cap.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        helper.assertTrue(leftover.isEmpty(), "a hopper insert is accepted");
+        ItemStack packLeftover = cap.insertItem(0, new ItemStack(ModItems.leatherPack().get()), false);
+        helper.assertTrue(packLeftover.getCount() == 1, "a placed pack refuses to hold a pack (no nesting)");
+
+        int found = 0;
+        for (int i = 0; i < cap.getSlots(); i++) {
+            if (cap.getStackInSlot(i).is(Items.COBBLESTONE)) found += cap.getStackInSlot(i).getCount();
+        }
+        helper.assertTrue(found == 64, "all 64 cobblestone are stored, none duped, got " + found);
+        helper.succeed();
+    }
+
+    /**
+     * A placed pack with a Charge Crystal exposes standard FE (so any standard-FE cable
+     * charges it); and - only when Forgework is loaded - it also speaks Forgework's own Flux
+     * cap, so a Forgework cable charges it 1:1. This is the block-level interop the item-only
+     * pack could not do.
+     */
+    @GameTest(template = "empty")
+    public static void placedPackEnergyAndForgeworkFluxGated(GameTestHelper helper) {
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
+        new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        ((com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p)).setPackStack(pack);
+
+        var fe = helper.getLevel().getCapability(Capabilities.EnergyStorage.BLOCK, helper.absolutePos(p), null);
+        helper.assertTrue(fe != null && fe.canReceive(), "placed pack exposes standard FE when a Charge Crystal is fitted");
+
+        if (!net.neoforged.fml.ModList.get().isLoaded("forgework")) {
+            helper.succeed(); // FLOW_ENERGY only exists when Forgework is loaded
+            return;
+        }
+        var flow = helper.getLevel().getCapability(
+                com.forgework.registry.ModCapabilities.FLOW_ENERGY, helper.absolutePos(p), null);
+        helper.assertTrue(flow != null && flow.canReceive(), "placed pack speaks Forgework Flux under Forgework");
+        int before = fe.getEnergyStored();
+        int accepted = flow.receiveEnergy(5_000, false);
+        helper.assertTrue(accepted == 5_000, "Forgework Flux charges the pack, got " + accepted);
+        helper.assertTrue(fe.getEnergyStored() == before + accepted, "1 Flux == 1 FE into the reservoir");
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

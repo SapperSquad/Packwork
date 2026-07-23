@@ -1,0 +1,53 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "leather": "packwork:block/pack_block",
+    "brass": "packwork:block/pack_block_brass",
+    "particle": "packwork:block/pack_block"
+  },
+  "elements": [
+    {
+      "__comment": "leather body (tinted per tier)",
+      "from": [2, 0, 2], "to": [14, 13, 14],
+      "faces": {
+        "north": { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "south": { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "west":  { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "east":  { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "up":    { "uv": [2, 2, 14, 14], "texture": "#leather", "tintindex": 0 },
+        "down":  { "uv": [2, 2, 14, 14], "texture": "#leather", "tintindex": 0 }
+      }
+    },
+    {
+      "__comment": "brass buckle on the front (north) face",
+      "from": [6, 3, 1], "to": [10, 7, 2],
+      "faces": {
+        "north": { "uv": [6, 9, 10, 13], "texture": "#brass" },
+        "up":    { "uv": [6, 1, 10, 2], "texture": "#brass" },
+        "down":  { "uv": [6, 2, 10, 3], "texture": "#brass" },
+        "west":  { "uv": [1, 9, 2, 13], "texture": "#brass" },
+        "east":  { "uv": [1, 9, 2, 13], "texture": "#brass" }
+      }
+    },
+    {
+      "__comment": "left brass strap",
+      "from": [4, 0, 1.5], "to": [5, 13, 2],
+      "faces": {
+        "north": { "uv": [4, 2, 5, 15], "texture": "#brass" },
+        "west":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
+        "east":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
+        "up":    { "uv": [4, 0, 5, 1], "texture": "#brass" }
+      }
+    },
+    {
+      "__comment": "right brass strap",
+      "from": [11, 0, 1.5], "to": [12, 13, 2],
+      "faces": {
+        "north": { "uv": [11, 2, 12, 15], "texture": "#brass" },
+        "west":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
+        "east":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
+        "up":    { "uv": [11, 0, 12, 1], "texture": "#brass" }
+      }
+    }
+  ]
+}

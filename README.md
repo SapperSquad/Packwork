@@ -51,13 +51,26 @@ and trinkets straight up — a craft never eats what's inside.
 | **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
 | **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. With Forgework installed it also feeds your portable terminals, 1 Flux = 1 FE. |
 
+## Set it down
+
+Sneak-right-click a block face to **stand the pack in the world** — it sits there as a
+leather-and-brass pack, tinted for its tier and facing you. Break it (or middle-click to
+pick it up) and you get the pack item back with every last thing still inside — contents,
+layout, trinkets, and any fluid, charge, or XP. Right-click a placed pack to open the same
+tabbed organizer.
+
+A placed pack speaks **standard NeoForge capabilities**, so hoppers, pipes, and cables just
+work against it: an item handler always (drop items in and they auto-file into the right
+compartment), a fluid tank once a Waterskin Rack is fitted, and an energy store once a
+Charge Crystal is. Feed it, drain it, charge it — no Packwork API, no bridge block.
+
 ## Plays nice, needs nothing
 
-Zero hard dependencies. The pack exposes **standard NeoForge capabilities** — an item
-handler always, a fluid handler once a Waterskin Rack is fitted — so any mod's hoppers
-and pipes work against a placed pack with no Packwork API. [Pantrywork](../Pantrywork)
-food tags fold into the Food tab automatically when it's present, and are simply ignored
-when it isn't.
+Zero hard dependencies. Every cross-mod touch is gated and simply absent when its mod is.
+[Pantrywork](../Pantrywork) food tags fold into the Food tab when it's present. With
+**Forgework** installed, a placed pack with a Charge Crystal also charges straight off
+Forgework's own Flux cables (1 Flux = 1 FE) — the block-level interop a hand-held pack
+can't do — and the crystal tops up your carried Forgework terminals besides.
 
 ## Using it
 

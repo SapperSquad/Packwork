@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "packwork:block/pack" },
+    "facing=east":  { "model": "packwork:block/pack", "y": 90 },
+    "facing=south": { "model": "packwork:block/pack", "y": 180 },
+    "facing=west":  { "model": "packwork:block/pack", "y": 270 }
+  }
+}

@@ -1,6 +1,8 @@
 {
   "itemGroup.packwork": "Packwork",
 
+  "block.packwork.pack": "Pack",
+
   "item.packwork.canvas_pack": "Canvas Pack",
   "item.packwork.leather_pack": "Leather Pack",
   "item.packwork.studded_pack": "Studded Pack",

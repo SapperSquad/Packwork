@@ -30,6 +30,8 @@ public class Packwork {
         // Components before items: the pack item's inventory capability leans on
         // its data component types being registered.
         ModComponents.COMPONENTS.register(modEventBus);
+        com.sappersquad.packwork.reg.ModBlocks.BLOCKS.register(modEventBus);
+        com.sappersquad.packwork.reg.ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);

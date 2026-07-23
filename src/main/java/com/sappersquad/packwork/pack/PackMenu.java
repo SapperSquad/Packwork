@@ -11,12 +11,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * The organizer menu. Holds one flat backing inventory (the pack) plus a fixed
@@ -44,12 +46,19 @@ public class PackMenu extends AbstractContainerMenu {
     private static final int PLAYER_SLOTS = 36;
 
     private final Inventory playerInv;
-    private final int boundSlot;
+    private final int boundSlot;   // player-inventory slot for a carried pack, or -1 for a placed one
     private final PackTier tier;
     private final PackInventory packInv;
     private final PackTrinketInventory trinketInv;
     private final List<PackViewSlot> viewSlots = new ArrayList<>();
     private final int trinketStart; // menu index where trinket slots begin
+    private final int trinketEnd;   // one past the last trinket slot (host slot, if any, sits here)
+
+    // Where the live pack stack comes from: a player-inventory slot (carried) or a
+    // block-entity via a hidden synced host slot (placed). Both stay server-authoritative.
+    private final Supplier<ItemStack> liveSupplier;
+    private final PackStackSlotContainer hostContainer; // null for a carried pack
+    private final ContainerLevelAccess access;          // NULL for a carried pack
 
     private PackLayout layout;
     private List<TabView> tabs;
@@ -63,19 +72,41 @@ public class PackMenu extends AbstractContainerMenu {
 
     // ---- factories ----
 
+    // ---- carried pack (rides a player-inventory slot) ----
+
     public static PackMenu server(int id, Inventory playerInv, int boundSlot) {
-        return new PackMenu(id, playerInv, boundSlot, PackItem.tierOf(playerInv.getItem(boundSlot)));
+        return new PackMenu(id, playerInv, boundSlot, null,
+                PackItem.tierOf(playerInv.getItem(boundSlot)), ContainerLevelAccess.NULL);
     }
 
     public static PackMenu client(int id, Inventory playerInv, int boundSlot, PackTier tier) {
-        return new PackMenu(id, playerInv, boundSlot, tier);
+        return new PackMenu(id, playerInv, boundSlot, null, tier, ContainerLevelAccess.NULL);
     }
 
-    private PackMenu(int id, Inventory playerInv, int boundSlot, PackTier tier) {
+    // ---- placed pack (rides a block entity via a hidden synced host slot) ----
+
+    public static PackMenu serverForBlock(int id, Inventory playerInv,
+                                          com.sappersquad.packwork.block.PackContainerBlockEntity be) {
+        return new PackMenu(id, playerInv, -1, new PackStackSlotContainer(be), be.getTier(),
+                ContainerLevelAccess.create(be.getLevel(), be.getBlockPos()));
+    }
+
+    public static PackMenu clientForBlock(int id, Inventory playerInv,
+                                          net.minecraft.core.BlockPos pos, PackTier tier) {
+        return new PackMenu(id, playerInv, -1, new PackStackSlotContainer(null), tier, ContainerLevelAccess.NULL);
+    }
+
+    private PackMenu(int id, Inventory playerInv, int boundSlot, PackStackSlotContainer hostContainer,
+                     PackTier tier, ContainerLevelAccess access) {
         super(ModMenus.PACK.get(), id);
         this.playerInv = playerInv;
         this.boundSlot = boundSlot;
         this.tier = tier;
+        this.hostContainer = hostContainer;
+        this.access = access;
+        this.liveSupplier = hostContainer != null
+                ? () -> hostContainer.getItem(0)
+                : () -> playerInv.getItem(boundSlot);
         this.packInv = new PackInventory(this::liveStack, tier);
         this.trinketInv = new PackTrinketInventory(this::liveStack, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
@@ -99,6 +130,30 @@ public class PackMenu extends AbstractContainerMenu {
         for (int i = 0; i < tier.trinketSlots(); i++) {
             addSlot(new net.neoforged.neoforge.items.ItemHandlerCopySlot(
                     trinketInv, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
+        }
+        this.trinketEnd = slots.size();
+
+        // For a placed pack: one hidden, inactive slot mirrors the block entity's pack
+        // stack so its components sync to the viewing client (as a carried pack's slot
+        // does). Never rendered, never player-movable. Kept LAST so slot indices above are
+        // identical on client and server (a mismatch overruns the container packet).
+        if (hostContainer != null) {
+            addSlot(new Slot(hostContainer, 0, -9000, -9000) {
+                @Override
+                public boolean isActive() {
+                    return false;
+                }
+
+                @Override
+                public boolean mayPickup(Player p) {
+                    return false;
+                }
+
+                @Override
+                public boolean mayPlace(ItemStack s) {
+                    return false;
+                }
+            });
         }
 
         rebuildView();
@@ -205,12 +260,17 @@ public class PackMenu extends AbstractContainerMenu {
     public void broadcastChanges() {
         rebuildView();
         super.broadcastChanges();
+        // Persist a placed pack's changes: every GUI mutation lands on the block entity's
+        // stack, so mark it dirty while the menu is open (no-op for a carried pack).
+        if (hostContainer != null) hostContainer.markChanged();
     }
 
     // ---- shift-click ----
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
+        // The hidden host slot (a placed pack's own stack) is never shift-moved.
+        if (hostContainer != null && index >= trinketEnd) return ItemStack.EMPTY;
         Slot slot = slots.get(index);
         if (slot == null || !slot.hasItem()) return ItemStack.EMPTY;
         ItemStack inSlot = slot.getItem();
@@ -223,15 +283,15 @@ public class PackMenu extends AbstractContainerMenu {
             // pack view -> player inventory (never into trinket sockets)
             if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
             slot.setChanged();
-        } else if (index >= trinketStart) {
+        } else if (index >= trinketStart && index < trinketEnd) {
             // trinket socket -> player inventory
             if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
             slot.setChanged();
         } else {
             // player -> a trinket socket if it's a fitting, else into the pack (auto-routed)
             if (inSlot.getItem() instanceof com.sappersquad.packwork.trinket.TrinketItem
-                    && trinketStart < slots.size()
-                    && moveItemStackTo(inSlot, trinketStart, slots.size(), false)) {
+                    && trinketStart < trinketEnd
+                    && moveItemStackTo(inSlot, trinketStart, trinketEnd, false)) {
                 // installed into a socket
             } else {
                 ItemStack leftover = insertIntoPack(inSlot.copy());
@@ -550,9 +610,12 @@ public class PackMenu extends AbstractContainerMenu {
         if (changed) saveLayout(cur.withCustomTabs(customs));
     }
 
-    /** The pack as it currently sits in its bound slot - never a captured, possibly-stale copy. */
+    /**
+     * The pack as it currently sits, resolved live - a carried pack from its inventory slot,
+     * a placed pack from the block entity (via the synced host slot). Never a captured copy.
+     */
     private ItemStack liveStack() {
-        return playerInv.getItem(boundSlot);
+        return liveSupplier.get();
     }
 
     private PackLayout currentLayout() {
@@ -574,6 +637,11 @@ public class PackMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
+        if (hostContainer != null) {
+            // placed pack: the block must still be there and the player in reach
+            return AbstractContainerMenu.stillValid(access, player,
+                    com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        }
         return liveStack().getItem() instanceof PackItem;
     }
 }

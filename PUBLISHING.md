@@ -69,13 +69,20 @@ full pack carries everything inside straight up. Then slot brass **trinkets** in
 New to the pack? Craft the **Outfitter's Handbook** and right-click it — five chapters walk
 you through sorting, trinkets, tiers, and the stores, in-game.
 
+## Set it down, pipe it up
+
+Sneak-right-click to stand a pack in the world — leather and brass, tinted for its tier,
+facing you. Break it and you get the pack back with everything still inside. A placed pack
+speaks NeoForge's own item, fluid, and energy capabilities, so hoppers, pipes, and cables
+feed it with no bridge block — and dropped-in items auto-file into the right compartment,
+because the sorting is virtual over one store.
+
 ## Needs nothing, plays with everything
 
-Zero hard dependencies. The pack speaks NeoForge's own item, fluid, and energy
-capabilities, so hoppers and pipes from any mod feed a placed pack with no special support.
-Pantrywork food tags fold into the Food tab when it's installed. And with Forgework
-installed, the Charge Crystal feeds your portable terminals too, 1 Flux = 1 FE — every one
-of these is simply absent when its mod isn't there.
+Zero hard dependencies. Pantrywork food tags fold into the Food tab when it's installed.
+With Forgework installed, a Forgework Flux cable charges a placed pack's Charge Crystal
+directly (1 Flux = 1 FE), and the crystal tops up your carried Forgework terminals too —
+every one of these is simply absent when its mod isn't there.
 
 *One more store is coming — an Alchemist's Flask Harness for bottled vapors — a fitting
 you can see, never a tank-and-cable panel. Curios back-slot wear and JEI lookup are on the
@@ -92,13 +99,14 @@ way too.*
 | `packwork_combat.png` (real shot) | One compartment: weapons and armor, claimed automatically. |
 | `packwork_search.png` (real shot) | Search "iron" — flattened to just what matches. |
 | `packwork_handbook.png` (real shot) | The Outfitter's Handbook, open to "The Pack". |
+| `packwork_placed_world.png` (real shot) | Three tier-tinted packs set down in the world. |
 | `card_trinkets.png` (TODO) | The working fittings. |
 
 **Art carrying version-specific claims** (trinket counts, resource-store list, MC
 version): keep it in step with the changelog. Right now **fluids, XP, and energy** ship
-among the resource stores (gas does NOT yet) — don't let a banner claim four. The
-**Forgework Flux bridge** and the **Outfitter's Handbook** are in; **Curios wear** and
-**JEI** are not — don't promise them as present.
+among the resource stores (gas does NOT yet) — don't let a banner claim four. **Placeable
+packs**, the **Forgework Flux bridge** (item- AND block-level), and the **Outfitter's
+Handbook** are in; **Curios wear** and **JEI** are not — don't promise them as present.
 
 ---
 
