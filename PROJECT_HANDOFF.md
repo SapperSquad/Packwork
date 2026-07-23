@@ -14,17 +14,36 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — Phases 0-2 done; Phase 3 at 3 of 4 stores (fluids/XP/energy); rest scoped
+## Status — shippable for its available-dep scope; gas/Curios/JEI deferred, ready to enable
 
-> Newest first. Full source map and roadmap below.
+> Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
+> first build); bump/label at publish. 17 GameTests green; jar builds clean.
+
+**2026-07-23 finishing run — DONE & verified.** Forgework Flux bridge, the two remaining
+trinkets, the guide, and the Feather cut all landed. Details:
+- **Forgework Flux bridge (`compat/forgework/ForgeworkFluxBridge`).** A fitted Charge
+  Crystal tops up any Forgework portable terminal you carry, 1 Flux = 1 FE (item-level,
+  because Forgework Flux is a block cap + hardcoded item-Flux and the pack has no block
+  form — see DECISIONS). Gated `ModList.isLoaded("forgework")`, one class imports
+  `com.forgework.*`, never classloads without it. **Verified live:** 17/17 gametests green
+  with the local Forgework jar in the runtime (`runGameTestServer -Pforgework`), the
+  transfer test asserting exact 1:1 conservation.
+- **Quick-Draw Straps — LIVE.** On `PlayerDestroyItemEvent`, a broken held tool is replaced
+  from pack stock (dupe-safe; only replaces what the pack holds). `TrinketEffects`.
+- **Quill & Ledger — LIVE.** Custom tabs go from pin-only to rule-matching when it's
+  fitted: they evaluate stored rules plus a category rule derived from the tab's stamped
+  icon. Gated in `SortEngine.toView(TabDef, ledger)`, threaded from `PackMenu` (both sides).
+- **Outfitter's Handbook — LIVE & verified in-game.** `guide/HandbookItem` opens
+  `client/OutfitterHandbookScreen` (leather/brass, five chapters); content in
+  `guide/HandbookContent` interpolates real SSOT numbers. Autoshot screenshots inspected.
+- **Feather Charm — CUT.** No encumbrance system, so no job. Removed from the SSOT + assets.
 
 **Phase 2 — trinket framework, DONE & verified in-game.** Right-rail brass sockets
-(count = tier), eight craftable fittings off a `TrinketType` SSOT table. Working:
-Lodestone (magnet), Restock (hotbar top-up), Repair (slow mend), Bottomless (grows
-capacity, never truncates), Compass Rose (opt-in void, the only void path — press O on
-a hovered item). Feather / Quick-Draw / Quill&Ledger are registered + socketed but
-**inert** (Feather needs a weight mechanic that's an Alex balance call — flagged). Effects
-run server-side per `PlayerTickEvent`, throttled/bounded. Preserving tier-upgrade recipe
+(count = tier), craftable fittings off a `TrinketType` SSOT table. Working: Lodestone
+(magnet), Restock (hotbar top-up), Repair (slow mend), Bottomless (grows capacity, never
+truncates), Compass Rose (opt-in void, the only void path — press O on a hovered item),
+Quick-Draw (break-replace), Quill & Ledger (custom-tab rules). Effects run server-side per
+`PlayerTickEvent` (or the break event), throttled/bounded. Preserving tier-upgrade recipe
 (`packwork:pack_upgrade`) carries contents+trinkets+name up a tier so no craft eats a pack.
 
 **Phase 3 — fluids + XP + energy stores, DONE & verified in-game.** Three of four stores,
@@ -32,17 +51,42 @@ each trinket-gated and stacked as a gauge on the right rail: Waterskin Rack (flu
 `FluidHandler.ITEM`, glass gauge, click-with-cursor fill/drain via `FluidUtil`); Soul Vial
 (XP via `PackXpStore`, green gauge, click siphon / shift pour, auto-mends Mending gear);
 Charge Crystal (arcane charge via `PackEnergyStorage` implementing `IEnergyStorage`, amber
-gauge, any FE source fills it, tops up powered tools in hand). All three capabilities are
-exposed **only when the fitting is present**. **Still to do in Phase 3:** Gas (Flask Harness
-+ gated Mekanism chemical cap) — needs the Mekanism API dep; and the Charge Crystal's gated
-Forgework Flux 1:1 bridge (`compat/forgework/`). Follow the three shipped stores as the
-template: component + (gated) capability + STORE trinket + gauge + gametest.
+gauge, any FE source fills it, tops up powered tools in hand, + the gated Forgework bridge
+above). All three capabilities are exposed **only when the fitting is present**. The 4th
+store — Gas (Flask Harness + Mekanism chemical cap) — is **deferred** (needs the Mekanism
+dep); leave the shipped stores as the template: component + (gated) capability + STORE
+trinket + gauge + gametest.
 
-**Still open:** Curios back-slot compat (needs the Curios API as a `compileOnly` dep + its
-maven repo — not in the local cache; native use + keybind already satisfy "wear it"). The
-Outfitter's Bench block (the upgrade recipe covers the preserve-contents need for now).
-Phase 4: Outfitter's Handbook guide, JEI, and store art. **README.md / PUBLISHING.md /
-CHANGELOG.md now exist** (written at this milestone) — keep their copy in step with code.
+**Still open (deferred, ready to enable — see next section):** the Gas store (Mekanism),
+Curios back-slot wear, and JEI. Also the placed-pack block-entity / Outfitter's Bench (the
+upgrade recipe covers the preserve-contents need for now; the block-entity is also what a
+future *block-level* Forgework bridge would hang off). **README.md / PUBLISHING.md /
+CHANGELOG.md exist** — keep their copy in step with code.
+
+## Enabling the deferred integrations
+
+Each is written to compile and ship **without** its dep and light up when present. To
+enable one, drop in exactly the dev dependency named below (mirror the Forgework wiring in
+`build.gradle` — `compileOnly` the API, add a `-P` flag or `localRuntime` for a combined
+test), add its `[[dependencies]]` `optional` block in `neoforge.mods.toml`, and write the
+one gated `compat/<mod>/` class (the only class allowed to import that mod).
+
+- **Gas store → Mekanism.** Dev dep: the **Mekanism API** jar (its `mekanism.api.*`
+  chemical capability), from Mekanism's maven or a local build. Build a `Flask Harness`
+  STORE trinket + a `PACK_CHEMICAL` component + `compat/mekanism/MekanismGasBridge` exposing
+  Mekanism's chemical handler cap on the stack, gated `ModList.isLoaded("mekanism")`. Add a
+  glass gauge to the right rail beside the others (`PackScreen.drawStoreGauges`). Follow the
+  Waterskin Rack end-to-end as the template.
+- **Curios back-slot wear → Curios.** Dev dep: the **Curios API** (`top.theillusivec4.curios`)
+  as `compileOnly` + its maven repo (not in the local cache). Register the pack in the
+  `back` slot behind `ModList.isLoaded("curios")` in one `compat/curios/` class; native
+  inventory-use + the B keybind stay the fallback so Curios is never required.
+- **JEI.** Dev dep: `mezz.jei:jei-1.21.1-neoforge-api` (`compileOnly`) + full JEI
+  `runtimeOnly` (as PhytoForge does). One `compat/jei/PackworkJeiPlugin` behind
+  `ModList.isLoaded("jei")`; wire the tier-upgrade recipe + trinket recipes into the
+  recipe/usage view.
+
+Do **not** add these deps or pull them from Maven now — Alex enables them one at a time.
 
 ### Original status (Phase 0/1)
 
@@ -84,11 +128,17 @@ world, fills a pack across every tab, opens it, switches tabs, and writes screen
   `PackMenu` (virtual-tab menu + all action handlers), `PackViewSlot` (rebinding grid cell).
 - `sort/` — `SortRule`, `PredicateKind`, `TabDef`, `PackLayout` (component), `AutoTabs`
   (SSOT category table), `TabView`, `SortEngine` (routing), `PackSorting` (Tidy Up).
-- `client/` — `PackScreen` (the rail + controls), `PackClientActions`, `PackKeyMappings`,
-  `ClientSetup`, `DevAutoShot`.
+- `trinket/` — `TrinketType` (SSOT table), `TrinketItem`, `TrinketAccess`, `TrinketEffects`
+  (per-tick effects + the Quick-Draw break handler + its dupe-safe `pullReplacement`).
+- `compat/forgework/` — `ForgeworkFluxBridge`, the ONLY class importing `com.forgework.*`;
+  reached strictly behind `ModList.isLoaded("forgework")`. Add future `compat/<mod>/` here.
+- `guide/` — `HandbookItem` (opens the guide), `HandbookContent` (dist-neutral chapter data,
+  interpolates SSOT numbers). The screen itself is `client/OutfitterHandbookScreen`.
+- `client/` — `PackScreen` (the rail + controls), `OutfitterHandbookScreen`,
+  `HandbookClientHooks`, `PackClientActions`, `PackKeyMappings`, `ClientSetup`, `DevAutoShot`.
 - `net/` — `PackAction`, `PackActionPayload`, `OpenPackPayload`; wired in `PackworkNetwork`.
-- `reg/` — `ModItems`, `ModMenus`, `ModComponents`, `ModCreativeTabs`. Caps in
-  `PackworkCapabilities`.
+- `reg/` — `ModItems` (packs + trinkets off their enums, plus the `HANDBOOK` item),
+  `ModMenus`, `ModComponents`, `ModCreativeTabs`. Caps in `PackworkCapabilities`.
 - `gametest/PackworkGameTests` — the headless proof of persistence + sorting.
 - `tools/GenTextures.java` — procedural leather/brass GUI + pack sprites (Java only; run
   `java tools/GenTextures.java`). Data: `data/packwork/tags/item/sorting/*`, `recipe/*`.
@@ -185,16 +235,17 @@ pack tier × trinket tier.
 Adventurer-flavored fittings installed into tiered trinket slots:
 
 - **Lodestone Charm** — magnet, pulls nearby items/xp into the pack.
-- **Quill & Ledger** — smarter auto-sort (enables the rules engine tiers / multi-rule tabs).
-- **Feather Charm** — weightless; no slowdown from a heavy pack.
+- **Quill & Ledger** — custom tabs match by rule, not just pins (files by the stamped icon's
+  kind). LIVE.
 - **Compass Rose** — void filter (opt-in trash for chosen items).
 - **Tinker's Kit** — a crafting grid inside the pack.
 - **Field Furnace** — smelts from pack contents over time (campfire flavor).
 - **Repair Kit** — mends stored/equipped gear.
 - **Restock Strap** — auto-refills the hotbar from pack stock.
 - **Bottomless Lining** — extra capacity per compartment.
-- **Quick-Draw Straps** — fast tool swap from the pack.
-- Plus the four store trinkets (Waterskin Rack, Flask Harness, Charge Crystal, Soul Vial).
+- **Quick-Draw Straps** — a broken held tool is replaced from pack stock. LIVE.
+- Plus the store trinkets (Waterskin Rack, Charge Crystal, Soul Vial live; Flask Harness
+  deferred with the Gas store).
 
 ## Technical architecture (NeoForge 1.21.1)
 
@@ -243,16 +294,19 @@ Run `runClient` as a background task; watch for `Sound engine started` (ready) o
   trinket (Waterskin Rack / Soul Vial / Charge Crystal / Flask Harness), surfaced as gauges
   on the right rail. Standard NeoForge `FluidHandler`/`IEnergyStorage` caps; gated Forgework
   (Flux 1:1 FE) and Mekanism (chemicals) bridges, one class per mod under `compat/`.
-- **Phase 4 — progression & release.** Outfitter's Bench (tier upgrade preserving
-  contents + trinket install), JEI, quest chapter, the in-house **Outfitter's Handbook**
-  guide (crib PhytoForge `client/LabManualScreen` + `ManualContent`), then `README.md` +
-  `PUBLISHING.md` + `CLAUDE.md` + store art. Create those three docs ONLY here.
+- **Phase 4 — progression & release.** The in-house **Outfitter's Handbook** guide is
+  DONE (`guide/` + `client/OutfitterHandbookScreen`, cribbed from PhytoForge's Lab Manual).
+  `README.md` + `PUBLISHING.md` + `CHANGELOG.md` exist and are current. Remaining: JEI (see
+  deferred integrations), a quest chapter, `CLAUDE.md`, store art, and the Outfitter's Bench
+  block (also the home for a future block-level Forgework bridge).
 
 ### Fastest way to resume
-`./gradlew.bat compileJava` (constant), `runGameTestServer` (logic), `runClient -Pautoshot`
-(see the GUI). The trinket rail is the natural next build: the RIGHT side of the pack panel
-is deliberately empty for it, `PackTier.trinketSlots()` already sizes it, and the action
-channel (`PackAction`) is the pattern to add install/remove verbs.
+`./gradlew.bat compileJava` (constant), `runGameTestServer` (logic — add `-Pforgework` to
+exercise the Flux bridge against the local Forgework jar), `runClient -Pautoshot` (see the
+GUI + the Handbook; screenshots land in `run/client/screenshots/`). The natural next build
+is one of the deferred integrations above — each is a single gated `compat/<mod>/` class
+plus (for a store) the Waterskin-Rack template. Note `runClient` does not self-exit after
+autoshot; kill it once the screenshots are written.
 
 ## Cross-mod interop (all gated, never hard deps)
 

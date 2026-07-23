@@ -79,7 +79,7 @@ public class PackMenu extends AbstractContainerMenu {
         this.packInv = new PackInventory(this::liveStack, tier);
         this.trinketInv = new PackTrinketInventory(this::liveStack, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
-        this.tabs = SortEngine.tabsFor(layout);
+        this.tabs = SortEngine.tabsFor(layout, hasLedger());
         this.activeTab = firstRealTab();
 
         // Grid of view slots (indices 0 .. VIEW_SLOTS-1).
@@ -147,7 +147,7 @@ public class PackMenu extends AbstractContainerMenu {
     public void rebuildView() {
         // Re-read the durable layout from the (synced) live stack so both sides stay current.
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
-        this.tabs = SortEngine.tabsFor(layout);
+        this.tabs = SortEngine.tabsFor(layout, hasLedger());
         List<Integer> order = new ArrayList<>();
         String q = search.toLowerCase(Locale.ROOT).trim();
         boolean searching = !q.isEmpty();
@@ -286,6 +286,11 @@ public class PackMenu extends AbstractContainerMenu {
 
     public boolean hasTrinket(com.sappersquad.packwork.trinket.TrinketType type) {
         return com.sappersquad.packwork.trinket.TrinketAccess.has(liveStack(), type);
+    }
+
+    /** Whether a Quill &amp; Ledger is fitted, so custom tabs match by rule (not just pins). */
+    private boolean hasLedger() {
+        return hasTrinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER);
     }
 
     public String activeTab() {
@@ -449,7 +454,7 @@ public class PackMenu extends AbstractContainerMenu {
             if (!s.isEmpty()) source.add(s);
         }
         List<ItemStack> merged = com.sappersquad.packwork.sort.PackSorting.tidy(
-                source, SortEngine.tabsFor(layout), layout);
+                source, SortEngine.tabsFor(layout, hasLedger()), layout);
         for (int i = 0; i < packInv.getSlots(); i++) {
             packInv.setStackInSlot(i, i < merged.size() ? merged.get(i) : ItemStack.EMPTY);
         }

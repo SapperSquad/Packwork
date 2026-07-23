@@ -18,7 +18,6 @@ import net.minecraft.world.item.ItemStack;
  */
 public enum TrinketType {
     LODESTONE("lodestone_charm", Kind.TICK),
-    FEATHER("feather_charm", Kind.PASSIVE),
     COMPASS_ROSE("compass_rose", Kind.PASSIVE),
     RESTOCK("restock_strap", Kind.TICK),
     BOTTOMLESS("bottomless_lining", Kind.PASSIVE),

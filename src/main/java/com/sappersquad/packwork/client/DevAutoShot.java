@@ -36,7 +36,8 @@ public final class DevAutoShot {
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
-        SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5, DONE
+        SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
+        OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2, DONE
     }
 
     private static Phase phase = Phase.BOOT;
@@ -112,6 +113,19 @@ public final class DevAutoShot {
             case W4 -> { if (++wait > 8) phase = Phase.SHOOT_5; }
             case SHOOT_5 -> {
                 grab(mc, "packwork_search");       // only the iron items remain
+                HandbookClientHooks.open();         // swap to the Outfitter's Handbook
+                phase = Phase.WB; wait = 0;
+            }
+            case WB -> { if (++wait > 10) phase = Phase.SHOOT_BOOK; }
+            case SHOOT_BOOK -> {
+                grab(mc, "packwork_handbook");     // chapter 1: "The Pack" (prose + a pack row)
+                // jump to the Trinkets chapter to prove chapter switching + a second item row
+                if (mc.screen instanceof OutfitterHandbookScreen book) book.devSelectChapter(2);
+                phase = Phase.WB2; wait = 0;
+            }
+            case WB2 -> { if (++wait > 8) phase = Phase.SHOOT_BOOK2; }
+            case SHOOT_BOOK2 -> {
+                grab(mc, "packwork_handbook_trinkets");
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }

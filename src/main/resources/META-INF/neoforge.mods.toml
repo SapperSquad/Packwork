@@ -32,3 +32,12 @@ Leather and brass, never circuits. Later fittings let one pack carry fluids, arc
     versionRange="${minecraft_version_range}"
     ordering="NONE"
     side="BOTH"
+
+# Optional interop. Each is gated behind ModList.isLoaded at runtime with exactly
+# one class allowed to import it, so a missing mod never breaks loading.
+[[dependencies.${mod_id}]]
+    modId="forgework"
+    type="optional"
+    versionRange="[0.1,)"
+    ordering="AFTER"
+    side="BOTH"

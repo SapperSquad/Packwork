@@ -8,7 +8,6 @@
   "item.packwork.runed_pack": "Runed Pack",
 
   "item.packwork.lodestone_charm": "Lodestone Charm",
-  "item.packwork.feather_charm": "Feather Charm",
   "item.packwork.compass_rose": "Compass Rose",
   "item.packwork.restock_strap": "Restock Strap",
   "item.packwork.bottomless_lining": "Bottomless Lining",
@@ -18,19 +17,21 @@
   "item.packwork.waterskin_rack": "Waterskin Rack",
   "item.packwork.soul_vial": "Soul Vial",
   "item.packwork.charge_crystal": "Charge Crystal",
+  "item.packwork.outfitters_handbook": "Outfitter's Handbook",
+
+  "packwork.handbook.title": "Outfitter's Handbook",
 
   "packwork.trinket.install_hint": "Slot it into a pack's trinket socket to fit it.",
   "packwork.trinket.waterskin_rack.desc": "Fits a fluid tank to the pack - a rack of waterskins.",
   "packwork.trinket.soul_vial.desc": "Stores XP, and auto-mends your Mending gear from it.",
   "packwork.trinket.charge_crystal.desc": "Holds an arcane charge and tops up the tools in your hands.",
   "packwork.trinket.lodestone_charm.desc": "Draws loose items nearby into the pack.",
-  "packwork.trinket.feather_charm.desc": "Keeps a heavy pack from slowing you down.",
   "packwork.trinket.compass_rose.desc": "Voids items you mark - the only way a pack throws anything away.",
   "packwork.trinket.restock_strap.desc": "Tops up your hotbar stacks from pack stock.",
   "packwork.trinket.bottomless_lining.desc": "Adds another run of slots to the pack.",
   "packwork.trinket.repair_kit.desc": "Slowly mends the gear you're wearing and holding.",
-  "packwork.trinket.quick_draw_straps.desc": "Swap tools straight from the pack in a blink.",
-  "packwork.trinket.quill_and_ledger.desc": "Lets a compartment hold several match rules at once.",
+  "packwork.trinket.quick_draw_straps.desc": "When a tool breaks in your hand, the pack passes you another from stock.",
+  "packwork.trinket.quill_and_ledger.desc": "Custom compartments gather by rule, not just pins - each files by the item it's stamped with.",
 
   "packwork.pack.slots_used": "%s / %s slots",
   "packwork.pack.hint": "Right-click to open. It sorts itself.",

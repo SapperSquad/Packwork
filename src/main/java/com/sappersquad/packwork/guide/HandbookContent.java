@@ -1,0 +1,160 @@
+package com.sappersquad.packwork.guide;
+
+import com.sappersquad.packwork.pack.PackEnergyStorage;
+import com.sappersquad.packwork.pack.PackFluidHandler;
+import com.sappersquad.packwork.pack.PackTier;
+import com.sappersquad.packwork.pack.PackXpStore;
+import com.sappersquad.packwork.reg.ModItems;
+import com.sappersquad.packwork.trinket.TrinketType;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import java.util.List;
+
+/**
+ * The Outfitter's Handbook contents: text paragraphs interleaved with rows of rendered
+ * item icons, laid out by {@code OutfitterHandbookScreen}. Modelled on PhytoForge's
+ * {@code ManualContent} (client screen + content class, zero deps).
+ *
+ * <p>Numbers are interpolated from the real implementation - {@link PackTier}, the store
+ * capacity helpers, and the {@link TrinketType} table - so the book can't drift out of
+ * step with the code. Prose still needs a human when a mechanic changes; the numbers no
+ * longer do.
+ *
+ * <p>This class is deliberately dist-neutral (no client-only imports) so a gametest can
+ * assert the content builds, and so it is safe on a dedicated server. Entries construct
+ * ItemStacks, so {@link #CHAPTERS} must not be touched before registries freeze - safe in
+ * practice because the book only opens in-world.
+ */
+public final class HandbookContent {
+
+    public sealed interface Entry permits TextEntry, ItemsEntry {}
+
+    public record TextEntry(String text) implements Entry {}
+
+    /** A row of rendered item icons with an optional caption to its right. */
+    public record ItemsEntry(String caption, List<ItemStack> items) implements Entry {}
+
+    public record Chapter(String title, List<Entry> entries) {}
+
+    private HandbookContent() {}
+
+    private static TextEntry text(String s) { return new TextEntry(s); }
+
+    private static ItemsEntry row(String caption, ItemStack... stacks) {
+        return new ItemsEntry(caption, List.of(stacks));
+    }
+
+    private static ItemStack pack(PackTier tier) { return new ItemStack(ModItems.pack(tier).get()); }
+
+    private static ItemStack trinket(TrinketType type) { return new ItemStack(ModItems.trinket(type).get()); }
+
+    private static String buckets(PackTier tier) {
+        return (PackFluidHandler.capacityFor(pack(tier)) / 1000) + " buckets";
+    }
+
+    public static final List<Chapter> CHAPTERS = List.of(
+
+        // =================================================================
+        new Chapter("The Pack", List.of(
+            text("A humble adventurer's pack that holds far more than it should - and quietly "
+                + "organizes itself. Right-click one in hand to open it, or press the Open Pack key "
+                + "(default B) to open the first pack you're carrying without digging it out."),
+            row("five packs, one ladder",
+                pack(PackTier.CANVAS), pack(PackTier.LEATHER), pack(PackTier.STUDDED),
+                pack(PackTier.REINFORCED), pack(PackTier.RUNED)),
+            text("Drop an item in and the pack decides where it goes. Stamped leather tabs run down "
+                + "the left; a rules engine claims each item for the right tab the instant it lands. "
+                + "A Loose tab catches anything no rule wanted, so nothing you drop in ever vanishes."),
+            text("Everything here is leather, brass, canvas and glass. Later fittings let one pack "
+                + "carry fluids, arcane charge and soul-vialed XP - each a trinket you craft and "
+                + "slot, never a tank-and-cable panel."))),
+
+        // =================================================================
+        new Chapter("Sorting", List.of(
+            text("The tabs down the left ARE the compartments. Click one to see what it holds; the "
+                + "top-to-bottom order is priority, and the first tab whose rules want an item claims "
+                + "it. Reorder tabs and you re-decide who gets first pick."),
+            text("Auto-tabs, shipped and ready: Food, Combat, Tools & Utility, Ores & Valuables, "
+                + "Brewing & Alchemy, Nature & Farming, Blocks & Building, and Loose. They sort by "
+                + "what an item IS - any mod's pickaxe is a Tool, any mod's food is Food - so they "
+                + "cover modded items with no per-mod support."),
+            text("A Loose tab always sits last and claims anything no rule wanted. Nothing dropped "
+                + "into a pack is ever lost; at worst it lands in Loose."),
+            text("PIN an item to force it: hover it in the grid and press P, and it always lands in "
+                + "the active tab, beating every rule. Press P again over a pinned item to unpin it."),
+            text("Three tools across the title bar: TIDY UP merges partial stacks and re-sorts the "
+                + "whole pack; SEARCH finds anything across every tab; FLATTEN drops it all into one "
+                + "grid when you just want to rummage."),
+            text("Make your own compartments. The + button adds one; then hover an item and press I "
+                + "to stamp it as the tab's icon, R to rename, middle-click the tab to dye its "
+                + "leather, and [ or ] to slide it up or down the rail. Right-click removes it."))),
+
+        // =================================================================
+        new Chapter("Trinkets", List.of(
+            text("Brass sockets run down the right rail - the number of them is your pack's tier. "
+                + "A trinket is a fitting you craft and drop into a socket; pull it back out any time. "
+                + "Each grants the pack one trick."),
+            row("carry & keep",
+                trinket(TrinketType.LODESTONE), trinket(TrinketType.RESTOCK),
+                trinket(TrinketType.REPAIR), trinket(TrinketType.BOTTOMLESS)),
+            text("LODESTONE CHARM draws loose items nearby into the pack. RESTOCK STRAP tops up your "
+                + "hotbar stacks from pack stock. REPAIR KIT slowly mends the gear you're wearing and "
+                + "holding. BOTTOMLESS LINING adds another run of slots - and never voids them if you "
+                + "pull it back out; the extra items just hide until it's refitted."),
+            row("sort & swap",
+                trinket(TrinketType.COMPASS_ROSE), trinket(TrinketType.QUILL_LEDGER),
+                trinket(TrinketType.QUICK_DRAW)),
+            text("COMPASS ROSE is the only way a pack throws anything away, and it's opt-in: hover an "
+                + "item and press O to mark it, and only marked items are voided on the way in."),
+            text("QUILL & LEDGER upgrades your custom compartments from pin-only to rule-matching. "
+                + "With it fitted, a custom tab also gathers items that share the kind of the item "
+                + "it's stamped with - stamp a tab with a pickaxe and it collects your tools. Pins "
+                + "still win over rules, so you can always carve out exceptions."),
+            text("QUICK-DRAW STRAPS keep you swinging: when a tool breaks in your hand, the pack "
+                + "passes you an identical one from stock without missing a beat. It only ever hands "
+                + "back what the pack actually holds, so it can't conjure a duplicate."))),
+
+        // =================================================================
+        new Chapter("Tiers & Upgrades", List.of(
+            row("Canvas to Runed",
+                pack(PackTier.CANVAS), pack(PackTier.LEATHER), pack(PackTier.STUDDED),
+                pack(PackTier.REINFORCED), pack(PackTier.RUNED)),
+            text("The pack grows two ways: the material it's made of, and the fittings you craft for "
+                + "it. Each material step adds compartment slots and another trinket socket."),
+            text("Slots and sockets by tier: CANVAS " + PackTier.CANVAS.capacity() + " slots, "
+                + PackTier.CANVAS.trinketSlots() + " sockets. LEATHER " + PackTier.LEATHER.capacity()
+                + " / " + PackTier.LEATHER.trinketSlots() + ". STUDDED " + PackTier.STUDDED.capacity()
+                + " / " + PackTier.STUDDED.trinketSlots() + ". REINFORCED "
+                + PackTier.REINFORCED.capacity() + " / " + PackTier.REINFORCED.trinketSlots()
+                + ". RUNED " + PackTier.RUNED.capacity() + " slots, " + PackTier.RUNED.trinketSlots()
+                + " sockets - the impossibly organized top tier."),
+            text("Upgrading is safe. Craft a full pack together with the next tier's materials and "
+                + "the result carries its contents, its layout, and its fitted trinkets straight up. "
+                + "A craft never eats what's inside - pause, never punish."))),
+
+        // =================================================================
+        new Chapter("The Stores", List.of(
+            text("One pack can carry more than items. Each extra store is a physical fitting you "
+                + "craft and slot - never on by default - and shows as a glass gauge on the right rail."),
+            row("fluids, XP, charge",
+                trinket(TrinketType.WATERSKIN), trinket(TrinketType.SOUL_VIAL),
+                trinket(TrinketType.CHARGE_CRYSTAL)),
+            text("WATERSKIN RACK fits a fluid tank, from " + buckets(PackTier.CANVAS) + " on Canvas up "
+                + "to " + buckets(PackTier.RUNED) + " on Runed. Click the glass gauge with a bucket or "
+                + "flask on the cursor to fill or empty it. It speaks NeoForge's own fluid capability, "
+                + "so any mod's pipes work against a placed pack."),
+            text("SOUL VIAL stores experience - " + PackXpStore.capacityFor(pack(PackTier.CANVAS))
+                + " points on Canvas up to " + PackXpStore.capacityFor(pack(PackTier.RUNED))
+                + " on Runed. Click the green gauge to siphon your XP in, Shift-click to pour it back, "
+                + "and it quietly mends your Mending-enchanted gear from the reservoir."),
+            text("CHARGE CRYSTAL holds an arcane charge - standard FE in a copper-wound crystal, never "
+                + "a battery - from " + PackEnergyStorage.capacityFor(pack(PackTier.CANVAS)) + " FE on "
+                + "Canvas up to " + PackEnergyStorage.capacityFor(pack(PackTier.RUNED)) + " on Runed. "
+                + "Any charger fills it, and it tops up the powered tools in your hands."),
+            text("Running Forgework? The Charge Crystal also feeds any Forgework portable terminal "
+                + "you're carrying, 1 Flux = 1 FE - the same arcane charge, poured into your "
+                + "ender-gear. It does nothing without Forgework installed."),
+            text("One store is still on the bench: an Alchemist's Flask Harness for bottled vapors "
+                + "(Mekanism chemicals) - a fitting you can see, never a plasma tank."))));
+}

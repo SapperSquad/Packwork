@@ -1,0 +1,3 @@
+{ "type": "minecraft:crafting_shapeless", "category": "equipment",
+  "ingredients": [ { "item": "minecraft:book" }, { "item": "minecraft:leather" } ],
+  "result": { "id": "packwork:outfitters_handbook", "count": 1 } }

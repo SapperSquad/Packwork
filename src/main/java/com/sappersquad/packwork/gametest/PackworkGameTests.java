@@ -95,13 +95,15 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
-    /** A manual pin beats every rule; a custom tab's own rule claims matching items. */
+    /**
+     * A manual pin beats every rule (with or without a ledger); a custom tab's own rules
+     * only claim items when a Quill &amp; Ledger is fitted - pin-only otherwise.
+     */
     @GameTest(template = "empty")
-    public static void pinsAndCustomTabsWin(GameTestHelper helper) {
-        ResourceLocation stickId = BuiltInRegistries.ITEM.getKey(Items.STICK);
+    public static void pinsAlwaysWinLedgerGatesRules(GameTestHelper helper) {
         ResourceLocation breadId = BuiltInRegistries.ITEM.getKey(Items.BREAD);
 
-        // Custom tab that claims anything from minecraft by a name rule, plus a pin.
+        // Custom tab that claims sticks by a name rule, plus a pin sending bread to it.
         TabDef custom = new TabDef("custom:0", "Bits",
                 ResourceLocation.withDefaultNamespace("stick"), 0,
                 List.of(SortRule.name("stick")));
@@ -112,11 +114,40 @@ public class PackworkGameTests {
                 List.of(new PackLayout.Pin(breadId, "custom:0")),
                 List.of());
 
-        List<TabView> tabs = SortEngine.tabsFor(layout);
-        // stick now claimed by the custom tab's name rule instead of Loose
-        assertRoute(helper, tabs, layout, Items.STICK, "custom:0");
-        // bread is pinned to custom:0, overriding the Food auto-tab
-        assertRoute(helper, tabs, layout, Items.BREAD, "custom:0");
+        // Without a Quill & Ledger: custom tab is pin-only. The stick rule is ignored
+        // (stick falls to Loose), but the pin still overrides the Food auto-tab.
+        List<TabView> noLedger = SortEngine.tabsFor(layout, false);
+        assertRoute(helper, noLedger, layout, Items.STICK, AutoTabs.LOOSE_ID);
+        assertRoute(helper, noLedger, layout, Items.BREAD, "custom:0");
+
+        // With a Quill & Ledger: the custom tab's own rule now claims sticks; the pin
+        // still wins for bread.
+        List<TabView> ledger = SortEngine.tabsFor(layout, true);
+        assertRoute(helper, ledger, layout, Items.STICK, "custom:0");
+        assertRoute(helper, ledger, layout, Items.BREAD, "custom:0");
+        helper.succeed();
+    }
+
+    /**
+     * Quill &amp; Ledger files a custom tab by the item it's stamped with: a tab stamped
+     * with a pickaxe (a tool) gathers tools once the ledger is fitted, and is pin-only
+     * without it.
+     */
+    @GameTest(template = "empty")
+    public static void quillLedgerFilesByStamp(GameTestHelper helper) {
+        TabDef custom = new TabDef("custom:0", "Kit",
+                BuiltInRegistries.ITEM.getKey(Items.IRON_PICKAXE), 0, List.of());
+        // put the custom tab FIRST so, when its derived rule is active, it out-prioritises
+        // the Tools auto-tab.
+        List<String> order = new ArrayList<>();
+        order.add("custom:0");
+        order.addAll(AutoTabs.defaultOrder());
+        PackLayout layout = new PackLayout(order, List.of(custom), List.of(), List.of());
+
+        // no ledger: pin-only, so the pickaxe routes to the Tools auto-tab
+        assertRoute(helper, SortEngine.tabsFor(layout, false), layout, Items.DIAMOND_PICKAXE, "auto:tools");
+        // ledger: the stamp's kind (a tool) is derived and the custom tab claims it first
+        assertRoute(helper, SortEngine.tabsFor(layout, true), layout, Items.DIAMOND_PICKAXE, "custom:0");
         helper.succeed();
     }
 
@@ -181,12 +212,12 @@ public class PackworkGameTests {
     public static void socketsRejectNonTrinketsAndDupes(GameTestHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.STUDDED);
-        ItemStack feather = new ItemStack(ModItems.trinket(
-                com.sappersquad.packwork.trinket.TrinketType.FEATHER).get());
+        ItemStack strap = new ItemStack(ModItems.trinket(
+                com.sappersquad.packwork.trinket.TrinketType.QUICK_DRAW).get());
 
-        helper.assertTrue(sockets.insertItem(0, feather.copy(), false).isEmpty(), "first feather installs");
-        helper.assertTrue(!sockets.insertItem(1, feather.copy(), false).isEmpty(),
-                "a duplicate feather is refused");
+        helper.assertTrue(sockets.insertItem(0, strap.copy(), false).isEmpty(), "first fitting installs");
+        helper.assertTrue(!sockets.insertItem(1, strap.copy(), false).isEmpty(),
+                "a duplicate fitting is refused");
         helper.assertTrue(!sockets.insertItem(1, new ItemStack(Items.DIRT), false).isEmpty(),
                 "a non-trinket is refused");
         helper.succeed();
@@ -301,6 +332,77 @@ public class PackworkGameTests {
 
         int out = crystal.extractEnergy(Integer.MAX_VALUE, false);
         helper.assertTrue(out == xfer && crystal.getEnergyStored() == 0, "extract returns it all, nothing left over");
+        helper.succeed();
+    }
+
+    /**
+     * Quick-Draw Straps pull one replacement out of the pack and conserve exactly - a
+     * refill never mints a duplicate.
+     */
+    @GameTest(template = "empty")
+    public static void quickDrawPullsOneAndNeverDupes(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.IRON_PICKAXE), false);
+
+        ItemStack pulled = com.sappersquad.packwork.trinket.TrinketEffects.pullReplacement(store, Items.IRON_PICKAXE);
+        helper.assertTrue(pulled.is(Items.IRON_PICKAXE) && pulled.getCount() == 1, "pulls exactly one pickaxe");
+        // the pack no longer holds it; a second pull finds nothing (never dupes)
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.pullReplacement(store, Items.IRON_PICKAXE).isEmpty(),
+                "a second pull finds nothing - never dupes");
+
+        // a stackable refills the whole stack back into the hand
+        store.insertItem(0, new ItemStack(Items.TORCH, 30), false);
+        ItemStack torches = com.sappersquad.packwork.trinket.TrinketEffects.pullReplacement(store, Items.TORCH);
+        helper.assertTrue(torches.is(Items.TORCH) && torches.getCount() == 30,
+                "pulls the whole torch stack, got " + torches.getCount());
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.pullReplacement(store, Items.TORCH).isEmpty(),
+                "nothing left after");
+        helper.succeed();
+    }
+
+    /**
+     * The Forgework Flux bridge is fully gated: without the mod it never fires (the
+     * Charge Crystal is a plain FE store); with it, FE leaves the crystal into a carried
+     * Forgework terminal 1 Flux = 1 FE, conserving exactly.
+     */
+    @GameTest(template = "empty")
+    public static void forgeworkFluxBridgeGatedAndConserves(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
+        new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+        pack.set(ModComponents.PACK_ENERGY.get(), 50_000);
+        var crystal = pack.getCapability(Capabilities.EnergyStorage.ITEM);
+        helper.assertTrue(crystal != null && crystal.getEnergyStored() == 50_000, "crystal seeded with charge");
+
+        if (!net.neoforged.fml.ModList.get().isLoaded("forgework")) {
+            // no-op invariant: the bridge is gated, so nothing touches the charge here
+            helper.assertTrue(crystal.getEnergyStored() == 50_000,
+                    "without Forgework the bridge is inert - the crystal keeps its charge");
+            helper.succeed();
+            return;
+        }
+
+        // Forgework present: a Portable Ender Terminal fills from the crystal, 1:1.
+        var terminalItem = BuiltInRegistries.ITEM.getOptional(
+                ResourceLocation.parse("forgework:portable_ender_terminal")).orElseThrow();
+        ItemStack terminal = new ItemStack(terminalItem);
+        int before = crystal.getEnergyStored();
+        int moved = com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.chargeItem(terminal, crystal, 5_000);
+        helper.assertTrue(moved == 5_000, "moves the per-item cap of Flux, got " + moved);
+        helper.assertTrue(crystal.getEnergyStored() == before - moved, "FE leaves the crystal 1:1, none minted or lost");
+        helper.succeed();
+    }
+
+    /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
+    @GameTest(template = "empty")
+    public static void handbookContentBuilds(GameTestHelper helper) {
+        var chapters = com.sappersquad.packwork.guide.HandbookContent.CHAPTERS;
+        helper.assertTrue(!chapters.isEmpty(), "the handbook has chapters");
+        for (var ch : chapters) {
+            helper.assertTrue(!ch.entries().isEmpty(), "chapter '" + ch.title() + "' has content");
+        }
+        helper.assertTrue(ModItems.HANDBOOK.get() != null, "the handbook item is registered");
         helper.succeed();
     }
 

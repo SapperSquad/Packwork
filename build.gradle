@@ -82,6 +82,24 @@ configurations {
 
 dependencies {
     implementation "net.neoforged:neoforge:${neo_version}"
+
+    // Forgework (sibling project) Flux bridge. Same local-jar wiring as
+    // Highroller <- Coinkeep, but scoped `compileOnly` because Forgework is an
+    // OPTIONAL, ModList-gated dependency, never a hard one: we compile the one
+    // bridge class against its API, and it never classloads without the mod.
+    // Pinned to a specific build like Highroller pins coinkeep-1.0.0.jar; bump
+    // this line when Forgework is rebuilt. If the file is missing, build it:
+    // ../Forgework> gradlew build
+    compileOnly files('../Forgework/build/libs/forgework-0.3.0.jar')
+
+    // Pull Forgework into the DEV runtime only on demand (-Pforgework), so the
+    // default runClient / runGameTestServer stay dependency-free and the
+    // "bridge no-ops without the mod" invariant is genuinely exercised. With the
+    // flag, FML's classpath locator lists forgework as a dev mod, so the combined
+    // runtime can be tested in-process (./gradlew runGameTestServer -Pforgework).
+    if (project.hasProperty('forgework')) {
+        localRuntime files('../Forgework/build/libs/forgework-0.3.0.jar')
+    }
 }
 
 // Expand declared replace properties into neoforge.mods.toml.

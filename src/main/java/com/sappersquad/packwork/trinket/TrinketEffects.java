@@ -6,13 +6,17 @@ import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.pack.PackTier;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.player.PlayerDestroyItemEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.EnumSet;
@@ -20,8 +24,8 @@ import java.util.List;
 
 /**
  * Runs the "active" trinket effects each server tick for every pack a player carries.
- * Passive trinkets (Bottomless capacity, Compass Rose void, Feather, Quill &amp; Ledger)
- * are read where they matter instead of here.
+ * Passive trinkets (Bottomless capacity, Compass Rose void, Quill &amp; Ledger) are read
+ * where they matter instead of here; Quick-Draw Straps react to an item breaking (below).
  *
  * <p>Everything is throttled and bounded; nothing here can void or dupe (magnet respects
  * the void list only when a Compass Rose is present, and only inserts what fits).
@@ -31,6 +35,11 @@ public final class TrinketEffects {
 
     private static final double MAGNET_RANGE = 5.0;
     private static final int REPAIR_PER_TICK = 1;
+    /** Cap the Charge Crystal's Flux hand-off to a Forgework terminal per tick (with FE tools it's uncapped). */
+    private static final int FLUX_PER_TICK = 5_000;
+
+    /** Gate every touch of the Forgework bridge so its com.forgework.* imports never classload without the mod. */
+    private static final boolean FORGEWORK_LOADED = ModList.get().isLoaded("forgework");
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -67,6 +76,12 @@ public final class TrinketEffects {
             if (room <= 0) continue;
             int pulled = crystal.extractEnergy(room, false);
             if (pulled > 0) sink.receiveEnergy(pulled, false);
+        }
+        // Forgework interop (gated): the crystal also tops up any Forgework portable
+        // terminal you're carrying, 1 Flux = 1 FE. Reached only when forgework is loaded,
+        // so ForgeworkFluxBridge (and com.forgework.*) never classloads without it.
+        if (FORGEWORK_LOADED && crystal.getEnergyStored() > 0) {
+            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(sp, crystal, FLUX_PER_TICK);
         }
     }
 
@@ -147,6 +162,50 @@ public final class TrinketEffects {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Quick-Draw Straps: when a held tool breaks (or a held stack is used to nothing),
+     * pull an identical one from a pack you carry straight into that hand - no fumbling
+     * for a spare. Fires only for gear that emptied a hand in use (getHand() != null),
+     * so setting an item aside never triggers a refill, and it can only hand back what
+     * the pack actually holds, so it never dupes.
+     */
+    @SubscribeEvent
+    public static void onHeldItemBroken(PlayerDestroyItemEvent event) {
+        InteractionHand hand = event.getHand();
+        if (hand == null || !(event.getEntity() instanceof ServerPlayer sp)) return;
+        ItemStack broken = event.getOriginal();
+        if (broken.isEmpty() || broken.getItem() instanceof PackItem) return;
+        if (!sp.getItemInHand(hand).isEmpty()) return; // only step in when that hand went empty
+
+        Inventory inv = sp.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack packStack = inv.getItem(i);
+            if (!(packStack.getItem() instanceof PackItem)) continue;
+            if (!TrinketAccess.has(packStack, TrinketType.QUICK_DRAW)) continue;
+            ItemStack replacement = pullReplacement(
+                    new PackInventory(packStack, PackItem.tierOf(packStack)), broken.getItem());
+            if (!replacement.isEmpty()) {
+                sp.setItemInHand(hand, replacement);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Pull one stack of {@code wanted} out of the pack - a fresh copy of that tool, or a
+     * refill of that stackable - removing it from the store. Returns EMPTY if the pack
+     * holds none. Conserves exactly: it only hands back what it takes out, so a
+     * Quick-Draw refill can never mint a duplicate.
+     */
+    public static ItemStack pullReplacement(PackInventory pack, Item wanted) {
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack inPack = pack.getStackInSlot(i);
+            if (inPack.isEmpty() || inPack.getItem() != wanted) continue;
+            return pack.extractItem(i, inPack.getMaxStackSize(), false);
+        }
+        return ItemStack.EMPTY;
     }
 
     private static ItemStack insertAll(PackInventory pack, ItemStack stack) {
