@@ -250,8 +250,11 @@ WARN StatusConsoleListener Advanced terminal features are not available in this 
 [15:51:41] [Render thread/INFO] [co.sa.pa.Packwork/]: [autoshot] grabbed packwork_newtab
 [15:51:41] [Render thread/INFO] [co.sa.pa.Packwork/]: [autoshot] done - screenshots written
 [15:51:41] [IO-Worker-4/INFO] [co.sa.pa.Packwork/]: [autoshot] Saved screenshot as packwork_newtab.png
-r]: Dev left the game
-[15:51:08] [Server thread/WARN] [minecraft/PlayerDataStorage]: Failed to save player data for Dev
+
+> Task :runClient FAILED
+28 actionable tasks: 1 executed, 27 up-to-date
+Configuration cache entry reused.
+a for Dev
 [15:51:08] [Server thread/INFO] [minecraft/ServerCommonPacketListenerImpl]: Stopping singleplayer server as player logged out
 [15:51:09] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
 [15:51:09] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players

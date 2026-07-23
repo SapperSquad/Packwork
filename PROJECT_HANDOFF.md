@@ -14,16 +14,54 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — greenfield
+## Status — Phase 0 done, Phase 1 (the flagship) done & verified, Phase 2 started
 
-Nothing is built yet. This doc, `DECISIONS.md`, and the `packwork` agent are the whole
-project. **First task: scaffold the NeoForge 1.21.1 project** (see Build & Run), then
-Phase 0. Create `README.md`, `PUBLISHING.md`, and `CLAUDE.md` at the first shippable
-milestone, not before.
+Git repo initialized. NeoForge 1.21.1 scaffold cloned from Highroller (Neo **21.1.235**,
+Parchment 2024.11.17, JDK 21, package `com.sappersquad.packwork`, mod id `packwork`).
 
-Decide up front whether this is a git repo. Recommend `git init` immediately — Highroller
-is versioned and it's saved it more than once. PhytoForge is *not* a repo and every delete
-there is permanent; don't repeat that.
+**Built & compiling & committed:**
+- **Phase 0** — five tier pack items (Canvas→Runed, one `PackTier` enum), component-backed
+  item store (`PackInventory` over `ItemContainerContents`), a working GUI, contents
+  persist through save/load. Item-handler capability exposed on the stack for any mod's
+  automation.
+- **Phase 1 — the sorting flagship (the reason this mod exists), verified in-game.**
+  Stamped-leather tab rail (7 auto-tabs + Loose + custom tabs), rules engine
+  (tag/mod-id/name/predicate), manual pins that beat rules, Loose catch-all, Tidy Up,
+  search, flatten, custom tabs (create / rename / dye / stamp icon / reorder / delete),
+  auto-routing on insert, data-driven category tags. Keybind-to-open (B) + native use.
+- **Phase 2 (partial)** — tier crafting recipes (raw materials, no content-eating upgrades).
+
+**Verified in-game** via the dev screenshot harness (`-Pautoshot`, see below), with pixels
+inspected: the leather/brass panel renders, items store and display, the Food tab shows
+only food, Combat only weapons/armor, tab selection routes correctly, a new custom tab
+appears on the rail. **Six GameTests green** (persistence round-trip, routing, pins, Tidy
+Up, nesting-block, fresh-pack default).
+
+**Not built yet:** the trinket framework + material-tier upgrade UI (rest of Phase 2), the
+four resource stores (Phase 3), and progression/JEI/quest/guide + `README.md`/`PUBLISHING.md`
+(Phase 4). Curios wear-slot compat is still pending.
+
+### How to see the GUI without driving the window
+The gradle dev-client window can't be driven by desktop-control tooling (it's a raw java
+process, not a Start-menu app). So there's a dev-only harness: `DevAutoShot` (gated on
+`-Dpackwork.autoshot` / `./gradlew.bat runClient -Pautoshot`) boots a throwaway creative
+world, fills a pack across every tab, opens it, switches tabs, and writes screenshots to
+`run/client/screenshots/packwork_*.png` — then read those PNGs. Delete
+`run/client/saves/packwork_autoshot` before re-running so world creation doesn't collide.
+
+### Where things live (source map)
+- `pack/` — `PackItem`, `PackTier` (SSOT ladder), `PackInventory` (live component store),
+  `PackMenu` (virtual-tab menu + all action handlers), `PackViewSlot` (rebinding grid cell).
+- `sort/` — `SortRule`, `PredicateKind`, `TabDef`, `PackLayout` (component), `AutoTabs`
+  (SSOT category table), `TabView`, `SortEngine` (routing), `PackSorting` (Tidy Up).
+- `client/` — `PackScreen` (the rail + controls), `PackClientActions`, `PackKeyMappings`,
+  `ClientSetup`, `DevAutoShot`.
+- `net/` — `PackAction`, `PackActionPayload`, `OpenPackPayload`; wired in `PackworkNetwork`.
+- `reg/` — `ModItems`, `ModMenus`, `ModComponents`, `ModCreativeTabs`. Caps in
+  `PackworkCapabilities`.
+- `gametest/PackworkGameTests` — the headless proof of persistence + sorting.
+- `tools/GenTextures.java` — procedural leather/brass GUI + pack sprites (Java only; run
+  `java tools/GenTextures.java`). Data: `data/packwork/tags/item/sorting/*`, `recipe/*`.
 
 ## The hard aesthetic rule — adventurer, never futuristic
 
@@ -158,17 +196,33 @@ Run `runClient` as a background task; watch for `Sound engine started` (ready) o
 
 ## Roadmap — each phase is shippable
 
-- **Phase 0 — prove the loop.** Scaffold; a Leather Pack item that opens a basic single-
-  grid GUI; contents persist through relog/drop/placement.
-- **Phase 1 — the sorting system (the headline).** Tabs, auto-tabs via tags, custom tabs,
-  the rules engine, manual pins, Tidy Up, search/flatten, data-driven categories. Nail
-  this before touching resource stores.
-- **Phase 2 — tiers + trinket framework.** The material ladder and the "easy" trinkets
-  (magnet, feather, void filter, restock, capacity, repair, quick-draw).
-- **Phase 3 — the four resource stores.** In order: fluids → XP → energy → gas, each behind
-  its trinket, with gated Forgework/Mekanism bridges.
-- **Phase 4 — progression & release.** Crafting, an Outfitter's Bench for upgrading, JEI,
-  a quest chapter, then `README.md` + `PUBLISHING.md` + store art.
+- **Phase 0 — prove the loop. DONE.** Scaffold; pack items; component store; a real GUI;
+  contents persist (gametest `contentsSurviveSaveLoad`).
+- **Phase 1 — the sorting system (the headline). DONE & verified in-game.** Tabs, auto-tabs
+  via tags, custom tabs, rules engine, manual pins, Tidy Up, search/flatten, data-driven
+  categories, keybind-open.
+- **Phase 2 — tiers + trinket framework. STARTED.** Tier recipes done. **Next:** (a) the
+  trinket framework — a small `trinket/` package with a `Trinket` registry table (SSOT like
+  `AutoTabs`), N trinket slots per tier (`PackTier.trinketSlots()` already returns the
+  count), a trinket rail on the RIGHT of the GUI, and the "easy" trinkets (Feather Charm =
+  no slowdown, Bottomless Lining = +capacity, Compass Rose = opt-in void, Lodestone Charm =
+  magnet, Restock Strap, Repair Kit, Quick-Draw). (b) Curios back-slot compat in
+  `compat/curios/` gated on `ModList.isLoaded("curios")`, native fallback. (c) A
+  contents-preserving tier-upgrade recipe (or fold into the Phase 4 Outfitter's Bench).
+- **Phase 3 — the four resource stores.** fluids → XP → energy → gas, each behind its
+  trinket (Waterskin Rack / Soul Vial / Charge Crystal / Flask Harness), surfaced as gauges
+  on the right rail. Standard NeoForge `FluidHandler`/`IEnergyStorage` caps; gated Forgework
+  (Flux 1:1 FE) and Mekanism (chemicals) bridges, one class per mod under `compat/`.
+- **Phase 4 — progression & release.** Outfitter's Bench (tier upgrade preserving
+  contents + trinket install), JEI, quest chapter, the in-house **Outfitter's Handbook**
+  guide (crib PhytoForge `client/LabManualScreen` + `ManualContent`), then `README.md` +
+  `PUBLISHING.md` + `CLAUDE.md` + store art. Create those three docs ONLY here.
+
+### Fastest way to resume
+`./gradlew.bat compileJava` (constant), `runGameTestServer` (logic), `runClient -Pautoshot`
+(see the GUI). The trinket rail is the natural next build: the RIGHT side of the pack panel
+is deliberately empty for it, `PackTier.trinketSlots()` already sizes it, and the action
+channel (`PackAction`) is the pattern to add install/remove verbs.
 
 ## Cross-mod interop (all gated, never hard deps)
 
