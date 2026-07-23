@@ -47,6 +47,7 @@ public class GenTextures {
         genTrinket(base + "/item/repair_kit.png", 0xFF9AA0A6, 2);
         genTrinket(base + "/item/quick_draw_straps.png", 0xFFB4595A, 3);
         genTrinket(base + "/item/quill_and_ledger.png", 0xFF6E8BB9, 4);
+        genTrinket(base + "/item/waterskin_rack.png", 0xFF4A8BD6, 1);
 
         // per-tier pack sprites, tinted brass fittings on leather
         genPack(base + "/item/canvas_pack.png", 0xFFCFC09A, 0xFFB4A47C, false);

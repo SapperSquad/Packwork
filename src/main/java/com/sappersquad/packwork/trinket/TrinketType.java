@@ -24,7 +24,9 @@ public enum TrinketType {
     BOTTOMLESS("bottomless_lining", Kind.PASSIVE),
     REPAIR("repair_kit", Kind.TICK),
     QUICK_DRAW("quick_draw_straps", Kind.PASSIVE),
-    QUILL_LEDGER("quill_and_ledger", Kind.PASSIVE);
+    QUILL_LEDGER("quill_and_ledger", Kind.PASSIVE),
+    // resource-store fittings (Phase 3)
+    WATERSKIN("waterskin_rack", Kind.STORE);
 
     public enum Kind { PASSIVE, TICK, STORE }
 

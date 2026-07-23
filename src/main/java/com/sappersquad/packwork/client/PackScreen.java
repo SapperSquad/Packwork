@@ -6,15 +6,20 @@ import com.sappersquad.packwork.pack.PackMenu;
 import com.sappersquad.packwork.pack.PackViewSlot;
 import com.sappersquad.packwork.sort.AutoTabs;
 import com.sappersquad.packwork.sort.TabView;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -47,6 +52,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private int tabPitch = 25;
     private final List<int[]> tabRects = new ArrayList<>(); // x,y,w,h per rendered tab (screen coords)
+    private int[] gaugeRect = null; // x,y,w,h of the fluid gauge, or null when there's no rack
 
     public PackScreen(PackMenu menu, Inventory playerInv, Component title) {
         super(menu, playerInv, title);
@@ -161,6 +167,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (renaming) renameBox.render(g, mouseX, mouseY, partialTick);
         drawButtons(g, mouseX, mouseY);
         drawPageNav(g, mouseX, mouseY);
+        drawFluidGauge(g);
         drawHoverTooltips(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
     }
@@ -191,6 +198,43 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // new: a plus
         g.fill(newBtnX() + 5, btnY() + 3, newBtnX() + 7, btnY() + 9, gl);
         g.fill(newBtnX() + 3, btnY() + 5, newBtnX() + 9, btnY() + 7, gl);
+    }
+
+    /** A glass waterskin gauge below the trinket sockets, shown only when a Rack is fitted. */
+    private void drawFluidGauge(GuiGraphics g) {
+        gaugeRect = null;
+        if (!menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;
+        int n = menu.trinketSlotCount();
+        int x = leftPos + PackMenu.TRINKET_X - 1;
+        int y = topPos + PackMenu.TRINKET_Y0 + Math.max(n, 1) * PackMenu.TRINKET_PITCH + 4;
+        int w = 16, h = 48;
+        gaugeRect = new int[]{x, y, w, h};
+
+        // brass frame + dark glass recess
+        g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF3E2A18);
+        g.renderOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
+        g.fill(x, y, x + w, y + h, 0xFF20303A);
+
+        FluidStack fs = menu.fluidStack();
+        int cap = menu.fluidCapacity();
+        if (!fs.isEmpty() && cap > 0) {
+            int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
+            IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fs.getFluid());
+            ResourceLocation still = ext.getStillTexture(fs);
+            TextureAtlasSprite sprite = Minecraft.getInstance()
+                    .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(still);
+            int tint = ext.getTintColor(fs);
+            float r = ((tint >> 16) & 0xFF) / 255f, gr = ((tint >> 8) & 0xFF) / 255f, b = (tint & 0xFF) / 255f;
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(r, gr, b, 1f);
+            // tile the fluid sprite up from the bottom
+            for (int yy = 0; yy < filled; yy += 16) {
+                int hh = Math.min(16, filled - yy);
+                g.blit(x, y + h - yy - hh, 0, w, hh, sprite);
+            }
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        }
+        // glassy highlight
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
     private void drawPlate(GuiGraphics g, int x, int y, boolean hover, boolean on) {
@@ -236,6 +280,16 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 return;
             }
         }
+        if (gaugeRect != null && inRect(mouseX, mouseY, gaugeRect[0], gaugeRect[1], gaugeRect[2], gaugeRect[3])) {
+            FluidStack fs = menu.fluidStack();
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.waterskin"));
+            if (fs.isEmpty()) lines.add(Component.translatable("packwork.ui.tank_empty").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            else lines.add(fs.getHoverName().copy().append(" - " + fs.getAmount() + " / " + menu.fluidCapacity() + " mB").withStyle(net.minecraft.ChatFormatting.GRAY));
+            lines.add(Component.translatable("packwork.ui.tank_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            return;
+        }
         if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
             g.renderTooltip(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN))
@@ -270,6 +324,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 int y = topPos + 143;
                 if (inRect((int) mx, (int) my, leftPos + 8, y, 8, 8)) { PackClientActions.page(menu, -1); return true; }
                 if (inRect((int) mx, (int) my, leftPos + 160, y, 8, 8)) { PackClientActions.page(menu, 1); return true; }
+            }
+            if (gaugeRect != null && inRect((int) mx, (int) my, gaugeRect[0], gaugeRect[1], gaugeRect[2], gaugeRect[3])) {
+                PackClientActions.fluidInteract(menu); // fill/drain with the item on the cursor
+                return true;
             }
         }
         // rail tabs
