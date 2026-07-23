@@ -111,10 +111,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.blit(TAB, x, y, 0f, 0f, TAB_W, th, TAB_W, 24);
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 
-            // dye wash for custom tabs
+            // dye wash for custom tabs, plus a solid colour pip on the brass binding so
+            // the dye reads even under the item icon
             if (t.color() != 0) {
-                int wash = (t.color() & 0x00FFFFFF) | 0x55000000;
+                int wash = (t.color() & 0x00FFFFFF) | 0x88000000;
                 g.fill(x + 3, y + 1, x + TAB_W - 2, y + th - 1, wash);
+                int pip = t.color() | 0xFF000000;
+                g.fill(x + 1, y + 2, x + 3, y + th - 2, pip);
             }
 
             g.renderItem(t.iconStack(), x + 5, y + (th - 16) / 2);
