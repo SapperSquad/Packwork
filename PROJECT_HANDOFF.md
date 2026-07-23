@@ -14,7 +14,34 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — Phase 0 done, Phase 1 (the flagship) done & verified, Phase 2 started
+## Status — Phases 0-2 done & verified; Phase 3 fluids done; rest scoped
+
+> Newest first. Full source map and roadmap below.
+
+**Phase 2 — trinket framework, DONE & verified in-game.** Right-rail brass sockets
+(count = tier), eight craftable fittings off a `TrinketType` SSOT table. Working:
+Lodestone (magnet), Restock (hotbar top-up), Repair (slow mend), Bottomless (grows
+capacity, never truncates), Compass Rose (opt-in void, the only void path — press O on
+a hovered item). Feather / Quick-Draw / Quill&Ledger are registered + socketed but
+**inert** (Feather needs a weight mechanic that's an Alex balance call — flagged). Effects
+run server-side per `PlayerTickEvent`, throttled/bounded. Preserving tier-upgrade recipe
+(`packwork:pack_upgrade`) carries contents+trinkets+name up a tier so no craft eats a pack.
+
+**Phase 3 — fluids store, DONE & verified in-game.** Waterskin Rack trinket fits one
+fluid tank (`SimpleFluidContent` component, tier-scaled capacity). NeoForge
+`FluidHandler.ITEM` capability exposed **only when the Rack is fitted**. Glass-vial gauge
+under the sockets renders the fluid's own texture; click with a bucket/flask on the cursor
+to fill/drain (`FluidUtil`). **Still to do in Phase 3:** XP (Soul Vial), Energy (Charge
+Crystal + gated Forgework Flux bridge), Gas (Flask Harness + gated Mekanism). Follow the
+fluids store as the template: component + gated capability + trinket + gauge + gametest.
+
+**Still open:** Curios back-slot compat (needs the Curios API as a `compileOnly` dep + its
+maven repo — not in the local cache; native use + keybind already satisfy "wear it"). The
+Outfitter's Bench block (the upgrade recipe covers the preserve-contents need for now).
+Phase 4: Outfitter's Handbook guide, JEI, and store art. **README.md / PUBLISHING.md /
+CHANGELOG.md now exist** (written at this milestone) — keep their copy in step with code.
+
+### Original status (Phase 0/1)
 
 Git repo initialized. NeoForge 1.21.1 scaffold cloned from Highroller (Neo **21.1.235**,
 Parchment 2024.11.17, JDK 21, package `com.sappersquad.packwork`, mod id `packwork`).
