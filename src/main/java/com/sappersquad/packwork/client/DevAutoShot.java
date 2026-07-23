@@ -37,13 +37,15 @@ public final class DevAutoShot {
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
-        OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2, DONE
+        OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
+        PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK, DONE
     }
 
     private static Phase phase = Phase.BOOT;
     private static int ticks = 0;
     private static int wait = 0;
     private static String customTabId = "custom:0";
+    private static net.minecraft.core.BlockPos placedMiddle = null;
 
     @SubscribeEvent
     public static void onTick(ClientTickEvent.Post event) {
@@ -126,6 +128,19 @@ public final class DevAutoShot {
             case WB2 -> { if (++wait > 8) phase = Phase.SHOOT_BOOK2; }
             case SHOOT_BOOK2 -> {
                 grab(mc, "packwork_handbook_trinkets");
+                mc.setScreen(null);          // close the book
+                placeBlocks(mc);             // set three packs down in the world
+                phase = Phase.WPLACE; wait = 0;
+            }
+            case WPLACE -> { if (++wait > 30) phase = Phase.SHOOT_WORLD; } // let chunks re-render
+            case SHOOT_WORLD -> {
+                grab(mc, "packwork_placed_world"); // three tier-tinted packs on the ground
+                openBlock(mc);
+                phase = Phase.WBLOCK; wait = 0;
+            }
+            case WBLOCK -> { if (++wait > 15) phase = Phase.SHOOT_BLOCK; } // menu opens + syncs
+            case SHOOT_BLOCK -> {
+                grab(mc, "packwork_placed_gui"); // the SAME organizer, opened from the block
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
@@ -188,6 +203,77 @@ public final class DevAutoShot {
             sp.getInventory().selected = 0;
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[autoshot] pack filled and opened");
+        });
+    }
+
+    /** Set three tier-tinted pack blocks on a stone-brick pad and stand the player back to view them. */
+    private static void placeBlocks(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            lvl.setDayTime(6000);
+            net.minecraft.core.BlockPos base = sp.blockPosition();
+            var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
+            for (int dx = -2; dx <= 3; dx++)
+                for (int dz = -3; dz <= 6; dz++) {
+                    for (int dy = 0; dy <= 4; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
+                    lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
+                }
+            com.sappersquad.packwork.pack.PackTier[] tiers = {
+                    com.sappersquad.packwork.pack.PackTier.LEATHER,
+                    com.sappersquad.packwork.pack.PackTier.REINFORCED,
+                    com.sappersquad.packwork.pack.PackTier.RUNED };
+            for (int i = 0; i < 3; i++) {
+                net.minecraft.core.BlockPos bp = base.offset(i, 0, 4);
+                lvl.setBlock(bp, com.sappersquad.packwork.reg.ModBlocks.PACK.get().defaultBlockState()
+                        .setValue(com.sappersquad.packwork.block.PackContainerBlock.FACING,
+                                net.minecraft.core.Direction.NORTH), 3);
+                if (lvl.getBlockEntity(bp) instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
+                    ItemStack pk = new ItemStack(ModItems.pack(tiers[i]).get());
+                    if (i == 1) { // give the middle pack a full loadout so its opened GUI shows content
+                        var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(() -> pk, tiers[i]);
+                        sockets.insertItem(0, new ItemStack(ModItems.trinket(
+                                com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+                        pk.set(com.sappersquad.packwork.reg.ModComponents.PACK_ENERGY.get(),
+                                com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pk) / 2);
+                        var st = new com.sappersquad.packwork.pack.PackInventory(pk, tiers[i]);
+                        st.insertItem(0, new ItemStack(Items.DIAMOND, 20), false);
+                        st.insertItem(1, new ItemStack(Items.IRON_INGOT, 40), false);
+                        st.insertItem(2, new ItemStack(Items.BREAD, 32), false);
+                        placedMiddle = bp;
+                    }
+                    be.setPackStack(pk);
+                }
+            }
+            // stand back on the pad and look at the row
+            sp.connection.teleport(base.getX() + 1.5, base.getY(), base.getZ() - 2.5, 0f, 12f);
+            Packwork.LOGGER.info("[autoshot] placed pack blocks");
+        });
+    }
+
+    /** Open the middle placed pack's organizer - the SAME menu as a carried pack. */
+    private static void openBlock(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || placedMiddle == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            if (sp.serverLevel().getBlockEntity(placedMiddle)
+                    instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
+                net.minecraft.core.BlockPos pos = placedMiddle;
+                sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                                (id, inv, pl) -> PackMenu.serverForBlock(id, inv, be),
+                                be.getPackStack().getHoverName()),
+                        buf -> {
+                            buf.writeBoolean(true);
+                            buf.writeBlockPos(pos);
+                            buf.writeVarInt(be.getTier().ordinal());
+                        });
+            }
         });
     }
 

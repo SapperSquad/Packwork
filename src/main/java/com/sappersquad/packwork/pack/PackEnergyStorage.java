@@ -16,11 +16,18 @@ public class PackEnergyStorage implements IEnergyStorage {
     private final Supplier<ItemStack> live;
     private final int capacity;
     private final int maxTransfer;
+    private final Runnable onChange;
 
     public PackEnergyStorage(Supplier<ItemStack> live, int capacity, int maxTransfer) {
+        this(live, capacity, maxTransfer, () -> {});
+    }
+
+    /** {@code onChange} lets a placed pack mark its block entity dirty when a cable charges it. */
+    public PackEnergyStorage(Supplier<ItemStack> live, int capacity, int maxTransfer, Runnable onChange) {
         this.live = live;
         this.capacity = capacity;
         this.maxTransfer = maxTransfer;
+        this.onChange = onChange;
     }
 
     /** Reservoir size for a pack: scales with the material tier. */
@@ -39,7 +46,10 @@ public class PackEnergyStorage implements IEnergyStorage {
 
     private void set(int v) {
         ItemStack s = live.get();
-        if (!s.isEmpty()) s.set(ModComponents.PACK_ENERGY.get(), Math.max(0, Math.min(capacity, v)));
+        if (!s.isEmpty()) {
+            s.set(ModComponents.PACK_ENERGY.get(), Math.max(0, Math.min(capacity, v)));
+            onChange.run();
+        }
     }
 
     @Override

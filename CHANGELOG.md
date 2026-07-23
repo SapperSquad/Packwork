@@ -5,9 +5,18 @@ All notable changes, newest first. Dates are the suite's working dates.
 ## 0.1.0 "First Haul" — 2026-07-23
 
 The first shippable build: the self-sorting pack, the material ladder, the trinket
-framework, three resource stores, a gated Forgework bridge, and an in-game guide.
+framework, three resource stores, a placeable + automatable pack, a gated Forgework bridge,
+and an in-game guide.
 
 ### Added
+- **Placeable packs.** Sneak-right-click a block face to stand a pack in the world - it
+  renders as the pack, tinted for its tier and facing you; break it (or middle-click) to get
+  the item back with every field intact (contents, layout, trinkets, fluid/XP/energy). Right-
+  click a placed pack for the same organizer. It speaks standard NeoForge block capabilities -
+  an item handler (dropped-in items auto-file), a fluid tank with a Waterskin Rack, an energy
+  store with a Charge Crystal - so hoppers, pipes, and cables interact with no bridge block.
+  With Forgework installed, a Forgework cable charges a placed pack's Charge Crystal directly,
+  1 Flux = 1 FE.
 - **The self-sorting pack.** A tabbed organizer with a stamped-leather tab rail: seven
   auto-tabs (Food, Combat, Tools, Ores, Brewing, Nature, Blocks) plus a Loose catch-all
   that guarantees nothing dropped in ever vanishes.

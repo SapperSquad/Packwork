@@ -1,9 +1,17 @@
 package com.sappersquad.packwork.compat.forgework;
 
+import com.forgework.energy.IFlowEnergyStorage;
 import com.forgework.item.PortableEnderTerminalItem;
+import com.forgework.registry.ModCapabilities;
+import com.sappersquad.packwork.block.PackContainerBlockEntity;
+import com.sappersquad.packwork.pack.PackEnergyStorage;
+import com.sappersquad.packwork.trinket.TrinketAccess;
+import com.sappersquad.packwork.trinket.TrinketType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /**
@@ -63,5 +71,34 @@ public final class ForgeworkFluxBridge {
         // Refund any Flux the terminal couldn't take back into the crystal (never lose FE).
         if (accepted < pulled) crystal.receiveEnergy(pulled - accepted, false);
         return accepted;
+    }
+
+    // ---- block-level bridge: the placed pack speaks Forgework Flux directly ----
+
+    /**
+     * Expose a placed pack's Charge Crystal reservoir as Forgework's own {@code FLOW_ENERGY}
+     * block capability, so a Forgework cable/battery charges it directly - the block-level
+     * interop the item-only pack couldn't do (Forgework Flux is a block cap, not standard FE).
+     * The adapter is a pure 1:1 delegate onto the pack's FE store, exactly as PhytoForge's
+     * bridge does. Only present when a Charge Crystal is fitted.
+     */
+    public static void register(RegisterCapabilitiesEvent event,
+                                BlockEntityType<PackContainerBlockEntity> type) {
+        event.registerBlockEntity(ModCapabilities.FLOW_ENERGY, type, (be, side) -> {
+            ItemStack pack = be.getPackStack();
+            if (!TrinketAccess.has(pack, TrinketType.CHARGE_CRYSTAL)) return null;
+            return new FlowAdapter(new PackEnergyStorage(be::getPackStack,
+                    PackEnergyStorage.capacityFor(pack), PackEnergyStorage.transferFor(pack), be::setChanged));
+        });
+    }
+
+    /** 1 Flux = 1 FE, straight delegation onto the pack's energy store - no unit conversion. */
+    private record FlowAdapter(IEnergyStorage fe) implements IFlowEnergyStorage {
+        @Override public int receiveEnergy(int maxReceive, boolean simulate) { return fe.receiveEnergy(maxReceive, simulate); }
+        @Override public int extractEnergy(int maxExtract, boolean simulate) { return fe.extractEnergy(maxExtract, simulate); }
+        @Override public int getEnergyStored() { return fe.getEnergyStored(); }
+        @Override public int getMaxEnergyStored() { return fe.getMaxEnergyStored(); }
+        @Override public boolean canReceive() { return fe.canReceive(); }
+        @Override public boolean canExtract() { return fe.canExtract(); }
     }
 }

@@ -145,6 +145,42 @@ one can be flipped later without unpicking the rest:
   Pack, Sorting, Trinkets, Tiers & Upgrades, The Stores. Verified in-game via the autoshot
   harness with pixels inspected.
 
+## 2026-07-23 — the placeable pack block
+
+- **A placed pack IS its item stack, held on the block entity.** The block entity stores one
+  `ItemStack` - the pack, with all its components (layout, flat item store, trinkets,
+  fluid/XP/energy). Placing moves that stack from hand to block entity; breaking drops it
+  straight back (via `getDrops` reading the `BLOCK_ENTITY` loot param). Nothing is
+  re-serialised into a bespoke block format, so the round-trip cannot drop or dupe a field -
+  the drop is literally the same stack. A gametest asserts every field survives place→break
+  byte-for-byte, and that the whole thing is dupe-safe. This was the single hard requirement.
+- **No separate BlockItem — the pack item places the block.** Sneak-right-click a block face
+  places it (non-sneak still opens the GUI); the block has no BlockItem and no loot table.
+  So a pack in the hand and a pack in the world are the same object, one tier ladder.
+- **Placement is trinket-gated capabilities on the block entity.** The placed pack exposes
+  NeoForge's standard item / fluid / energy block capabilities (each gated by its trinket),
+  so hoppers, pipes, and cables interact with it. Because sorting is virtual over one flat
+  store, an item a hopper pushes in just auto-routes into the right compartment. Every
+  external write marks the block entity dirty so it persists.
+- **The GUI generalised, not forked.** `PackMenu` now resolves its live pack stack from
+  either a player-inventory slot (carried) or the block entity (placed). The placed case adds
+  one hidden, inactive "host" slot so the block entity's stack - with all components - syncs
+  to the viewing client through vanilla slot-sync, exactly as a carried pack rides its
+  inventory slot. Slot counts stay identical client/server (the open packet carries a
+  block-vs-slot flag + pos + tier). The carried path is unchanged.
+- **Forgework block-level charging works — but NOT "for free."** Forgework's Flux is its OWN
+  block capability (`FLOW_ENERGY`), not NeoForge's standard FE, so a Forgework cable does not
+  touch the pack's standard energy cap. The block entity made the real bridge possible: the
+  gated `ForgeworkFluxBridge.register` exposes a 1:1 `IFlowEnergyStorage` adapter over the
+  pack's FE store on the block entity (like PhytoForge's bridge), so a Forgework cable/battery
+  charges a *placed* pack directly. Verified live in a combined runtime
+  (`runGameTestServer -Pforgework`): receiving 5,000 Flux lands 5,000 FE in the reservoir.
+  Standard-FE mods (Mekanism-style cables) charge it through the standard cap with no compat.
+- **Render: one block, tier-tinted, faces the player.** A squat leather box with a brass
+  buckle + straps, `FACING` by placement. Tier colour comes from a block colour handler
+  reading the block entity's tier (synced light — tier only, never the 256-slot contents),
+  multiplied over a light-leather base texture. Verified in-game with pixels inspected.
+
 ## Superseded — the three "inert trinkets" note
 
 - **Feather / Quick-Draw / Quill & Ledger** were shipped-but-inert in Phase 2. As of the
