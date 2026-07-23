@@ -45,12 +45,11 @@ and trinkets straight up — a craft never eats what's inside.
 | **Repair Kit** | Slowly mends the gear you're wearing and holding. |
 | **Bottomless Lining** | Adds another run of slots (and never voids them if you pull it). |
 | **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
+| **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
+| **Quill & Ledger** | Custom compartments start filing by rule, not just pins — each gathers items that share the kind of the item it's stamped with. |
 | **Waterskin Rack** | Fits a fluid tank: a glass gauge you fill with a bucket or flask. |
 | **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
-| **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. |
-
-*(Feather Charm, Quick-Draw Straps, and Quill & Ledger are craftable and slot in, but
-their effects are still on the bench — see the changelog.)*
+| **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. With Forgework installed it also feeds your portable terminals, 1 Flux = 1 FE. |
 
 ## Plays nice, needs nothing
 
@@ -65,6 +64,10 @@ when it isn't.
 Right-click a pack in hand to open it, or press the **Open Pack** keybind (default **B**)
 to open the first one you're carrying — no need to dig it out. On death it drops as a
 single item with everything still inside.
+
+New to it? Craft the **Outfitter's Handbook** (a book and a piece of leather) and
+right-click it. Five chapters — the pack, sorting, trinkets, tiers, and the stores — walk
+you through the whole thing, in-game.
 
 ## Build
 
@@ -81,9 +84,10 @@ Textures are generated procedurally — `java tools/GenTextures.java` after edit
 ## On the roadmap
 
 One more resource store is coming — an **Alchemist's Flask Harness** for bottled vapors
-(Mekanism chemicals), never a tank-and-cable panel. The Charge Crystal will bridge
-Forgework Flux 1:1 when Forgework is present. Plus Curios back-slot wear, an in-house
-Outfitter's Handbook, and JEI.
+(Mekanism chemicals), never a tank-and-cable panel. Plus **Curios** back-slot wear and
+**JEI** recipe lookup. Each lights up when its mod is installed and is simply absent when
+it isn't — zero hard dependencies, always. (The Forgework Flux bridge and the Outfitter's
+Handbook are already in.)
 
 ---
 

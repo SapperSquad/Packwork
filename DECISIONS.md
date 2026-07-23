@@ -31,6 +31,10 @@ Judgment calls already made, with reasons. Reopen only with new evidence, and sa
 - **Pause, never punish.** The pack never voids contents on failure. Void/overflow is
   opt-in via the Compass Rose trinket only.
 
+- **No encumbrance.** Packwork has no pack-weight / movement penalty (SapperSquad, 2026-07-23).
+  A heavy pack never slows you down, so there is nothing for a "weightless" fitting to
+  negate — see the Feather Charm cut below.
+
 ## Deliberately deferred to SapperSquad (do not decide unilaterally)
 
 Death behavior, wear slot (Curios vs. inventory vs. both), pack nesting, and the quest
@@ -91,10 +95,61 @@ one can be flipped later without unpicking the rest:
 - **Compass Rose is the only void path** and is opt-in per item (press O on a hovered item;
   stored in `PackLayout.voidList`). Magnet + Compass Rose deliberately doubles as a trash
   collector.
-- **Feather / Quick-Draw / Quill & Ledger ship as items but are inert for now.** Feather
-  needs a pack-weight movement penalty to negate — that's a balance call, so it's **flagged
-  for SapperSquad**, not guessed. Quill & Ledger will gate multi-rule custom tabs once the custom-
-  tab rule editor UI exists (v1 populates custom tabs via pins).
+## 2026-07-23 — finishing run (SapperSquad's two calls + the unblocked work)
+
+- **Feather Charm cut — no encumbrance system.** With no pack-weight penalty (above), a
+  "weightless" fitting has no job, so it was removed rather than left as a dead craftable:
+  gone from the `TrinketType` SSOT (so its item, creative-tab entry, and lang key drop
+  automatically), plus its recipe / model / texture deleted and the socket gametest moved
+  onto another fitting. Nothing references it. Reversible if an encumbrance mechanic is
+  ever added.
+
+- **Forgework Flux bridge is item-level, one direction, 1:1.** A fitted Charge Crystal
+  tops up any Forgework portable terminal the player carries, 1 Flux = 1 FE — the same way
+  the crystal already tops up FE tools in hand. Why not block-level like PhytoForge's
+  bridge: Forgework's Flux is a *block* capability and its item-Flux lives in a bespoke
+  `custom_data` tag reachable only through `PortableEnderTerminalItem.charge/getFlux`, and
+  Packwork's pack has **no placed block-entity form**, so there is no block to carry a
+  `FLOW_ENERGY` cap and no way to pull Flux back out of an item. The item-level hand-off is
+  the honest maximum for both mods as they stand. Full block interop (a Forgework cable
+  charging a *placed* pack) is **flagged** — it needs a pack block-entity, still-open scope.
+  Gated `ModList.isLoaded("forgework")`, one class (`compat/forgework/ForgeworkFluxBridge`)
+  imports `com.forgework.*`, never classloads without the mod. Verified live: 17/17
+  gametests green with the local Forgework jar loaded in-process, the transfer test
+  asserting exactly 1:1 conservation (`runGameTestServer -Pforgework`).
+
+- **Quick-Draw Straps react to a tool actually breaking.** On `PlayerDestroyItemEvent`
+  (server-side, `getHand() != null`), if a carried pack has the strap fitted, it pulls an
+  identical item from the pack into that hand. Chosen over a per-tick swapper because the
+  break event is precise: setting an item aside or swapping hotbar slots never triggers a
+  refill, so it can't surprise you. It only hands back what the pack actually holds, so it
+  can never dupe (a gametest pins the conservation core).
+
+- **Quill & Ledger v1 files custom tabs by their stamped icon.** Without a rule-editor UI
+  (still future), the ledger's observable job is: gate whether custom tabs match by RULE at
+  all. Without it, a custom tab is pin-only (its stored rules are ignored). With it fitted,
+  a custom tab evaluates its stored rules PLUS a category rule derived from the item it's
+  stamped with (food / potion / weapon / armour / tool / block) — "stamp a tab with a
+  pickaxe and it gathers your tools". Storage-free (derived at routing time), dupe-free
+  (routing never moves items), removable (pull it and custom tabs fall back to pin-only,
+  items just re-route). Pins still beat rules. The full free-form multi-rule EDITOR remains
+  a future enhancement; this is the no-UI proxy that makes the fitting real in v1. **Flag
+  for SapperSquad:** if the stamp-derives-a-category behaviour feels too magic in play, the gate is
+  isolated in `SortEngine.toView(TabDef, ledger)` and easy to dial back to "stored rules
+  only".
+
+- **The Outfitter's Handbook is in-house, zero-dep, modelled on PhytoForge's Lab Manual.**
+  A guide item (`guide/HandbookItem`) opens a leather-and-brass `Screen`
+  (`client/OutfitterHandbookScreen`) whose content (`guide/HandbookContent`, dist-neutral)
+  interpolates real numbers from the `PackTier` / store-capacity SSOTs. Five chapters: The
+  Pack, Sorting, Trinkets, Tiers & Upgrades, The Stores. Verified in-game via the autoshot
+  harness with pixels inspected.
+
+## Superseded — the three "inert trinkets" note
+
+- **Feather / Quick-Draw / Quill & Ledger** were shipped-but-inert in Phase 2. As of the
+  2026-07-23 finishing run: Feather is **cut** (no encumbrance), and Quick-Draw and Quill &
+  Ledger are **live** (see above). No inert craftables remain.
 - **The open packet carries the pack tier** so the client builds the same trinket-socket
   count as the server before its inventory slot syncs — a mismatch overran the container
   packet and dropped the player. Learned the hard way (two crashes).

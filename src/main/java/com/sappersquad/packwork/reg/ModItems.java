@@ -1,6 +1,7 @@
 package com.sappersquad.packwork.reg;
 
 import com.sappersquad.packwork.Packwork;
+import com.sappersquad.packwork.guide.HandbookItem;
 import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.pack.PackTier;
 import com.sappersquad.packwork.trinket.TrinketItem;
@@ -24,6 +25,10 @@ public class ModItems {
 
     public static final Map<PackTier, DeferredItem<PackItem>> PACKS = new EnumMap<>(PackTier.class);
     public static final Map<TrinketType, DeferredItem<TrinketItem>> TRINKETS = new EnumMap<>(TrinketType.class);
+
+    /** The in-house guide book. Opens a client screen on right-click; auto-listed in the creative tab. */
+    public static final DeferredItem<HandbookItem> HANDBOOK =
+            ITEMS.registerItem("outfitters_handbook", HandbookItem::new, new Item.Properties());
 
     static {
         for (PackTier tier : PackTier.values()) {

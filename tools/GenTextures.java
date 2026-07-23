@@ -40,7 +40,6 @@ public class GenTextures {
 
         // trinket fittings - a leather charm with a brass loop and a coloured emblem
         genTrinket(base + "/item/lodestone_charm.png", 0xFF6E5A8B, 0);
-        genTrinket(base + "/item/feather_charm.png", 0xFFE8E8F0, 1);
         genTrinket(base + "/item/compass_rose.png", 0xFFCF9A3B, 2);
         genTrinket(base + "/item/restock_strap.png", 0xFF9C6B3A, 3);
         genTrinket(base + "/item/bottomless_lining.png", 0xFF4A3A6A, 4);
@@ -50,6 +49,9 @@ public class GenTextures {
         genTrinket(base + "/item/waterskin_rack.png", 0xFF4A8BD6, 1);
         genTrinket(base + "/item/soul_vial.png", 0xFF74C043, 2);
         genTrinket(base + "/item/charge_crystal.png", 0xFFE0902C, 0);
+
+        // the in-house guide book: a leather-bound handbook with brass corners
+        genBook(base + "/item/outfitters_handbook.png");
 
         // per-tier pack sprites, tinted brass fittings on leather
         genPack(base + "/item/canvas_pack.png", 0xFFCFC09A, 0xFFB4A47C, false);
@@ -214,6 +216,34 @@ public class GenTextures {
             img.setRGB(4, 12, BRASS_HI); img.setRGB(11, 12, BRASS_HI);
             img.setRGB(4, 14, BRASS); img.setRGB(11, 14, BRASS);
         }
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A 16x16 leather-bound handbook: leather cover, brass corners, a page edge and a bookmark. */
+    static void genBook(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(23);
+        // cover body 2..13 x, 2..14 y
+        for (int y = 2; y <= 14; y++) {
+            for (int x = 2; x <= 13; x++) {
+                int c = lerp(LEATHER_HI, LEATHER_LO, (y - 2) / 12f);
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 9) - 0.5f) * 12));
+                img.setRGB(x, y, c);
+            }
+        }
+        // spine down the left (darker leather)
+        for (int y = 2; y <= 14; y++) { img.setRGB(2, y, shade(LEATHER_LO, -24)); img.setRGB(3, y, shade(LEATHER_LO, -14)); }
+        // page block on the right edge (canvas/parchment)
+        for (int y = 3; y <= 13; y++) { img.setRGB(13, y, CANVAS); img.setRGB(12, y, y % 2 == 0 ? CANVAS_LO : CANVAS); }
+        // brass corners
+        img.setRGB(4, 3, BRASS_HI); img.setRGB(5, 3, BRASS); img.setRGB(4, 4, BRASS);
+        img.setRGB(11, 3, BRASS_HI); img.setRGB(10, 3, BRASS); img.setRGB(11, 4, BRASS);
+        img.setRGB(4, 13, BRASS); img.setRGB(11, 13, BRASS);
+        // a small brass clasp/emblem centred
+        img.setRGB(7, 8, BRASS_HI); img.setRGB(8, 8, BRASS); img.setRGB(7, 9, BRASS); img.setRGB(8, 9, BRASS_LO);
+        // red bookmark tail hanging past the bottom
+        img.setRGB(9, 13, 0xFFB4595A); img.setRGB(9, 14, 0xFFB4595A); img.setRGB(9, 15, 0xFF8A3E3F);
+        outline(img, LEATHER_EDGE);
         ImageIO.write(img, "PNG", new File(path));
     }
 
