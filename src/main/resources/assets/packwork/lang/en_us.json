@@ -1,0 +1,33 @@
+{
+  "itemGroup.packwork": "Packwork",
+
+  "item.packwork.canvas_pack": "Canvas Pack",
+  "item.packwork.leather_pack": "Leather Pack",
+  "item.packwork.studded_pack": "Studded Pack",
+  "item.packwork.reinforced_pack": "Reinforced Pack",
+  "item.packwork.runed_pack": "Runed Pack",
+
+  "packwork.pack.slots_used": "%s / %s slots",
+  "packwork.pack.hint": "Right-click to open. It sorts itself.",
+
+  "packwork.tab.food": "Food",
+  "packwork.tab.tools": "Tools & Utility",
+  "packwork.tab.combat": "Combat",
+  "packwork.tab.ores": "Ores & Valuables",
+  "packwork.tab.blocks": "Blocks & Building",
+  "packwork.tab.brewing": "Brewing & Alchemy",
+  "packwork.tab.nature": "Nature & Farming",
+  "packwork.tab.loose": "Loose",
+  "packwork.tab.unnamed": "New Tab",
+
+  "packwork.ui.search": "Search the pack...",
+  "packwork.ui.flatten": "Flatten to one grid",
+  "packwork.ui.tabs": "Show tabs",
+  "packwork.ui.tidy": "Tidy Up",
+  "packwork.ui.new_tab": "New compartment",
+  "packwork.ui.delete_tab": "Remove this compartment",
+  "packwork.ui.rename_tab": "Rename",
+  "packwork.ui.page": "Page %s / %s",
+  "packwork.ui.pin_hint": "Pin an item here so it always lands in this compartment.",
+  "packwork.ui.loose_hint": "Anything no compartment claims ends up here, so nothing is ever lost."
+}
