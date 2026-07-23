@@ -78,5 +78,31 @@ one can be flipped later without unpicking the rest:
   (`#c:foods`, `#pantrywork:foods`, `required:false`) so packs retune without code and
   nothing breaks when a mod is absent.
 - **Tier recipes craft from raw materials only (no cross-tier consumption).** Upgrading a
-  filled pack to the next tier while preserving contents needs a custom recipe / the
-  Outfitter's Bench — deferred to Phase 4 so no craft can ever eat a full pack's contents.
+  filled pack to the next tier now goes through the `packwork:pack_upgrade` custom recipe,
+  which copies contents+trinkets+name onto the new tier, so no craft ever eats a full pack.
+
+## Phase 2/3 architecture calls (reopen with evidence)
+
+- **A trinket is just its item sitting in a socket** — no separate "installed" flag. The
+  `pack_trinkets` component IS the install state; sockets refuse duplicates and non-fittings.
+- **Bottomless Lining never truncates.** Capacity is live (`TrinketAccess.capacity`); the
+  component preserves slots past the current size, so pulling the Lining hides the extra
+  items rather than voiding them (pause, never punish).
+- **Compass Rose is the only void path** and is opt-in per item (press O on a hovered item;
+  stored in `PackLayout.voidList`). Magnet + Compass Rose deliberately doubles as a trash
+  collector.
+- **Feather / Quick-Draw / Quill & Ledger ship as items but are inert for now.** Feather
+  needs a pack-weight movement penalty to negate — that's a balance call, so it's **flagged
+  for SapperSquad**, not guessed. Quill & Ledger will gate multi-rule custom tabs once the custom-
+  tab rule editor UI exists (v1 populates custom tabs via pins).
+- **The open packet carries the pack tier** so the client builds the same trinket-socket
+  count as the server before its inventory slot syncs — a mismatch overran the container
+  packet and dropped the player. Learned the hard way (two crashes).
+- **Fluids = one tank per pack, tier-scaled capacity, gated capability.** A single tank (not
+  a multi-tank rack) for v1: simpler, and the glass gauge reads clearly. The
+  `FluidHandler.ITEM` cap returns null without a Waterskin so a bare pack is inert to fluid
+  automation. Fill/drain is a click on the gauge with the cursor item (`FluidUtil`).
+- **Curios compat deferred, not cut.** It needs the Curios API as a `compileOnly` dependency
+  (+ its maven repo) which isn't in the local cache; native inventory-use + the B keybind
+  already satisfy "wear it," so this is an enhancement, gated `ModList.isLoaded("curios")`
+  when added.
