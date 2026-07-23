@@ -49,4 +49,10 @@ public class ModComponents {
             COMPONENTS.registerComponentType("pack_xp", builder -> builder
                     .persistent(com.mojang.serialization.Codec.INT)
                     .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
+    /** The Charge Crystal's stored arcane charge, in FE. Gated by the trinket. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PACK_ENERGY =
+            COMPONENTS.registerComponentType("pack_energy", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
 }

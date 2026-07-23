@@ -282,6 +282,28 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /** The Charge Crystal is trinket-gated, respects capacity + transfer, and never dupes. */
+    @GameTest(template = "empty")
+    public static void chargeCrystalGatedAndConserves(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        helper.assertTrue(pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM) == null,
+                "no Charge Crystal -> no energy capability");
+
+        new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+        var crystal = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
+        helper.assertTrue(crystal != null, "a Charge Crystal fits a reservoir");
+
+        int xfer = com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(pack);
+        int got = crystal.receiveEnergy(Integer.MAX_VALUE, false);
+        helper.assertTrue(got == xfer, "one receive is clamped to the transfer rate, got " + got);
+        helper.assertTrue(crystal.getEnergyStored() == xfer, "stored exactly what was received");
+
+        int out = crystal.extractEnergy(Integer.MAX_VALUE, false);
+        helper.assertTrue(out == xfer && crystal.getEnergyStored() == 0, "extract returns it all, nothing left over");
+        helper.succeed();
+    }
+
     private static void assertRoute(GameTestHelper helper, List<TabView> tabs, PackLayout layout,
                                     net.minecraft.world.item.Item item, String expectedTab) {
         String got = SortEngine.route(new ItemStack(item), tabs, layout);

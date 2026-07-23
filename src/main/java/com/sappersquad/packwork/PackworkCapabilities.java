@@ -28,6 +28,14 @@ public final class PackworkCapabilities {
                             ? new PackFluidHandler(stack, PackFluidHandler.capacityFor(stack))
                             : null,
                     holder.get());
+
+            event.registerItem(Capabilities.EnergyStorage.ITEM,
+                    (stack, ctx) -> TrinketAccess.has(stack, TrinketType.CHARGE_CRYSTAL)
+                            ? new com.sappersquad.packwork.pack.PackEnergyStorage(() -> stack,
+                                    com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(stack),
+                                    com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(stack))
+                            : null,
+                    holder.get());
         }
     }
 

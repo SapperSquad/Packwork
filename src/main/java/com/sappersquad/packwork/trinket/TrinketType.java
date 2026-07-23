@@ -27,7 +27,8 @@ public enum TrinketType {
     QUILL_LEDGER("quill_and_ledger", Kind.PASSIVE),
     // resource-store fittings (Phase 3)
     WATERSKIN("waterskin_rack", Kind.STORE),
-    SOUL_VIAL("soul_vial", Kind.STORE);
+    SOUL_VIAL("soul_vial", Kind.STORE),
+    CHARGE_CRYSTAL("charge_crystal", Kind.STORE);
 
     public enum Kind { PASSIVE, TICK, STORE }
 

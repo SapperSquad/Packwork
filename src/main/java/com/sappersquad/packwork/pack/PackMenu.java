@@ -364,6 +364,14 @@ public class PackMenu extends AbstractContainerMenu {
         return PackXpStore.capacityFor(liveStack());
     }
 
+    public int energyStored() {
+        return liveStack().getOrDefault(ModComponents.PACK_ENERGY.get(), 0);
+    }
+
+    public int energyCapacity() {
+        return PackEnergyStorage.capacityFor(liveStack());
+    }
+
     /** Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.). */
     public void applyFluidInteract() {
         if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;
