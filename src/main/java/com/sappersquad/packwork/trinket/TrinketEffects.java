@@ -51,6 +51,22 @@ public final class TrinketEffects {
             if (installed.contains(TrinketType.RESTOCK) && time % 10 == 0) restock(sp, pack);
             if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
             if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
+            if (installed.contains(TrinketType.CHARGE_CRYSTAL) && time % 10 == 0) charge(sp, packStack);
+        }
+    }
+
+    /** Charge Crystal: pour stored charge into the tools you're holding that accept it. */
+    private static void charge(ServerPlayer sp, ItemStack packStack) {
+        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
+        if (crystal == null || crystal.getEnergyStored() <= 0) return;
+        for (ItemStack held : List.of(sp.getMainHandItem(), sp.getOffhandItem())) {
+            if (held.isEmpty() || held.getItem() instanceof PackItem) continue;
+            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
+            if (sink == null || !sink.canReceive()) continue;
+            int room = sink.receiveEnergy(Integer.MAX_VALUE, true);
+            if (room <= 0) continue;
+            int pulled = crystal.extractEnergy(room, false);
+            if (pulled > 0) sink.receiveEnergy(pulled, false);
         }
     }
 

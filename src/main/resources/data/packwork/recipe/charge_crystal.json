@@ -1,0 +1,4 @@
+{ "type": "minecraft:crafting_shaped", "category": "equipment",
+  "pattern": ["RCR", "CAC", "RLR"],
+  "key": { "R": { "item": "minecraft:redstone" }, "C": { "item": "minecraft:copper_ingot" }, "A": { "item": "minecraft:amethyst_shard" }, "L": { "item": "minecraft:leather" } },
+  "result": { "id": "packwork:charge_crystal", "count": 1 } }

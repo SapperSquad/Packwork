@@ -17,10 +17,12 @@
   "item.packwork.quill_and_ledger": "Quill & Ledger",
   "item.packwork.waterskin_rack": "Waterskin Rack",
   "item.packwork.soul_vial": "Soul Vial",
+  "item.packwork.charge_crystal": "Charge Crystal",
 
   "packwork.trinket.install_hint": "Slot it into a pack's trinket socket to fit it.",
   "packwork.trinket.waterskin_rack.desc": "Fits a fluid tank to the pack - a rack of waterskins.",
   "packwork.trinket.soul_vial.desc": "Stores XP, and auto-mends your Mending gear from it.",
+  "packwork.trinket.charge_crystal.desc": "Holds an arcane charge and tops up the tools in your hands.",
   "packwork.trinket.lodestone_charm.desc": "Draws loose items nearby into the pack.",
   "packwork.trinket.feather_charm.desc": "Keeps a heavy pack from slowing you down.",
   "packwork.trinket.compass_rose.desc": "Voids items you mark - the only way a pack throws anything away.",
@@ -61,6 +63,8 @@
   "packwork.ui.tank_hint": "Click with a bucket or flask to fill or empty it.",
   "packwork.ui.soul_vial": "Soul Vial",
   "packwork.ui.vial_hint": "Click to siphon your XP in - Shift-click to pour it back.",
+  "packwork.ui.charge_crystal": "Charge Crystal",
+  "packwork.ui.crystal_hint": "Fills from any charger; tops up the tools in your hands.",
   "key.packwork.open": "Open Pack",
   "key.categories.packwork": "Packwork"
 }

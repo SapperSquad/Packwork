@@ -54,6 +54,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private final List<int[]> tabRects = new ArrayList<>(); // x,y,w,h per rendered tab (screen coords)
     private int[] gaugeRect = null;   // fluid gauge, or null when there's no rack
     private int[] xpGaugeRect = null; // soul-vial gauge, or null when there's no vial
+    private int[] energyGaugeRect = null; // charge-crystal gauge, or null when there's no crystal
 
     public PackScreen(PackMenu menu, Inventory playerInv, Component title) {
         super(menu, playerInv, title);
@@ -208,17 +209,34 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int n = menu.trinketSlotCount();
         int x = leftPos + PackMenu.TRINKET_X - 1;
         int y = topPos + PackMenu.TRINKET_Y0 + Math.max(n, 1) * PackMenu.TRINKET_PITCH + 4;
-        int w = 16, h = 48;
+        int w = 16, h = 40;
 
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) {
             gaugeRect = new int[]{x, y, w, h};
             drawFluidGauge(g, x, y, w, h);
-            y += h + 6;
+            y += h + 4;
         }
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
             xpGaugeRect = new int[]{x, y, w, h};
             drawXpGauge(g, x, y, w, h);
+            y += h + 4;
         }
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL)) {
+            energyGaugeRect = new int[]{x, y, w, h};
+            drawEnergyGauge(g, x, y, w, h);
+        }
+    }
+
+    private void drawEnergyGauge(GuiGraphics g, int x, int y, int w, int h) {
+        gaugeFrame(g, x, y, w, h, 0xFF241A16);
+        int stored = menu.energyStored();
+        int cap = menu.energyCapacity();
+        if (stored > 0 && cap > 0) {
+            int filled = Math.max(1, (int) ((long) h * Math.min(stored, cap) / cap));
+            g.fill(x, y + h - filled, x + w, y + h, 0xFFE0902C);       // copper-amber charge
+            g.fill(x, y + h - filled, x + w, y + h - filled + 1, 0xFFFFE39A);
+        }
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
     private void gaugeFrame(GuiGraphics g, int x, int y, int w, int h, int glass) {
@@ -320,6 +338,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.literal(menu.xpStored() + " / " + menu.xpCapacity() + " XP")
                     .withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.vial_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            return;
+        }
+        if (energyGaugeRect != null && inRect(mouseX, mouseY, energyGaugeRect[0], energyGaugeRect[1], energyGaugeRect[2], energyGaugeRect[3])) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.charge_crystal"));
+            lines.add(Component.literal(menu.energyStored() + " / " + menu.energyCapacity() + " FE")
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
+            lines.add(Component.translatable("packwork.ui.crystal_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }

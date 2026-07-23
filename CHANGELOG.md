@@ -28,6 +28,9 @@ framework, and the first resource store.
 - **XP store** — the Soul Vial stores experience: click the green gauge to siphon your XP
   in, Shift-click to pour it back, and it auto-mends your Mending-enchanted gear from the
   reservoir.
+- **Energy store** — the Charge Crystal holds an arcane charge (standard FE) in a
+  copper-wound crystal; any mod's charger fills a placed pack, and it tops up the powered
+  tools in your hands. The amber gauge shows the charge.
 - **Standard capabilities** — an item handler always, a fluid handler when a Rack is
   fitted, so any mod's automation works against a placed pack. Zero hard dependencies.
 - **Open Pack keybind** (default B) plus native right-click use. Pantrywork food tags fold
@@ -36,7 +39,9 @@ framework, and the first resource store.
 ### Known / on the bench
 - **Feather Charm, Quick-Draw Straps, and Quill & Ledger** are craftable and slot in, but
   their effects aren't wired yet. Feather is waiting on a pack-weight decision.
-- **Resource stores:** fluids and XP ship; energy and gas are next.
+- **Resource stores:** fluids, XP, and energy ship; gas (Mekanism chemicals) is the last
+  one. The Charge Crystal's Forgework Flux 1:1 bridge isn't wired yet — it charges from
+  any standard FE source in the meantime.
 - **No Curios wear-slot** compat yet (native use + keybind cover carrying it); no in-game
   guide book or JEI integration yet.
 

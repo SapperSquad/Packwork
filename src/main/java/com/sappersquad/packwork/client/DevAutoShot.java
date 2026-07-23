@@ -151,14 +151,16 @@ public final class DevAutoShot {
             var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
                     () -> pack, com.sappersquad.packwork.pack.PackTier.REINFORCED);
             sockets.insertItem(0, new ItemStack(ModItems.trinket(
-                    com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
-            sockets.insertItem(1, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
-            sockets.insertItem(2, new ItemStack(ModItems.trinket(
+            sockets.insertItem(1, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL).get()), false);
-            // stash some XP so the soul-vial gauge shows a level
+            sockets.insertItem(2, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+            // stash XP + charge so both the soul-vial and charge-crystal gauges show a level
             pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_XP.get(),
                     com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack) * 2 / 3);
+            pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_ENERGY.get(),
+                    com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pack) / 2);
 
             // half-fill the waterskin so the gauge shows a fluid level
             var tank = new com.sappersquad.packwork.pack.PackFluidHandler(

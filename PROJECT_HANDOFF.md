@@ -14,7 +14,7 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — Phases 0-2 done & verified; Phase 3 fluids done; rest scoped
+## Status — Phases 0-2 done; Phase 3 at 3 of 4 stores (fluids/XP/energy); rest scoped
 
 > Newest first. Full source map and roadmap below.
 
@@ -27,14 +27,15 @@ a hovered item). Feather / Quick-Draw / Quill&Ledger are registered + socketed b
 run server-side per `PlayerTickEvent`, throttled/bounded. Preserving tier-upgrade recipe
 (`packwork:pack_upgrade`) carries contents+trinkets+name up a tier so no craft eats a pack.
 
-**Phase 3 — fluids + XP stores, DONE & verified in-game.** Waterskin Rack fits one fluid
-tank (`SimpleFluidContent`, tier-scaled), exposing NeoForge `FluidHandler.ITEM` **only when
-fitted**; glass gauge renders the fluid's own texture, click with a bucket/flask on the
-cursor to fill/drain (`FluidUtil`). Soul Vial stores XP (`PackXpStore`, tier-scaled): click
-the green gauge to siphon, Shift-click to pour, and it auto-mends Mending gear from the
-reservoir. Both gauges stack on the right rail under the sockets. **Still to do in Phase 3:**
-Energy (Charge Crystal + gated Forgework Flux 1:1 bridge, use NeoForge `IEnergyStorage`) and
-Gas (Flask Harness + gated Mekanism chemical cap). Follow the fluids/XP stores as the
+**Phase 3 — fluids + XP + energy stores, DONE & verified in-game.** Three of four stores,
+each trinket-gated and stacked as a gauge on the right rail: Waterskin Rack (fluid tank,
+`FluidHandler.ITEM`, glass gauge, click-with-cursor fill/drain via `FluidUtil`); Soul Vial
+(XP via `PackXpStore`, green gauge, click siphon / shift pour, auto-mends Mending gear);
+Charge Crystal (arcane charge via `PackEnergyStorage` implementing `IEnergyStorage`, amber
+gauge, any FE source fills it, tops up powered tools in hand). All three capabilities are
+exposed **only when the fitting is present**. **Still to do in Phase 3:** Gas (Flask Harness
++ gated Mekanism chemical cap) — needs the Mekanism API dep; and the Charge Crystal's gated
+Forgework Flux 1:1 bridge (`compat/forgework/`). Follow the three shipped stores as the
 template: component + (gated) capability + STORE trinket + gauge + gametest.
 
 **Still open:** Curios back-slot compat (needs the Curios API as a `compileOnly` dep + its
