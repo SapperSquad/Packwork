@@ -34,11 +34,15 @@ public final class DevAutoShot {
 
     private static final boolean ENABLED = System.getProperty("packwork.autoshot") != null;
 
-    private enum Phase { BOOT, WAIT_LEVEL, OPEN, SHOOT_1, SWITCH, SHOOT_2, FLATTEN, SHOOT_3, DONE }
+    private enum Phase {
+        BOOT, WAIT_LEVEL, OPEN,
+        SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5, DONE
+    }
 
     private static Phase phase = Phase.BOOT;
     private static int ticks = 0;
     private static int wait = 0;
+    private static String customTabId = "custom:0";
 
     @SubscribeEvent
     public static void onTick(ClientTickEvent.Post event) {
@@ -74,25 +78,40 @@ public final class DevAutoShot {
                 }
             }
             case SHOOT_1 -> {
-                grab(mc, "packwork_tabs");       // default: Food tab active, rail visible
+                grab(mc, "packwork_tabs");        // default: Food tab active, rail visible
                 switchTab(mc, "auto:combat");
-                phase = Phase.SWITCH;
-                wait = 0;
+                phase = Phase.W1; wait = 0;
             }
-            case SWITCH -> {
-                if (++wait > 6) { phase = Phase.SHOOT_2; }
-            }
+            case W1 -> { if (++wait > 6) phase = Phase.SHOOT_2; }
             case SHOOT_2 -> {
                 grab(mc, "packwork_combat");      // a different compartment
                 newTab(mc);                        // make a custom tab, selects it
-                phase = Phase.FLATTEN;
-                wait = 0;
+                phase = Phase.W2; wait = 0;
             }
-            case FLATTEN -> {
-                if (++wait > 8) { phase = Phase.SHOOT_3; }
-            }
+            case W2 -> { if (++wait > 8) phase = Phase.SHOOT_3; }
             case SHOOT_3 -> {
-                grab(mc, "packwork_newtab");       // rail now shows the new leather tab
+                grab(mc, "packwork_newtab");       // rail now shows the new (empty) leather tab
+                // pin a diamond into it and dye it blue
+                withMenu(mc, m -> {
+                    customTabId = m.activeTab();
+                    PackClientActions.pin(m, customTabId, "minecraft:diamond");
+                    PackClientActions.tabColor(m, customTabId, 0xFF6E8BB9);
+                });
+                phase = Phase.W3; wait = 0;
+            }
+            case W3 -> { if (++wait > 8) phase = Phase.SHOOT_4; }
+            case SHOOT_4 -> {
+                grab(mc, "packwork_pin_dye");      // custom tab: dyed, now holds the pinned diamond
+                // flatten + search to prove the search bar filters
+                withMenu(mc, m -> {
+                    PackClientActions.toggleFlatten(m);
+                    PackClientActions.setSearch(m, "iron");
+                });
+                phase = Phase.W4; wait = 0;
+            }
+            case W4 -> { if (++wait > 8) phase = Phase.SHOOT_5; }
+            case SHOOT_5 -> {
+                grab(mc, "packwork_search");       // only the iron items remain
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
@@ -149,6 +168,12 @@ public final class DevAutoShot {
     private static void newTab(Minecraft mc) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
             PackClientActions.newTab(menu);
+        }
+    }
+
+    private static void withMenu(Minecraft mc, java.util.function.Consumer<PackMenu> action) {
+        if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
+            action.accept(menu);
         }
     }
 
