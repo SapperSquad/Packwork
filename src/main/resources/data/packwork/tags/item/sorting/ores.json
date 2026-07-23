@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#c:dusts", "required": false },
+    { "id": "#c:raw_materials", "required": false },
+    { "id": "minecraft:coal", "required": false },
+    { "id": "minecraft:amethyst_shard", "required": false }
+  ]
+}

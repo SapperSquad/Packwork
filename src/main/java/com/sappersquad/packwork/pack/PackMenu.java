@@ -321,30 +321,13 @@ public class PackMenu extends AbstractContainerMenu {
 
     /** Merge partial stacks, compact to the front, and order by tab then item id. */
     public void applyTidyUp() {
-        List<ItemStack> merged = new ArrayList<>();
+        List<ItemStack> source = new ArrayList<>();
         for (int i = 0; i < packInv.getSlots(); i++) {
             ItemStack s = packInv.getStackInSlot(i);
-            if (s.isEmpty()) continue;
-            s = s.copy();
-            for (ItemStack m : merged) {
-                if (s.isEmpty()) break;
-                if (ItemStack.isSameItemSameComponents(m, s)) {
-                    int space = m.getMaxStackSize() - m.getCount();
-                    if (space > 0) {
-                        int move = Math.min(space, s.getCount());
-                        m.grow(move);
-                        s.shrink(move);
-                    }
-                }
-            }
-            if (!s.isEmpty()) merged.add(s);
+            if (!s.isEmpty()) source.add(s);
         }
-        List<TabView> t = SortEngine.tabsFor(layout);
-        java.util.Map<String, Integer> tabIndex = new java.util.HashMap<>();
-        for (int i = 0; i < t.size(); i++) tabIndex.put(t.get(i).id(), i);
-        merged.sort(java.util.Comparator
-                .comparingInt((ItemStack s) -> tabIndex.getOrDefault(SortEngine.route(s, t, layout), 999))
-                .thenComparing(s -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).toString()));
+        List<ItemStack> merged = com.sappersquad.packwork.sort.PackSorting.tidy(
+                source, SortEngine.tabsFor(layout), layout);
         for (int i = 0; i < packInv.getSlots(); i++) {
             packInv.setStackInSlot(i, i < merged.size() ? merged.get(i) : ItemStack.EMPTY);
         }

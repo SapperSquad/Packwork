@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "minecraft:blaze_powder", "required": false },
+    { "id": "minecraft:nether_wart", "required": false },
+    { "id": "minecraft:glass_bottle", "required": false },
+    { "id": "minecraft:fermented_spider_eye", "required": false },
+    { "id": "minecraft:glistering_melon_slice", "required": false },
+    { "id": "minecraft:dragon_breath", "required": false },
+    { "id": "minecraft:ghast_tear", "required": false }
+  ]
+}

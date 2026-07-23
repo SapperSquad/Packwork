@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "#c:tools/shields", "required": false },
+    { "id": "#c:armors", "required": false },
+    { "id": "minecraft:shield", "required": false },
+    { "id": "minecraft:totem_of_undying", "required": false }
+  ]
+}
