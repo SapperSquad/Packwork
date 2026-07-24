@@ -36,6 +36,7 @@ public final class DevAutoShot {
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
+        SHOOT_GRID, HOVER, HW, PIN1, PW1, SHOOT_PINNED, PIN2, PW2, SHOOT_UNPINNED,
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
         OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK, DONE
@@ -55,6 +56,18 @@ public final class DevAutoShot {
 
         switch (phase) {
             case BOOT -> {
+                if (ticks == 5) {
+                    // Grow the dev window and force GUI scale 3 (what players actually use) so the
+                    // search text + slots can be judged at real size, not the tiny default scale.
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1120, 900);
+                        mc.options.guiScale().set(3);
+                        mc.resizeDisplay();
+                        Packwork.LOGGER.info("[autoshot] window 1120x900 @ guiScale 3");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[autoshot] resize failed: {}", t.toString());
+                    }
+                }
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[autoshot] creating throwaway world");
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
@@ -76,9 +89,50 @@ public final class DevAutoShot {
             }
             case OPEN -> {
                 if (mc.screen instanceof PackScreen && ++wait > 12) {
-                    phase = Phase.SHOOT_1;
-                    wait = 0;
+                    // flatten so the whole varied spread is visible in one grid for the alignment shot
+                    withMenu(mc, PackClientActions::toggleFlatten);
+                    phase = Phase.SHOOT_GRID; wait = 0;
                 }
+            }
+            case SHOOT_GRID -> {
+                if (++wait > 8) {
+                    grab(mc, "packwork_grid");   // BUG 3: every item type centred in its cell @ scale 3
+                    withMenu(mc, PackClientActions::toggleFlatten); // back to tabbed for the pin demo
+                    phase = Phase.HOVER; wait = 0;
+                }
+            }
+            case HOVER -> {
+                if (++wait > 6) {
+                    pinItemKey = hoverFirstGridItem(mc); // move the real cursor over an item + record its slot
+                    phase = Phase.HW; wait = 0;
+                }
+            }
+            case HW -> { if (++wait > 4) { phase = Phase.PIN1; wait = 0; } }
+            case PIN1 -> {
+                // Force the hovered slot (the unfocused dev window won't register a synthetic cursor
+                // move as a hover), then fire a REAL Screen.keyPressed(P) at it - exercises the real
+                // keyPressed -> pin wiring end to end.
+                if (mc.screen instanceof PackScreen ps) ps.devHover(pinSlotIndex);
+                pressPin(mc);                        // BUG 1: a REAL Screen.keyPressed(P)
+                phase = Phase.PW1; wait = 0;
+            }
+            case PW1 -> { if (++wait > 14) phase = Phase.SHOOT_PINNED; }
+            case SHOOT_PINNED -> {
+                logPinState(mc, "after 1st P");
+                grab(mc, "packwork_pinned");         // the brass pin marker should now be on that slot
+                phase = Phase.PIN2; wait = 0;
+            }
+            case PIN2 -> {
+                hoverFirstGridItem(mc);
+                if (mc.screen instanceof PackScreen ps) ps.devHover(pinSlotIndex);
+                pressPin(mc);                        // press again -> unpin
+                phase = Phase.PW2; wait = 0;
+            }
+            case PW2 -> { if (++wait > 14) phase = Phase.SHOOT_UNPINNED; }
+            case SHOOT_UNPINNED -> {
+                logPinState(mc, "after 2nd P");
+                grab(mc, "packwork_unpinned");       // marker gone again
+                phase = Phase.SHOOT_1; wait = 0;
             }
             case SHOOT_1 -> {
                 grab(mc, "packwork_tabs");        // default: Food tab active, rail visible
@@ -173,6 +227,10 @@ public final class DevAutoShot {
                     new ItemStack(Items.POPPY, 8), new ItemStack(Items.OAK_PLANKS, 64),
                     new ItemStack(Items.COBBLESTONE, 64), new ItemStack(Items.BRICKS, 48),
                     new ItemStack(Items.STICK, 20), new ItemStack(Items.STRING, 14),
+                    // varied silhouettes so item centring in the 16px cells can be judged
+                    new ItemStack(Items.POTION), new ItemStack(Items.TORCH, 16),
+                    new ItemStack(Items.ENDER_PEARL, 4), new ItemStack(Items.GLASS_BOTTLE, 6),
+                    new ItemStack(Items.EGG, 8), new ItemStack(Items.BONE, 12),
             };
             for (int i = 0; i < spread.length; i++) h.insertItem(i, spread[i], false);
 
@@ -305,6 +363,46 @@ public final class DevAutoShot {
     private static void newTab(Minecraft mc) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
             PackClientActions.newTab(menu);
+        }
+    }
+
+    private static net.minecraft.resources.ResourceLocation pinItemKey = null;
+    private static int pinSlotIndex = -1;
+
+    /** Find the first grid item, record its menu-slot index + key, and move the real cursor over it. */
+    private static net.minecraft.resources.ResourceLocation hoverFirstGridItem(Minecraft mc) {
+        pinSlotIndex = -1;
+        if (!(mc.screen instanceof PackScreen ps)) return null;
+        var slots = ps.getMenu().slots;
+        for (int i = 0; i < slots.size(); i++) {
+            net.minecraft.world.inventory.Slot s = slots.get(i);
+            if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive() && s.hasItem()) {
+                pinSlotIndex = i;
+                double scale = mc.getWindow().getGuiScale();
+                org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(),
+                        (ps.getGuiLeft() + s.x + 8) * scale, (ps.getGuiTop() + s.y + 8) * scale);
+                var key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
+                Packwork.LOGGER.info("[autoshot] grid item {} at menu slot {} ({},{})", key, i, s.x, s.y);
+                return key;
+            }
+        }
+        Packwork.LOGGER.warn("[autoshot] no grid item to hover for the pin demo");
+        return null;
+    }
+
+    /** Dispatch a genuine key press through the screen's own input handler - the same call the
+     *  GLFW key callback makes - so this exercises the real keyPressed -> pin wiring, not the data action. */
+    private static void pressPin(Minecraft mc) {
+        if (mc.screen == null) return;
+        int scan = org.lwjgl.glfw.GLFW.glfwGetKeyScancode(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
+        boolean handled = mc.screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0);
+        Packwork.LOGGER.info("[autoshot] dispatched real keyPressed(P) -> handled={}", handled);
+    }
+
+    private static void logPinState(Minecraft mc, String when) {
+        if (mc.player != null && mc.player.containerMenu instanceof PackMenu m && pinItemKey != null) {
+            Packwork.LOGGER.info("[autoshot] {}: {} pinnedTab={} activeTab={}",
+                    when, pinItemKey, m.layout().pinnedTab(pinItemKey), m.activeTab());
         }
     }
 

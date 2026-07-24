@@ -77,6 +77,9 @@
   "packwork.ui.crystal_hint": "Fills from any charger; tops up the tools in your hands.",
   "packwork.ui.flask_harness": "Alchemist's Flask Harness",
   "packwork.ui.flask_hint": "Bottled vapors - any Mekanism chemical pipe fills it.",
+  "packwork.ui.pin_key": "[%s] Pin to this tab",
+  "packwork.ui.unpin_key": "[%s] Unpin from this tab",
   "key.packwork.open": "Open Pack",
+  "key.packwork.pin": "Pin Item to Tab (in pack)",
   "key.categories.packwork": "Packwork"
 }
