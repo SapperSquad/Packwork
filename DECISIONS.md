@@ -190,7 +190,7 @@ dep; runtime inclusion is opt-in per gradle flag). Maven wiring lives in `build.
 `gradle.properties`; the repos (blamejared, theillusivec4, modmaven) resolve in this env.
 
 - **Maven coordinates (pinned, verified to resolve):** JEI `mezz.jei:jei-1.21.1-neoforge-api`
-  + `-neoforge` `19.39.0.368` (maven.blamejared.com); Curios
+  + `-neoforge` `19.21.1.312` (maven.blamejared.com); Curios
   `top.theillusivec4.curios:curios-neoforge:9.5.1+1.21.1:api` (+ full for runtime)
   (maven.theillusivec4.top / blamejared); Mekanism `mekanism:Mekanism:1.21.1-10.7.19.85:api`
   (+ full) (modmaven.dev). Combined dev test: `-Pjei` / `-Pcurios` / `-Pmekanism` add the full
