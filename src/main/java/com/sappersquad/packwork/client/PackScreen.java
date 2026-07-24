@@ -299,13 +299,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     private void drawEnergyGauge(GuiGraphics g, int x, int y, int w, int h) {
-        gaugeFrame(g, x, y, w, h, 0xFF241A16);
+        gaugeFrame(g, x, y, w, h, 0xFF15323B);                          // cool crystal-teal glass
         int stored = menu.energyStored();
         int cap = menu.energyCapacity();
         if (stored > 0 && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(stored, cap) / cap));
-            g.fill(x, y + h - filled, x + w, y + h, 0xFFE0902C);       // copper-amber charge
-            g.fill(x, y + h - filled, x + w, y + h - filled + 1, 0xFFFFE39A);
+            g.fill(x, y + h - filled, x + w, y + h, 0xFF3EA9C4);        // Charge-Crystal blue (matches the fitting)
+            g.fill(x, y + h - filled, x + w, y + h - filled + 1, 0xFFAEEFF7);
         }
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }

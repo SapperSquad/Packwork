@@ -27,14 +27,20 @@ All notable changes, newest first. Dates are the suite's working dates.
   rack of two vapour flasks) and the Waterskin (corked, with a water sheen).
 
 ### Changed — hero packs + trinket polish
-- **The five packs are hero art now (32×32).** Each pack is a rounded, form-shaded leather
-  bag — a draped flap with a stitched hem, a brass buckle with a metal glint, a strap with
-  real thickness, side pockets, a top handle — lit against a rounded form with ambient
-  occlusion in the fold and a rim light. The material story climbs the ladder: **canvas** weave
-  + twine → **leather** grain + brass buckle → **studded** leather + a ring of brass studs →
-  **reinforced** steel corner plates + a steel band → **runed** deep-dyed leather with glowing
-  glyphs + a gem in the buckle. The placed-block leather + brass faces got the same lift so a
-  set-down pack matches the one in your hand.
+- **The five packs are hero art now (32×32).** Each pack is a boxy, form-shaded leather
+  **backpack** — a draped flap with a stitched hem, a brass buckle with a metal glint, a strap
+  with real thickness, side pockets, a top grab-handle — lit against a rounded, cushioned form
+  with ambient occlusion under the flap and a rim light. The material story climbs the ladder:
+  **canvas** weave + twine → **leather** grain + brass buckle → **studded** leather + a ring of
+  brass studs → **reinforced** steel corner plates + a steel band → **runed** deep-dyed leather
+  with glowing glyphs + a gem in the buckle. The placed-block leather + brass faces got the same
+  lift so a set-down pack matches the one in your hand.
+- **The packs actually read as backpacks now.** The first hero pass came out too round — the
+  bags read like pouches, and the runed one like a magic orb. The silhouette was rebuilt boxy
+  and gently tapered with a flat bottom and a prominent top flap, so a pack reads as a pack even
+  shrunk to hotbar size, without losing any of the hero-pass shading. The **Charge Crystal**'s
+  energy gauge on the right rail went from amber to the fitting's cool crystal-blue, so the icon
+  and the gauge finally agree.
 - **Three trinkets sharpened.** The **Restock Strap** is now a bold bandolier — a big central
   brass buckle with a studded pouch above and below. The **Charge Crystal** is unmistakably a
   faceted crystal (cool blue, wound in dark copper on a brass mount) instead of reading like a
@@ -80,7 +86,7 @@ and an in-game guide.
   reservoir.
 - **Energy store** — the Charge Crystal holds an arcane charge (standard FE) in a
   copper-wound crystal; any mod's charger fills a placed pack, and it tops up the powered
-  tools in your hands. The amber gauge shows the charge.
+  tools in your hands. A cool crystal-blue gauge shows the charge, matching the fitting.
 - **Gas store — the Alchemist's Flask Harness (needs Mekanism).** A chemical tank for
   bottled vapors, filled by any Mekanism chemical pipe, shown as a violet gauge on the rail.
   It's only craftable and only appears when Mekanism is installed.

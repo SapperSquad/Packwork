@@ -158,9 +158,32 @@ one can be flipped later without unpicking the rest:
   block's material lift (grain, stitching, brass) is universal; per-tier block trim is a
   follow-up if SapperSquad wants the set-down pack to carry the same ladder detail as the item.
 - **Charge Crystal is cool blue, not amber (SapperSquad, 2026-07-23).** Amber read as a candle flame;
-  a cool faceted crystal wound in dark copper is unambiguous. The energy *gauge* on the rail is
-  still amber ("arcane charge") — a deliberate icon-vs-gauge split, flagged for SapperSquad to unify
-  if the mismatch bothers him.
+  a cool faceted crystal wound in dark copper is unambiguous. **Update (art pass 4): the energy
+  gauge on the rail is now the same cool crystal-blue** (`0xFF3EA9C4` fill on `0xFF15323B`
+  glass in `PackScreen.drawEnergyGauge`) — SapperSquad confirmed the icon and gauge should match. It
+  stays distinct from the fluid gauge (which fills with the actual fluid's animated water-blue
+  texture, deeper and more saturated than the flat crystal-blue).
+
+## 2026-07-23 — art pass 4: the pack silhouette is a BACKPACK, not a pouch (reopen with evidence)
+
+- **The hero form went from a rounded dome to a boxy backpack.** Art pass 3's `heroPack` lit the
+  body as a single ellipse (`dome()`), so the packs read as pouches/orbs — the runed one as a
+  magic orb. `heroPack` now builds the form from a **superellipse cushion** (`superForm`, power
+  ~3.2–3.7): a boxy, gently tapered body with a flat bottom; a wide flap draped over the top
+  third with a hard stitched hem + an AO shadow beneath it (the single strongest "this is a
+  backpack" cue); a central closure strap through a brass buckle straddling the hem; a top
+  grab-handle loop; and side pockets. **Every pass-3 fidelity gain is kept** (32×32 form-shading,
+  AO, rim light, specular buckle glint, per-tier ladder) — this was a silhouette change, not a
+  shading regression. The runed pack's glyphs now sit on a clearly pack-shaped body so it can't
+  read as an orb.
+- **Verified as pixels at small size, not just large.** `tools/GenTextures.java` writes
+  `tools/pack_small_preview.png` — the five packs box-downscaled to 16px and 12px on a grey slot
+  strip — so "does it read as a backpack in the hotbar?" is answerable offline without a client;
+  the live hotbar/inventory/in-hand shots confirm it.
+- **Per-tier block trim stays deferred (unchanged call).** The block MODEL is already boxy and
+  matches the reshaped item; carrying studs/plates/runes into the world still needs per-tier
+  block models keyed off a tier blockstate property (the block deliberately syncs tier as light
+  BE data, not a blockstate), so it remains the noted follow-up rather than part of this pass.
 
 ## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
 
