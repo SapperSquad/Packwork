@@ -44,6 +44,15 @@ public final class PackworkCapabilities {
                     holder.get());
         }
 
+        // Mekanism gas store (optional, gated): the Flask Harness tank exposed via Mekanism's
+        // own chemical capability on each pack item. One class touches mekanism.*, never
+        // classloaded without the mod.
+        if (ModList.get().isLoaded("mekanism")) {
+            for (var holder : ModItems.PACKS.values()) {
+                com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.registerItem(event, holder);
+            }
+        }
+
         registerBlockCaps(event);
     }
 
@@ -93,6 +102,11 @@ public final class PackworkCapabilities {
         // classloaded without the mod).
         if (ModList.get().isLoaded("forgework")) {
             com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.register(event, ModBlockEntities.PACK.get());
+        }
+
+        // Mekanism chemical cap on the placed pack (gated).
+        if (ModList.get().isLoaded("mekanism")) {
+            com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.registerBlock(event, ModBlockEntities.PACK.get());
         }
     }
 

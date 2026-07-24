@@ -55,4 +55,10 @@ public class ModComponents {
             COMPONENTS.registerComponentType("pack_energy", builder -> builder
                     .persistent(com.mojang.serialization.Codec.INT)
                     .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
+    /** The Flask Harness's chemical tank (dist-neutral primitives). Gated by the trinket + Mekanism. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.sappersquad.packwork.pack.PackChemical>> PACK_CHEMICAL =
+            COMPONENTS.registerComponentType("pack_chemical", builder -> builder
+                    .persistent(com.sappersquad.packwork.pack.PackChemical.CODEC)
+                    .networkSynchronized(com.sappersquad.packwork.pack.PackChemical.STREAM_CODEC));
 }

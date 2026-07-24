@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "packwork:canvas_pack",
+    "packwork:leather_pack",
+    "packwork:studded_pack",
+    "packwork:reinforced_pack",
+    "packwork:runed_pack"
+  ]
+}

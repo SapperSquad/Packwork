@@ -19,14 +19,21 @@
   "item.packwork.waterskin_rack": "Waterskin Rack",
   "item.packwork.soul_vial": "Soul Vial",
   "item.packwork.charge_crystal": "Charge Crystal",
+  "item.packwork.flask_harness": "Alchemist's Flask Harness",
   "item.packwork.outfitters_handbook": "Outfitter's Handbook",
 
   "packwork.handbook.title": "Outfitter's Handbook",
+
+  "packwork.jei.pack.info": "A humble adventurer's pack that sorts itself. Stamped leather tabs are compartments; a rules engine files each item the moment it lands, and a Loose tab catches the rest so nothing is ever lost. Right-click to open, or sneak-click a block face to set it down. Craft it up the tiers, then fit trinkets for magnet, repair, restock, and the fluid/XP/charge stores.",
+  "packwork.jei.pack.tier": "This tier: %s compartment slots, %s trinket sockets.",
+  "packwork.jei.trinket.header": "Pack fitting - slot it into a trinket socket:",
+  "packwork.jei.handbook.info": "The in-house guide. Right-click to open five chapters on sorting, trinkets, tiers, and the stores.",
 
   "packwork.trinket.install_hint": "Slot it into a pack's trinket socket to fit it.",
   "packwork.trinket.waterskin_rack.desc": "Fits a fluid tank to the pack - a rack of waterskins.",
   "packwork.trinket.soul_vial.desc": "Stores XP, and auto-mends your Mending gear from it.",
   "packwork.trinket.charge_crystal.desc": "Holds an arcane charge and tops up the tools in your hands.",
+  "packwork.trinket.flask_harness.desc": "A rack of alchemist's flasks for bottled vapors - a chemical tank (needs Mekanism).",
   "packwork.trinket.lodestone_charm.desc": "Draws loose items nearby into the pack.",
   "packwork.trinket.compass_rose.desc": "Voids items you mark - the only way a pack throws anything away.",
   "packwork.trinket.restock_strap.desc": "Tops up your hotbar stacks from pack stock.",
@@ -68,6 +75,8 @@
   "packwork.ui.vial_hint": "Click to siphon your XP in - Shift-click to pour it back.",
   "packwork.ui.charge_crystal": "Charge Crystal",
   "packwork.ui.crystal_hint": "Fills from any charger; tops up the tools in your hands.",
+  "packwork.ui.flask_harness": "Alchemist's Flask Harness",
+  "packwork.ui.flask_hint": "Bottled vapors - any Mekanism chemical pipe fills it.",
   "key.packwork.open": "Open Pack",
   "key.categories.packwork": "Packwork"
 }

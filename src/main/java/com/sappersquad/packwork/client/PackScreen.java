@@ -55,6 +55,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private int[] gaugeRect = null;   // fluid gauge, or null when there's no rack
     private int[] xpGaugeRect = null; // soul-vial gauge, or null when there's no vial
     private int[] energyGaugeRect = null; // charge-crystal gauge, or null when there's no crystal
+    private int[] flaskGaugeRect = null;  // flask-harness gauge, or null (needs Mekanism + the fitting)
 
     public PackScreen(PackMenu menu, Inventory playerInv, Component title) {
         super(menu, playerInv, title);
@@ -224,7 +225,27 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL)) {
             energyGaugeRect = new int[]{x, y, w, h};
             drawEnergyGauge(g, x, y, w, h);
+            y += h + 4;
         }
+        // Gas store: only meaningful with Mekanism, so the gauge appears only when it's loaded.
+        flaskGaugeRect = null;
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
+                && net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
+            flaskGaugeRect = new int[]{x, y, w, h};
+            drawFlaskGauge(g, x, y, w, h);
+        }
+    }
+
+    private void drawFlaskGauge(GuiGraphics g, int x, int y, int w, int h) {
+        gaugeFrame(g, x, y, w, h, 0xFF241F2C);
+        long stored = menu.chemicalStored();
+        long cap = menu.chemicalCapacity();
+        if (stored > 0 && cap > 0) {
+            int filled = Math.max(1, (int) (h * Math.min(stored, cap) / cap));
+            g.fill(x, y + h - filled, x + w, y + h, 0xFFB08AD8);          // bottled-vapor violet
+            g.fill(x, y + h - filled, x + w, y + h - filled + 1, 0xFFE4CCFF);
+        }
+        g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
     private void drawEnergyGauge(GuiGraphics g, int x, int y, int w, int h) {
@@ -347,6 +368,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.literal(menu.energyStored() + " / " + menu.energyCapacity() + " FE")
                     .withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.crystal_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            return;
+        }
+        if (flaskGaugeRect != null && inRect(mouseX, mouseY, flaskGaugeRect[0], flaskGaugeRect[1], flaskGaugeRect[2], flaskGaugeRect[3])) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.flask_harness"));
+            lines.add(Component.literal(menu.chemicalStored() + " / " + menu.chemicalCapacity() + " mB")
+                    .withStyle(net.minecraft.ChatFormatting.GRAY));
+            lines.add(Component.translatable("packwork.ui.flask_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }

@@ -40,6 +40,14 @@ public class Packwork {
         modEventBus.addListener(PackworkCapabilities::registerCapabilities);
         modEventBus.addListener(PackworkNetwork::register);
 
+        // Curios (optional): register the packs as back-slot curios during common setup.
+        // Gated so compat/curios (the only class importing curios) never loads without it.
+        modEventBus.addListener((net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent e) -> {
+            if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
+                e.enqueueWork(() -> com.sappersquad.packwork.compat.curios.CuriosCompat.register());
+            }
+        });
+
         LOGGER.info("Packwork slung over one shoulder.");
     }
 }

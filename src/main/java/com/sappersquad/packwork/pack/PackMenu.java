@@ -437,6 +437,16 @@ public class PackMenu extends AbstractContainerMenu {
         return PackEnergyStorage.capacityFor(liveStack());
     }
 
+    /** Flask Harness chemical amount (mB), read straight off the dist-neutral component. */
+    public long chemicalStored() {
+        return liveStack().getOrDefault(ModComponents.PACK_CHEMICAL.get(),
+                com.sappersquad.packwork.pack.PackChemical.EMPTY).amount();
+    }
+
+    public long chemicalCapacity() {
+        return com.sappersquad.packwork.pack.PackChemical.capacityFor(liveStack());
+    }
+
     /** Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.). */
     public void applyFluidInteract() {
         if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;

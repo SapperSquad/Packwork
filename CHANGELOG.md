@@ -42,9 +42,14 @@ and an in-game guide.
 - **Energy store** — the Charge Crystal holds an arcane charge (standard FE) in a
   copper-wound crystal; any mod's charger fills a placed pack, and it tops up the powered
   tools in your hands. The amber gauge shows the charge.
-- **Forgework bridge (optional, gated).** With Forgework installed, the Charge Crystal
-  also feeds any Forgework portable terminal you carry, 1 Flux = 1 FE. Does nothing when
-  Forgework is absent — one gated class, zero hard dependency.
+- **Gas store — the Alchemist's Flask Harness (needs Mekanism).** A chemical tank for
+  bottled vapors, filled by any Mekanism chemical pipe, shown as a violet gauge on the rail.
+  It's only craftable and only appears when Mekanism is installed.
+- **Optional integrations, all soft deps** — each lights up when its mod is present and is
+  simply absent otherwise (zero hard dependencies): the **Forgework** Flux bridge (the Charge
+  Crystal feeds carried terminals, and a *placed* pack charges off Forgework cables, 1 Flux =
+  1 FE); **Curios** back-slot wear (the pack's trinkets keep working while worn); and **JEI**
+  info pages for every pack tier, trinket, and the handbook.
 - **Outfitter's Handbook** — an in-house guide item (craft a book + leather, right-click to
   open). Five leather-and-brass chapters: the pack, sorting, trinkets, tiers, and the
   stores, with numbers pulled straight from the code.
@@ -55,12 +60,10 @@ and an in-game guide.
   into the Food tab when present.
 
 ### Known / on the bench
-- **Resource stores:** fluids, XP, and energy ship; gas (an Alchemist's Flask Harness for
-  Mekanism chemicals) is the last one, deferred until the Mekanism dependency is added.
-- **No Curios wear-slot** compat yet (native use + keybind cover carrying it), and **no
-  JEI** integration yet. Both are written to light up when their mod is present.
-- **The Forgework bridge is item-level** (the pack has no placed block-entity form yet), so
-  it charges terminals you carry rather than a Forgework cable charging a placed pack.
+- **All four resource stores ship** (fluids, XP, energy, and — with Mekanism — gas).
+- **Opening the pack GUI from the Curios back slot** isn't wired yet; open it from your
+  inventory (the trinkets still work while it's worn).
+- A dedicated **Outfitter's Bench** upgrade station and a **quest chapter** are still to come.
 
 ### Cut
 - **Feather Charm** — Packwork has no pack-weight / encumbrance penalty, so a "weightless"

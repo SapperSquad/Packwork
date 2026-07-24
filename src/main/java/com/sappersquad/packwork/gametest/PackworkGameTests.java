@@ -508,6 +508,85 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * The Flask Harness fits a socket and its chemical tank stores as dist-neutral primitives
+     * (id + amount) that survive a component round-trip - all with Mekanism ABSENT, so the
+     * gas store never drags Mekanism into an always-loaded class.
+     */
+    @GameTest(template = "empty")
+    public static void flaskHarnessGatedChemicalComponent(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.STUDDED);
+        helper.assertTrue(sockets.insertItem(0,
+                        new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false).isEmpty(),
+                "the Flask Harness installs into a socket");
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketAccess.has(pack,
+                com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS), "harness installed");
+
+        helper.assertTrue(pack.getOrDefault(ModComponents.PACK_CHEMICAL.get(),
+                com.sappersquad.packwork.pack.PackChemical.EMPTY).isEmpty(), "tank starts empty");
+        pack.set(ModComponents.PACK_CHEMICAL.get(),
+                new com.sappersquad.packwork.pack.PackChemical("mekanism:hydrogen", 5000L));
+        var pc = pack.get(ModComponents.PACK_CHEMICAL.get());
+        helper.assertTrue(pc != null && pc.amount() == 5000L
+                        && pc.chemical().equals("mekanism:hydrogen") && !pc.isEmpty(),
+                "chemical id + amount round-trip on the component");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackChemical.capacityFor(pack)
+                        == 16_000L * (PackTier.STUDDED.ordinal() + 1),
+                "chemical tank capacity is tier-scaled");
+        helper.succeed();
+    }
+
+    /**
+     * With Mekanism loaded, a fitted Flask Harness exposes Mekanism's own chemical handler
+     * (one tier-scaled tank) and it inserts/extracts a chemical conserving exactly. Without
+     * Mekanism the branch is never entered, so the compat class never classloads.
+     */
+    @GameTest(template = "empty")
+    public static void mekanismChemicalStoreGated(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
+        new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false);
+
+        if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
+            helper.succeed(); // the chemical cap only exists when Mekanism is loaded
+            return;
+        }
+        var cap = pack.getCapability(com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.ITEM);
+        helper.assertTrue(cap != null && cap.getChemicalTanks() == 1, "Flask Harness exposes one chemical tank");
+        helper.assertTrue(cap.getChemicalTankCapacity(0)
+                == com.sappersquad.packwork.pack.PackChemical.capacityFor(pack), "tier-scaled capacity");
+        var hydrogen = mekanism.api.MekanismAPI.CHEMICAL_REGISTRY.getOptional(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("mekanism", "hydrogen")).orElse(null);
+        if (hydrogen == null) { helper.succeed(); return; }
+        var stack = new mekanism.api.chemical.ChemicalStack(hydrogen, 3000L);
+        var leftover = cap.insertChemical(0, stack, mekanism.api.Action.EXECUTE);
+        helper.assertTrue(leftover.isEmpty(), "3000 mB accepted");
+        var out = cap.extractChemical(0, 5000L, mekanism.api.Action.EXECUTE);
+        helper.assertTrue(out.getAmount() == 3000L, "extracts exactly what went in, got " + out.getAmount());
+        helper.succeed();
+    }
+
+    /**
+     * With Curios loaded, the "back" slot is registered and the pack is assigned to it (so it
+     * can be worn there). Without Curios the branch is never entered - the compat class never
+     * classloads. Verifies the wear WIRING headlessly (Curios is light enough to stage).
+     */
+    @GameTest(template = "empty")
+    public static void curiosBackSlotGated(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        var level = helper.getLevel();
+        boolean backRegistered = top.theillusivec4.curios.api.CuriosApi.getSlots(level).containsKey("back");
+        helper.assertTrue(backRegistered, "Curios has a registered 'back' slot");
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        boolean packFitsBack = top.theillusivec4.curios.api.CuriosApi.getItemStackSlots(pack, level).containsKey("back");
+        helper.assertTrue(packFitsBack, "the pack is assigned to the 'back' slot");
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

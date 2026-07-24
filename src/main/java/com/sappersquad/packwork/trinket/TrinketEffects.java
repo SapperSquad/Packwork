@@ -49,19 +49,30 @@ public final class TrinketEffects {
         Inventory inv = sp.getInventory();
 
         for (int i = 0; i < inv.getContainerSize(); i++) {
-            ItemStack packStack = inv.getItem(i);
-            if (!(packStack.getItem() instanceof PackItem)) continue;
-            EnumSet<TrinketType> installed = TrinketAccess.installed(packStack);
-            if (installed.isEmpty()) continue;
-            PackTier tier = PackItem.tierOf(packStack);
-            PackInventory pack = new PackInventory(packStack, tier);
-
-            if (installed.contains(TrinketType.LODESTONE) && time % 4 == 0) magnet(sp, packStack, pack);
-            if (installed.contains(TrinketType.RESTOCK) && time % 10 == 0) restock(sp, pack);
-            if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
-            if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
-            if (installed.contains(TrinketType.CHARGE_CRYSTAL) && time % 10 == 0) charge(sp, packStack);
+            applyPack(sp, inv.getItem(i), time);
         }
+    }
+
+    /**
+     * Run one pack's active trinket effects for this tick. Shared by the inventory scan above
+     * and the Curios back-slot ({@code compat/curios}), so a worn pack's magnet / restock /
+     * repair / soul-vial / charge all keep working exactly as a pocketed one's do.
+     */
+    public static void applyWornPack(ServerPlayer sp, ItemStack packStack) {
+        applyPack(sp, packStack, sp.level().getGameTime());
+    }
+
+    private static void applyPack(ServerPlayer sp, ItemStack packStack, long time) {
+        if (!(packStack.getItem() instanceof PackItem)) return;
+        EnumSet<TrinketType> installed = TrinketAccess.installed(packStack);
+        if (installed.isEmpty()) return;
+        PackInventory pack = new PackInventory(packStack, PackItem.tierOf(packStack));
+
+        if (installed.contains(TrinketType.LODESTONE) && time % 4 == 0) magnet(sp, packStack, pack);
+        if (installed.contains(TrinketType.RESTOCK) && time % 10 == 0) restock(sp, pack);
+        if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
+        if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
+        if (installed.contains(TrinketType.CHARGE_CRYSTAL) && time % 10 == 0) charge(sp, packStack);
     }
 
     /** Charge Crystal: pour stored charge into the tools you're holding that accept it. */
