@@ -153,10 +153,8 @@ one can be flipped later without unpicking the rest:
   in seams, rim light, stitching, a specular buckle). `item/generated` renders a 32×32 sprite
   crisply at any GUI scale. Trinkets/handbook stay 16×16 (they read fine and cost less to
   author). The placed-block faces went 32×32 too so a set-down pack matches the held one.
-- **Per-tier trim on the *block* is deferred.** The placed block tints ONE leather tile per
-  tier; studs/plates/runes on the block would need per-tier block textures + models. The
-  block's material lift (grain, stitching, brass) is universal; per-tier block trim is a
-  follow-up if Alex wants the set-down pack to carry the same ladder detail as the item.
+- **Per-tier trim on the *block* is deferred.** *(Superseded 2026-07-24 — done via a `tier`
+  blockstate property + per-tier models/textures; see "art pass 5" below.)*
 - **Charge Crystal is cool blue, not amber (Alex, 2026-07-23).** Amber read as a candle flame;
   a cool faceted crystal wound in dark copper is unambiguous. **Update (art pass 4): the energy
   gauge on the rail is now the same cool crystal-blue** (`0xFF3EA9C4` fill on `0xFF15323B`
@@ -180,10 +178,33 @@ one can be flipped later without unpicking the rest:
   `tools/pack_small_preview.png` — the five packs box-downscaled to 16px and 12px on a grey slot
   strip — so "does it read as a backpack in the hotbar?" is answerable offline without a client;
   the live hotbar/inventory/in-hand shots confirm it.
-- **Per-tier block trim stays deferred (unchanged call).** The block MODEL is already boxy and
-  matches the reshaped item; carrying studs/plates/runes into the world still needs per-tier
-  block models keyed off a tier blockstate property (the block deliberately syncs tier as light
-  BE data, not a blockstate), so it remains the noted follow-up rather than part of this pass.
+- **Per-tier block trim was deferred here, then done in art pass 5 (below).**
+
+## 2026-07-24 — art pass 5: per-tier placed-block trim (reopen with evidence)
+
+- **Rendering approach: a `tier` `EnumProperty<PackTier>` blockstate, NOT a BlockEntityRenderer.**
+  The placed pack's geometry is static, so the cheapest, most standard way to show per-tier trim
+  is to let the vanilla model system resolve it: a 5-value `tier` property picks one of five child
+  models (each swapping textures over a shared `pack_shape` parent), across a 20-variant blockstate
+  (facing × tier). A BER would mean custom render code for no benefit. The tier is set at placement
+  from the pack item (`getStateForPlacement` reads `ctx.getItemInHand()`), and `setPackStack`
+  re-sets it if the stored pack's tier ever differs (covers a bare-placement-then-stack test path
+  and any whole-pack swap).
+- **Round-trip safety held: the blockstate tier is render-only.** Drops + middle-click still read
+  the block entity's stored stack, never the blockstate, so break returns the exact right-tier
+  pack and the place↔break round-trip stays byte-for-byte lossless. A gametest
+  (`placedTierDrivesBlockstateAndDrop`) pins: the render tier follows the pack, the drop is the
+  right tier, and a swap retracks — 24 tests green.
+- **Colour is baked, tint handler removed.** Each tier's leather/front textures carry their own
+  colour + trim (from the shared `TIER_RAMP` SSOT in `tools/GenTextures.java`), so the old block
+  colour handler + neutral `pack_block.png` are gone. The 3D brass buckle/straps stay a shared
+  brass texture (on-brand leather-and-brass for every tier, including canvas — the item's canvas
+  twine buckle is a small, accepted divergence on the block).
+- **Runed glow = block light emission + bright glyphs, not model emissive.** `lightLevel(state ->
+  tier==RUNED ? 8 : 0)` makes a set-down Runed pack actually glow in the world, and the glyphs are
+  high-contrast; this was chosen over an unverified per-face model-emissive flag and over
+  duplicating geometry for an overlay quad. Verified in-game (the Runed block is visibly brighter
+  than its neighbours).
 
 ## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
 

@@ -2,6 +2,7 @@ package com.sappersquad.packwork.reg;
 
 import com.sappersquad.packwork.Packwork;
 import com.sappersquad.packwork.block.PackContainerBlock;
+import com.sappersquad.packwork.pack.PackTier;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -25,5 +26,7 @@ public class ModBlocks {
                     .strength(0.8f)
                     .sound(SoundType.WOOL)
                     .noOcclusion()
+                    // the Runed pack's glyphs give off a faint arcane glow when set down
+                    .lightLevel(state -> state.getValue(PackContainerBlock.TIER) == PackTier.RUNED ? 8 : 0)
                     .noLootTable());
 }

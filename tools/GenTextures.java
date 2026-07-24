@@ -47,8 +47,8 @@ public class GenTextures {
 
         genGui(BASE + "/gui/pack.png");
         genTab(BASE + "/gui/tab.png");
-        genBlockLeather(BASE + "/block/pack_block.png");
-        genBlockBrass(BASE + "/block/pack_block_brass.png");
+        genBlockTiers();                                   // per-tier leather + trimmed front faces
+        genBlockBrass(BASE + "/block/pack_block_brass.png"); // shared brass (buckle + straps + handle)
 
         // ---- hand-authored 16x16 item sprites ----
         genPacks();
@@ -138,18 +138,19 @@ public class GenTextures {
         LX = lx / l; LY = ly / l; LZ = lz / l;
     }
 
+    // SSOT: the 7-stop leather ramp (dark -> light) per tier, shared by the hero item sprite
+    // AND the placed-block faces so a set-down pack matches the one in hand. Index = tier ordinal.
+    static final int[][] TIER_RAMP = {
+        {0xFF544527, 0xFF6E5A34, 0xFF897249, 0xFFA68E5F, 0xFFC2AB79, 0xFFD8C494, 0xFFEEDDB2}, // canvas
+        {0xFF1C1108, 0xFF321F10, 0xFF4C3319, 0xFF684627, 0xFF875E38, 0xFFA6784B, 0xFFC49468}, // leather
+        {0xFF150D06, 0xFF261809, 0xFF3A2811, 0xFF513920, 0xFF6B4E2E, 0xFF87663F, 0xFFA07C50}, // studded
+        {0xFF16130E, 0xFF272319, 0xFF3B3527, 0xFF524A38, 0xFF6C6249, 0xFF897C5D, 0xFFA89A75}, // reinforced
+        {0xFF130C22, 0xFF201430, 0xFF302144, 0xFF43305C, 0xFF574178, 0xFF6F5695, 0xFF8A70B4}, // runed
+    };
+    static final String[] TIER_ID = {"canvas", "leather", "studded", "reinforced", "runed"};
+
     static void genPacks() throws Exception {
-        // 7-stop leather ramp per tier (dark -> light) + a flag for the material story
-        heroPack("canvas_pack", 0, new int[]{
-            0xFF544527, 0xFF6E5A34, 0xFF897249, 0xFFA68E5F, 0xFFC2AB79, 0xFFD8C494, 0xFFEEDDB2});
-        heroPack("leather_pack", 1, new int[]{
-            0xFF1C1108, 0xFF321F10, 0xFF4C3319, 0xFF684627, 0xFF875E38, 0xFFA6784B, 0xFFC49468});
-        heroPack("studded_pack", 2, new int[]{
-            0xFF150D06, 0xFF261809, 0xFF3A2811, 0xFF513920, 0xFF6B4E2E, 0xFF87663F, 0xFFA07C50});
-        heroPack("reinforced_pack", 3, new int[]{
-            0xFF16130E, 0xFF272319, 0xFF3B3527, 0xFF524A38, 0xFF6C6249, 0xFF897C5D, 0xFFA89A75});
-        heroPack("runed_pack", 4, new int[]{
-            0xFF130C22, 0xFF201430, 0xFF302144, 0xFF43305C, 0xFF574178, 0xFF6F5695, 0xFF8A70B4});
+        for (int t = 0; t < TIER_ID.length; t++) heroPack(TIER_ID[t] + "_pack", t, TIER_RAMP[t]);
     }
 
     // brass and steel ramps (7-stop) shared by fittings/trim
@@ -878,33 +879,133 @@ public class GenTextures {
         rect(img, x, y, w, h, shade(lo, -30));
     }
 
-    /** 32x32 light near-neutral leather face for the placed block: fine grain, worn mottling,
-     *  a stitched seam and a quilted bevel. Kept light/neutral so the per-tier tint (multiply)
-     *  controls the hue. Higher-res than before so a set-down pack matches the hero item. */
-    static void genBlockLeather(String path) throws Exception {
+    // =====================================================================
+    //  per-tier placed-block faces: leather (body/sides/top) + a trimmed FRONT (the flap
+    //  face). Colour is baked from the shared TIER_RAMP (no tint), and the per-tier trim
+    //  from the hero-item ladder is carried onto the front so a set-down pack shows its
+    //  tier -- canvas weave+twine, leather grain, brass studs, riveted steel plates+band,
+    //  runed glowing glyphs+gem. The 3D brass buckle/straps are a shared brass texture.
+    // =====================================================================
+
+    static void genBlockTiers() throws Exception {
+        for (int t = 0; t < TIER_ID.length; t++) {
+            genBlockLeatherTier(t);
+            genBlockFrontTier(t);
+        }
+    }
+
+    /** Plain colour-baked leather for the body/sides/top/handle: grain, a stitched seam, a bevel. */
+    static void genBlockLeatherTier(int tier) throws Exception {
         int N = 32;
+        int[] R = TIER_RAMP[tier];
         BufferedImage img = new BufferedImage(N, N, BufferedImage.TYPE_INT_ARGB);
-        Random rnd = new Random(31);
-        int hi = 0xFFD2CBBE, lo = 0xFFB4AEA2;
+        Random rnd = new Random(131 + tier);
+        int hi = R[5], lo = R[2];
         for (int y = 0; y < N; y++)
             for (int x = 0; x < N; x++) {
                 int c = lerp(hi, lo, y / (float) N);
-                // fine horizontal grain creases + low-amplitude worn mottling (structured, not noise-fill)
                 int d = (int) ((valueNoise(x / 2, y, rnd, 12) - 0.5f) * 10);
-                if (y % 6 == 0 && (x + y) % 3 != 0) d -= 8;
+                if (y % 6 == 0 && (x + y) % 3 != 0) d -= 8;    // fine horizontal creases
                 if (y % 6 == 3) d += 5;
-                c = shade(c, d);
-                img.setRGB(x, y, c);
+                img.setRGB(x, y, shade(c, d));
             }
-        // a stitched seam a third of the way down (groove + light stitches)
-        for (int x = 0; x < N; x++) img.setRGB(x, 10, shade(lo, -22));
-        for (int x = 1; x < N; x += 4) { img.setRGB(x, 10, STITCH); img.setRGB(x + 1, 9, shade(STITCH, -30)); }
-        // quilted bevel: light top/left, shadow bottom/right
-        for (int i = 0; i < N; i++) {
+        int stitch = R[6];
+        for (int x = 0; x < N; x++) img.setRGB(x, 10, shade(lo, -22));                 // seam groove
+        for (int x = 1; x < N; x += 4) { img.setRGB(x, 10, stitch); img.setRGB(x + 1, 9, shade(stitch, -30)); }
+        for (int i = 0; i < N; i++) {                                                   // quilted bevel
             img.setRGB(i, 0, shade(hi, 14)); img.setRGB(0, i, shade(hi, 10));
             img.setRGB(i, N - 1, shade(lo, -28)); img.setRGB(N - 1, i, shade(lo, -24));
         }
-        ImageIO.write(img, "PNG", new File(path));
+        ImageIO.write(img, "PNG", new File(BASE + "/block/pack_" + TIER_ID[tier] + "_leather.png"));
+    }
+
+    /** The flap FRONT face: colour-baked grain + a hem stitch line + the tier's trim. The 3D
+     *  brass buckle covers the centre box (x11..21, y15..26) and the straps the bottom corners,
+     *  so trim is kept to the flap's edges, top band and flanks where it actually reads. */
+    static void genBlockFrontTier(int tier) throws Exception {
+        int N = 32;
+        int[] R = TIER_RAMP[tier];
+        BufferedImage img = new BufferedImage(N, N, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(53 + tier);
+        int hi = R[5], lo = R[3];
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++) {
+                int c = lerp(hi, lo, y / (float) N);
+                int d = (int) ((valueNoise(x / 2, y, rnd, 8) - 0.5f) * 8);
+                if (y % 5 == 0 && (x + y) % 3 != 0) d -= 7;
+                img.setRGB(x, y, shade(c, d));
+            }
+        // hem stitch line near the bottom (the flap's hanging edge)
+        int stitch = R[6];
+        for (int x = 0; x < N; x++) img.setRGB(x, 29, shade(lo, -26));
+        for (int x = 2; x < N; x += 4) { img.setRGB(x, 28, stitch); img.setRGB(x, 27, shade(stitch, -28)); }
+        boolean[][] free = new boolean[N][N]; // buckle box + strap corners are hidden by 3D brass
+        for (int y = 0; y < N; y++) for (int x = 0; x < N; x++)
+            free[x][y] = !(x >= 11 && x <= 21 && y >= 15 && y <= 26)
+                    && !(y >= 26 && (x <= 10 || x >= 21));
+        switch (tier) {
+            case 0 -> { // canvas: woven crosshatch + a twine cross-lashing high on the flap
+                for (int y = 1; y < 27; y++)
+                    for (int x = 1; x < N - 1; x++) {
+                        if (!free[x][y]) continue;
+                        if ((x + y) % 4 == 0) img.setRGB(x, y, shade(img.getRGB(x, y), 9));
+                        else if ((x - y + 40) % 4 == 0) img.setRGB(x, y, shade(img.getRGB(x, y), -9));
+                    }
+                int tw = shade(R[1], -10), twHi = R[4];
+                for (int i = 0; i < 10; i++) { // an X of twine across the upper flap
+                    blockSet(img, free, 7 + i, 4 + i, tw); blockSet(img, free, 25 - i, 4 + i, tw);
+                }
+                blockSet(img, free, 12, 9, twHi); blockSet(img, free, 20, 9, twHi);
+            }
+            case 1 -> {} // leather: the grain carries it
+            case 2 -> { // studded: a ring of brass studs round the flap
+                int[][] studs = {{5, 6}, {12, 5}, {20, 5}, {27, 6}, {4, 14}, {28, 14},
+                        {4, 22}, {28, 22}, {7, 27}, {25, 27}, {16, 6}};
+                for (int[] s : studs) blockStud(img, free, s[0], s[1]);
+            }
+            case 3 -> { // reinforced: riveted steel corner plates + a steel band across the top
+                blockPlate(img, free, 2, 3); blockPlate(img, free, 26, 3);
+                blockPlate(img, free, 2, 24); blockPlate(img, free, 26, 24);
+                for (int x = 8; x <= 23; x++) {
+                    blockSet(img, free, x, 10, ramp(STEELR, 0.55 - (x - 15.5) * 0.02));
+                    blockSet(img, free, x, 11, ramp(STEELR, 0.34));
+                }
+            }
+            case 4 -> { // runed: glowing glyphs flanking the buckle + a gem, high-contrast
+                int glow = 0xFFC2A8FF, glowHi = 0xFFF0E6FF, gem = 0xFF8A6BE0, gemHi = 0xFFCBB8FF;
+                int[][] g = {{6, 8}, {6, 9}, {6, 10}, {7, 9}, {5, 12}, {7, 12},          // left glyph
+                        {25, 8}, {25, 9}, {25, 10}, {24, 9}, {26, 9}, {25, 12},          // right glyph
+                        {6, 20}, {7, 20}, {6, 21}, {6, 22},                              // lower-left sigil
+                        {25, 20}, {24, 20}, {25, 21}, {25, 22}};                         // lower-right sigil
+                for (int[] p : g) blockSet(img, free, p[0], p[1], glow);
+                blockSet(img, free, 6, 9, glowHi); blockSet(img, free, 25, 9, glowHi);
+                // a gem set into the top band, above the buckle
+                for (int[] p : new int[][]{{15, 6}, {16, 6}, {15, 7}, {16, 7}}) blockSet(img, free, p[0], p[1], gem);
+                blockSet(img, free, 15, 6, gemHi); blockSet(img, free, 16, 7, gemHi);
+            }
+            default -> {}
+        }
+        ImageIO.write(img, "PNG", new File(BASE + "/block/pack_" + TIER_ID[tier] + "_front.png"));
+    }
+
+    static void blockSet(BufferedImage img, boolean[][] free, int x, int y, int c) {
+        if (x < 0 || y < 0 || x >= img.getWidth() || y >= img.getHeight() || !free[x][y]) return;
+        img.setRGB(x, y, c);
+    }
+
+    static void blockStud(BufferedImage img, boolean[][] free, int x, int y) {
+        blockSet(img, free, x, y, ramp(BRASSR, 0.72));
+        blockSet(img, free, x, y - 1, ramp(BRASSR, 0.96)); // top glint
+        blockSet(img, free, x + 1, y, ramp(BRASSR, 0.5));
+        blockSet(img, free, x, y + 1, ramp(BRASSR, 0.28)); // contact shadow
+    }
+
+    static void blockPlate(BufferedImage img, boolean[][] free, int x, int y) {
+        for (int j = 0; j < 4; j++)
+            for (int i = 0; i < 4; i++) blockSet(img, free, x + i, y + j, ramp(STEELR, 0.55 - i * 0.05 - j * 0.06));
+        blockSet(img, free, x, y, ramp(STEELR, 0.9));
+        blockSet(img, free, x + 3, y, ramp(BRASSR, 0.85));      // brass rivet corners
+        blockSet(img, free, x + 3, y + 3, ramp(BRASSR, 0.7));
     }
 
     /** 32x32 brushed-brass face for the placed block's buckle + straps: vertical sheen + rivets. */

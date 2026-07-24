@@ -41,6 +41,11 @@ All notable changes, newest first. Dates are the suite's working dates.
   shrunk to hotbar size, without losing any of the hero-pass shading. The **Charge Crystal**'s
   energy gauge on the right rail went from amber to the fitting's cool crystal-blue, so the icon
   and the gauge finally agree.
+- **A set-down pack now shows its tier in the world.** The placed pack used to be one tinted
+  leather box for every tier; it now carries the full material ladder onto the block — canvas
+  weave + twine, leather grain, **brass studs**, **riveted steel corner plates + a band**, and
+  **glowing runed glyphs + a gem** (the Runed pack even gives off a faint arcane glow). Break it
+  and you still get exactly the pack you set down, right down to the tier.
 - **Three trinkets sharpened.** The **Restock Strap** is now a bold bandolier — a big central
   brass buckle with a studded pouch above and below. The **Charge Crystal** is unmistakably a
   faceted crystal (cool blue, wound in dark copper on a brass mount) instead of reading like a

@@ -1,0 +1,9 @@
+{
+  "__comment": "runed-tier placed pack: shared geometry, this tier's leather + trimmed front.",
+  "parent": "packwork:block/pack_shape",
+  "textures": {
+    "front": "packwork:block/pack_runed_front",
+    "leather": "packwork:block/pack_runed_leather",
+    "particle": "packwork:block/pack_runed_leather"
+  }
+}
