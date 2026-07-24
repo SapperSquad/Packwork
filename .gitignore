@@ -40,6 +40,8 @@ repo/
 !**/src/**/repo/
 
 tools/work/
+# regenerable art-inspection montage (rebuilt by `java tools/GenTextures.java`)
+tools/sprite_montage.png
 
 ### Packwork dev harness ###
 # transient launch logs from the runClient/-Pautoshot screenshot harness

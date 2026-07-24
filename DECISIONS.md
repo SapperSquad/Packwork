@@ -145,6 +145,23 @@ one can be flipped later without unpicking the rest:
   Pack, Sorting, Trinkets, Tiers & Upgrades, The Stores. Verified in-game via the autoshot
   harness with pixels inspected.
 
+## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
+
+- **Item icons are hand-authored pixel art; big tiled surfaces stay procedural.** After the
+  art-1 playtest, the 16x16 ITEM sprites (packs, trinkets, handbook) were moved to explicit
+  char-grid pixel art in `tools/GenTextures.java` — every pixel placed by hand with a
+  per-material value ramp, a top-left light source and a dark outline. The GUI panel, the tab,
+  and the placed-block faces stayed procedural (noise-grained fills) because they're large
+  tiled surfaces where a hand grid buys nothing. Rationale: procedural noise-fill read as
+  "generated" on small icons; the ceiling for "wow" on 16x16 is deliberate pixel work.
+- **Every item sprite shares one centred box with a >=1px margin.** The overflow/low-sitting
+  bug was systemic (most sprites anchored to the bottom edge, `restock_strap` filled the whole
+  tile). The fix is a discipline, not a one-off nudge: sprites are drawn inside a consistent
+  centred bounding box and `tools/AnalyzeSprites.java` audits box + margins + centre offset for
+  every sprite. Re-run it after touching any icon; block FACE tiles are allowed to fill 16x16.
+- **Pin marker is a red ribbon + brass tack**, not a subtle corner dot — SapperSquad flagged the old
+  one as too easy to miss. It clips only the slot's corner and rides above the item (z=300).
+
 ## 2026-07-23 — the placeable pack block
 
 - **A placed pack IS its item stack, held on the block entity.** The block entity stores one

@@ -156,7 +156,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     // ---------- foreground ----------
 
-    /** A brass pin-head in the top-left corner of every item pinned to the active tab. */
+    /** A bold red corner ribbon + brass tack on every item pinned to the active tab. */
     private void drawPinMarkers(GuiGraphics g) {
         if (menu.flatten()) return;
         String active = menu.activeTab();
@@ -167,14 +167,27 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             if (!(s instanceof PackViewSlot vs) || !vs.isActive() || !s.hasItem()) continue;
             ResourceLocation key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
             if (active.equals(layout.pinnedTab(key))) {
-                int x = leftPos + s.x, y = topPos + s.y;
-                g.fill(x - 1, y - 1, x + 5, y + 5, 0xFF2A1C10);         // dark ring
-                g.fill(x, y, x + 4, y + 4, 0xFFC9A24B);                 // brass head
-                g.fill(x + 1, y + 1, x + 3, y + 3, 0xFFF0DCA0);         // highlight
-                g.fill(x + 3, y + 3, x + 5, y + 7, 0xFF7A5A34);         // short tail
+                drawPinRibbon(g, leftPos + s.x, topPos + s.y);
             }
         }
         g.pose().popPose();
+    }
+
+    /** A folded red ribbon in the slot's top-left corner, studded with a brass tack. Big and
+     *  unmistakable so a pinned slot reads at a glance; only clips the very corner of the item. */
+    private void drawPinRibbon(GuiGraphics g, int x, int y) {
+        // triangular ribbon fold from the corner (rows of shrinking width) + a dark edge under it
+        for (int i = 0; i < 8; i++) g.fill(x - 1, y - 1 + i, x - 1 + (8 - i), y + i, 0xFF48120F); // shadow/backing
+        for (int i = 0; i < 7; i++) g.fill(x - 1, y - 1 + i, x - 1 + (7 - i), y + i, 0xFFC0332F); // red ribbon
+        for (int i = 0; i < 4; i++) g.fill(x - 1, y - 1 + i, x - 1 + (4 - i), y + i, 0xFFDA5A54); // lit inner fold
+        // a short tail hanging off the corner
+        g.fill(x + 4, y + 4, x + 6, y + 8, 0xFFA82B28);
+        g.fill(x + 5, y + 6, x + 7, y + 9, 0xFF8A211F);
+        // brass tack pinning the ribbon
+        g.fill(x, y, x + 4, y + 4, 0xFF2A1C10);          // dark seat
+        g.fill(x, y, x + 3, y + 3, 0xFFC9A24B);          // brass head
+        g.fill(x + 1, y + 1, x + 3, y + 3, 0xFFF0DCA0);  // highlight
+        g.fill(x + 2, y + 2, x + 3, y + 3, 0xFF8A6A28);  // shaded corner
     }
 
     /** Append a "[P] Pin to this tab" line to a hovered grid item's tooltip, so it's discoverable. */

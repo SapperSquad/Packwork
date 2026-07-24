@@ -17,7 +17,31 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 ## Status — shippable for its available-dep scope; gas/Curios/JEI deferred, ready to enable
 
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
-> first build); bump/label at publish. 17 GameTests green; jar builds clean.
+> first build); bump/label at publish. 23 GameTests green; jar builds clean.
+
+**2026-07-23 art pass 2 — DONE & verified in-game.** SapperSquad playtested art pass 1 and called
+two shots: sprites sitting low / bleeding off the slot, and art that was "okay, not blown
+away." Both actioned.
+- **Centering sweep (all sprites, not a spot-check).** The item generator was rebuilt so every
+  16x16 sprite is authored inside a shared centred box with a >=1px margin. Before: nearly
+  every sprite touched the bottom edge (B-margin 0, sitting low) and `restock_strap` filled the
+  whole 16x16; `charge_crystal` was 6x10. After: every item sprite is centred, no edge touch
+  (`java tools/AnalyzeSprites.java` prints the bounding box + per-edge margin + centre offset
+  for each — use it to re-audit any future sprite). Verified in-game: varied items (tools,
+  full blocks, potions, tall/tiny items) all sit centred in the grid, and the host-slot pack
+  no longer hangs low.
+- **Art lifted from procedural to hand-authored.** `tools/GenTextures.java` now authors each
+  item sprite as a pixel-art char grid (a per-material value ramp + top-left light + dark
+  outline) instead of noise-fill. The 5 packs are a real material ladder (twine → buckle →
+  studs → steel plates → runes+gem). The four murky icons SapperSquad named are redesigned: Quill &
+  Ledger (legible book + quill), Charge Crystal (copper-wound faceted crystal, not a flame),
+  Quick-Draw Straps (two buckled belts, not a red ✗), Soul Vial vs Flask Harness vs Waterskin
+  now clearly distinct. Run `java tools/GenTextures.java` to regen; it also writes
+  `tools/sprite_montage.png` (a flat-background lineup of every sprite for pixel inspection).
+- **Bolder pin marker.** A pinned slot now wears a red ribbon fold + brass tack in the corner
+  (`PackScreen.drawPinRibbon`), replacing the faint pin-head; verified in-game.
+- **The GUI panel, tab and placed-block faces stayed procedural** (large tiled surfaces where
+  grain reads well) — only the 16x16 item icons became hand-authored.
 
 **2026-07-23 placeable pack — DONE & verified.** Packs are now placeable in the world and
 automatable through block capabilities.
