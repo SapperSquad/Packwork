@@ -197,9 +197,14 @@ one can be flipped later without unpicking the rest:
   right tier, and a swap retracks — 24 tests green.
 - **Colour is baked, tint handler removed.** Each tier's leather/front textures carry their own
   colour + trim (from the shared `TIER_RAMP` SSOT in `tools/GenTextures.java`), so the old block
-  colour handler + neutral `pack_block.png` are gone. The 3D brass buckle/straps stay a shared
-  brass texture (on-brand leather-and-brass for every tier, including canvas — the item's canvas
-  twine buckle is a small, accepted divergence on the block).
+  colour handler + neutral `pack_block.png` are gone. The 3D brass **straps** stay a shared brass
+  texture across every tier (on-brand leather-and-brass), but the **buckle** is now a separate
+  `#buckle` texture slot in `pack_shape` that defaults to the shared brass — so leather/studded/
+  reinforced/runed are untouched — while the **canvas** child model repoints `#buckle` to a new
+  `pack_block_twine` texture. *(Superseded 2026-07-24, SapperSquad's call: the earlier "the canvas item's
+  twine buckle is a small, accepted divergence on the block" no longer holds — a set-down canvas
+  pack now shows a twine buckle to match its item. Straps on the block remain brass for all tiers;
+  making the canvas straps twine too was not requested and is a trivial follow-up if wanted.)*
 - **Runed glow = block light emission + bright glyphs, not model emissive.** `lightLevel(state ->
   tier==RUNED ? 8 : 0)` makes a set-down Runed pack actually glow in the world, and the glyphs are
   high-contrast; this was chosen over an unverified per-face model-emissive flag and over

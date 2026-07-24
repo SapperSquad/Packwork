@@ -48,7 +48,8 @@ public class GenTextures {
         genGui(BASE + "/gui/pack.png");
         genTab(BASE + "/gui/tab.png");
         genBlockTiers();                                   // per-tier leather + trimmed front faces
-        genBlockBrass(BASE + "/block/pack_block_brass.png"); // shared brass (buckle + straps + handle)
+        genBlockBrass(BASE + "/block/pack_block_brass.png"); // shared brass (buckle + straps) for leather+
+        genBlockTwine(BASE + "/block/pack_block_twine.png"); // canvas-only twine buckle (matches its item)
 
         // ---- hand-authored 16x16 item sprites ----
         genPacks();
@@ -156,6 +157,9 @@ public class GenTextures {
     // brass and steel ramps (7-stop) shared by fittings/trim
     static final int[] BRASSR = {0xFF3E2C0E, 0xFF5E4514, 0xFF80611C, 0xFFA6842C, 0xFFC9A542, 0xFFE6C56E, 0xFFF8E6A0};
     static final int[] STEELR = {0xFF26272C, 0xFF3E4046, 0xFF585B62, 0xFF787C84, 0xFF9CA0A8, 0xFFC2C6CD, 0xFFE8EAEE};
+    // twine ramp (7-stop): the pale tan cord of the canvas buckle, extending the hero item's
+    // twine palette {6A5836,9C8B5F,C0B084,D8C99C,EADCB4} down two darker stops for form shadow.
+    static final int[] TWINER = {0xFF3E3218, 0xFF574726, 0xFF6A5836, 0xFF8A7550, 0xFF9C8B5F, 0xFFC0B084, 0xFFD8C99C};
 
     static int ramp(int[] r, double v) {
         if (v < 0) v = 0; if (v > 1) v = 1;
@@ -1023,6 +1027,32 @@ public class GenTextures {
             }
         for (int i = 0; i < N; i++) { img.setRGB(0, i, BRASS_LO); img.setRGB(N - 1, i, shade(BRASS_LO, -18)); }
         blockRivet(img, 7, 7); blockRivet(img, 24, 24); blockRivet(img, 24, 7); blockRivet(img, 7, 24);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** 32x32 twine-wrap face for the CANVAS placed block's buckle: woven pale-tan cord, no metal.
+     *  Colour is baked from the same twine ramp as the hero item's twine buckle, so a set-down
+     *  canvas pack's closure matches the one in hand. Only the canvas model repoints its #buckle
+     *  here; every other tier keeps the shared brass, so their buckles are untouched. */
+    static void genBlockTwine(String path) throws Exception {
+        int N = 32;
+        int[] tw = TWINER;
+        BufferedImage img = new BufferedImage(N, N, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(61);
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++) {
+                // gentle top-left sheen so the raised buckle box still catches light - in pale tan,
+                // not gold. The value floor is kept high so the buckle face lands on the pale twine
+                // stops (C0B084/D8C99C), reading clearly lighter and cooler than the brass buckle.
+                double sheen = 1 - Math.min(1, Math.abs(x - N * 0.40) / (N * 0.55));
+                int c = ramp(tw, 0.62 + 0.30 * sheen);
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 21) - 0.5f) * 6));
+                // woven twine crosshatch: two fibre families so it reads as cord, never metal
+                if ((x + y) % 4 == 0) c = shade(c, 7);
+                else if ((x - y + 40) % 4 == 0) c = shade(c, -7);
+                img.setRGB(x, y, c);
+            }
+        for (int i = 0; i < N; i++) { img.setRGB(0, i, shade(tw[2], -4)); img.setRGB(N - 1, i, shade(tw[1], -2)); }
         ImageIO.write(img, "PNG", new File(path));
     }
 

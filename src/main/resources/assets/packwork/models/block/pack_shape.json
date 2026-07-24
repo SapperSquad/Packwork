@@ -1,10 +1,11 @@
 {
-  "__comment": "Shared geometry for the placed pack: leather body, a flap draped over the top and hanging down the front, a top handle, a brass buckle, two brass straps. Front = north. Per-tier child models (pack_<tier>) override #front / #leather / #particle so each tier shows its trim in the world; #brass is shared. No tintindex - colour is baked into the per-tier textures.",
+  "__comment": "Shared geometry for the placed pack: leather body, a flap draped over the top and hanging down the front, a top handle, a buckle, two brass straps. Front = north. Per-tier child models (pack_<tier>) override #front / #leather / #particle so each tier shows its trim in the world; #brass (straps) is shared. #buckle defaults to the shared brass but the canvas tier repoints it to twine to match its item. No tintindex - colour is baked into the per-tier textures.",
   "parent": "block/block",
   "textures": {
     "front": "packwork:block/pack_leather_front",
     "leather": "packwork:block/pack_leather_leather",
     "brass": "packwork:block/pack_block_brass",
+    "buckle": "#brass",
     "particle": "#leather"
   },
   "elements": [
@@ -55,14 +56,14 @@
       }
     },
     {
-      "__comment": "brass buckle on the flap front",
+      "__comment": "buckle on the flap front (#buckle = shared brass, except canvas repoints it to twine)",
       "from": [6, 6.5, 1.4], "to": [10, 9.5, 2.4],
       "faces": {
-        "north": { "uv": [6, 7, 10, 11], "texture": "#brass" },
-        "up":    { "uv": [6, 1, 10, 2], "texture": "#brass" },
-        "down":  { "uv": [6, 2, 10, 3], "texture": "#brass" },
-        "west":  { "uv": [1, 7, 2, 11], "texture": "#brass" },
-        "east":  { "uv": [1, 7, 2, 11], "texture": "#brass" }
+        "north": { "uv": [6, 7, 10, 11], "texture": "#buckle" },
+        "up":    { "uv": [6, 1, 10, 2], "texture": "#buckle" },
+        "down":  { "uv": [6, 2, 10, 3], "texture": "#buckle" },
+        "west":  { "uv": [1, 7, 2, 11], "texture": "#buckle" },
+        "east":  { "uv": [1, 7, 2, 11], "texture": "#buckle" }
       }
     },
     {
