@@ -1,4 +1,5 @@
 {
+  "__comment": "A shaped adventurer's pack sat on the ground: leather body, a flap draped over the top and front, a top handle, a brass buckle, and two brass straps. Leather faces tint per tier (tintindex 0); brass never tints. Front = north.",
   "parent": "block/block",
   "textures": {
     "leather": "packwork:block/pack_block",
@@ -7,46 +8,80 @@
   },
   "elements": [
     {
-      "__comment": "leather body (tinted per tier)",
-      "from": [2, 0, 2], "to": [14, 13, 14],
+      "__comment": "main body",
+      "from": [2, 0, 3], "to": [14, 13, 14],
       "faces": {
-        "north": { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
-        "south": { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
-        "west":  { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
-        "east":  { "uv": [2, 3, 14, 16], "texture": "#leather", "tintindex": 0 },
-        "up":    { "uv": [2, 2, 14, 14], "texture": "#leather", "tintindex": 0 },
-        "down":  { "uv": [2, 2, 14, 14], "texture": "#leather", "tintindex": 0 }
+        "north": { "uv": [2, 4, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "south": { "uv": [2, 4, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "west":  { "uv": [3, 4, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "east":  { "uv": [3, 4, 14, 16], "texture": "#leather", "tintindex": 0 },
+        "up":    { "uv": [2, 3, 14, 14], "texture": "#leather", "tintindex": 0 },
+        "down":  { "uv": [2, 3, 14, 14], "texture": "#leather", "tintindex": 0 }
       }
     },
     {
-      "__comment": "brass buckle on the front (north) face",
-      "from": [6, 3, 1], "to": [10, 7, 2],
+      "__comment": "flap draped over the top",
+      "from": [1.5, 12.5, 2.5], "to": [14.5, 14.5, 14.5],
       "faces": {
-        "north": { "uv": [6, 9, 10, 13], "texture": "#brass" },
+        "north": { "uv": [1, 1, 15, 3], "texture": "#leather", "tintindex": 0 },
+        "south": { "uv": [1, 1, 15, 3], "texture": "#leather", "tintindex": 0 },
+        "west":  { "uv": [2, 1, 15, 3], "texture": "#leather", "tintindex": 0 },
+        "east":  { "uv": [2, 1, 15, 3], "texture": "#leather", "tintindex": 0 },
+        "up":    { "uv": [1, 1, 15, 14], "texture": "#leather", "tintindex": 0 },
+        "down":  { "uv": [1, 1, 15, 14], "texture": "#leather", "tintindex": 0 }
+      }
+    },
+    {
+      "__comment": "flap hanging down the front, overhanging the body",
+      "from": [1.5, 5, 2], "to": [14.5, 13.5, 3.5],
+      "faces": {
+        "north": { "uv": [1, 3, 15, 12], "texture": "#leather", "tintindex": 0 },
+        "west":  { "uv": [2, 3, 3, 12], "texture": "#leather", "tintindex": 0 },
+        "east":  { "uv": [2, 3, 3, 12], "texture": "#leather", "tintindex": 0 },
+        "up":    { "uv": [1, 2, 15, 3], "texture": "#leather", "tintindex": 0 },
+        "down":  { "uv": [1, 12, 15, 13], "texture": "#leather", "tintindex": 0 }
+      }
+    },
+    {
+      "__comment": "top handle grip",
+      "from": [6, 14.5, 6.5], "to": [10, 16, 9.5],
+      "faces": {
+        "north": { "uv": [6, 0, 10, 1], "texture": "#leather", "tintindex": 0 },
+        "south": { "uv": [6, 0, 10, 1], "texture": "#leather", "tintindex": 0 },
+        "west":  { "uv": [6, 0, 9, 1], "texture": "#leather", "tintindex": 0 },
+        "east":  { "uv": [6, 0, 9, 1], "texture": "#leather", "tintindex": 0 },
+        "up":    { "uv": [6, 6, 10, 9], "texture": "#leather", "tintindex": 0 }
+      }
+    },
+    {
+      "__comment": "brass buckle on the flap front",
+      "from": [6, 6.5, 1.4], "to": [10, 9.5, 2.4],
+      "faces": {
+        "north": { "uv": [6, 7, 10, 11], "texture": "#brass" },
         "up":    { "uv": [6, 1, 10, 2], "texture": "#brass" },
         "down":  { "uv": [6, 2, 10, 3], "texture": "#brass" },
-        "west":  { "uv": [1, 9, 2, 13], "texture": "#brass" },
-        "east":  { "uv": [1, 9, 2, 13], "texture": "#brass" }
+        "west":  { "uv": [1, 7, 2, 11], "texture": "#brass" },
+        "east":  { "uv": [1, 7, 2, 11], "texture": "#brass" }
       }
     },
     {
-      "__comment": "left brass strap",
-      "from": [4, 0, 1.5], "to": [5, 13, 2],
+      "__comment": "left brass strap down the front",
+      "from": [4, 0, 1.6], "to": [5.5, 6.5, 2.2],
       "faces": {
-        "north": { "uv": [4, 2, 5, 15], "texture": "#brass" },
+        "north": { "uv": [4, 2, 5.5, 15], "texture": "#brass" },
         "west":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
         "east":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
-        "up":    { "uv": [4, 0, 5, 1], "texture": "#brass" }
+        "up":    { "uv": [4, 0, 5.5, 1], "texture": "#brass" }
       }
     },
     {
-      "__comment": "right brass strap",
-      "from": [11, 0, 1.5], "to": [12, 13, 2],
+      "__comment": "right brass strap down the front",
+      "from": [10.5, 0, 1.6], "to": [12, 6.5, 2.2],
       "faces": {
-        "north": { "uv": [11, 2, 12, 15], "texture": "#brass" },
+        "north": { "uv": [10.5, 2, 12, 15], "texture": "#brass" },
         "west":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
         "east":  { "uv": [0, 2, 1, 15], "texture": "#brass" },
-        "up":    { "uv": [11, 0, 12, 1], "texture": "#brass" }
+        "up":    { "uv": [10.5, 0, 12, 1], "texture": "#brass" }
       }
     }
   ]

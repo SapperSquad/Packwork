@@ -45,28 +45,28 @@ public class GenTextures {
         genBlockLeather(base + "/block/pack_block.png");
         genBlockBrass(base + "/block/pack_block_brass.png");
 
-        // trinket fittings - a leather charm with a brass loop and a coloured emblem
-        genTrinket(base + "/item/lodestone_charm.png", 0xFF6E5A8B, 0);
-        genTrinket(base + "/item/compass_rose.png", 0xFFCF9A3B, 2);
-        genTrinket(base + "/item/restock_strap.png", 0xFF9C6B3A, 3);
-        genTrinket(base + "/item/bottomless_lining.png", 0xFF4A3A6A, 4);
-        genTrinket(base + "/item/repair_kit.png", 0xFF9AA0A6, 2);
-        genTrinket(base + "/item/quick_draw_straps.png", 0xFFB4595A, 3);
-        genTrinket(base + "/item/quill_and_ledger.png", 0xFF6E8BB9, 4);
-        genTrinket(base + "/item/waterskin_rack.png", 0xFF4A8BD6, 1);
-        genTrinket(base + "/item/soul_vial.png", 0xFF74C043, 2);
-        genTrinket(base + "/item/charge_crystal.png", 0xFFE0902C, 0);
-        genTrinket(base + "/item/flask_harness.png", 0xFFB08AD8, 1);
+        // trinket fittings - each its OWN silhouette + palette so none reads as a mini-pack
+        genDisc(base + "/item/lodestone_charm.png", 0xFF4C5A72, 0xFF2E3850);      // dark magnetite disc
+        genCompass(base + "/item/compass_rose.png");                             // brass compass star
+        genBandolier(base + "/item/restock_strap.png");                          // strap + pouches
+        genPouch(base + "/item/bottomless_lining.png", 0xFF3B2C63);              // void drawstring pouch
+        genToolRoll(base + "/item/repair_kit.png");                             // canvas tool roll
+        genCrossStraps(base + "/item/quick_draw_straps.png");                    // crossed holster straps
+        genLedger(base + "/item/quill_and_ledger.png");                         // book + quill
+        genWaterskin(base + "/item/waterskin_rack.png");                        // leather waterskin
+        genVial(base + "/item/soul_vial.png", 0xFF74C043);                       // green soul vial
+        genCrystal(base + "/item/charge_crystal.png", 0xFFE79A2E);               // amber charge crystal
+        genFlasks(base + "/item/flask_harness.png", 0xFFB08AD8);                 // rack of vapor flasks
 
         // the in-house guide book: a leather-bound handbook with brass corners
         genBook(base + "/item/outfitters_handbook.png");
 
-        // per-tier pack sprites, tinted brass fittings on leather
-        genPack(base + "/item/canvas_pack.png", 0xFFCFC09A, 0xFFB4A47C, false);
-        genPack(base + "/item/leather_pack.png", 0xFF7A5636, 0xFF5E4128, false);
-        genPack(base + "/item/studded_pack.png", 0xFF6E4A2E, 0xFF523420, true);
-        genPack(base + "/item/reinforced_pack.png", 0xFF5A4A3A, 0xFF3E3226, true);
-        genPack(base + "/item/runed_pack.png", 0xFF4A3A52, 0xFF33253A, true);
+        // per-tier pack sprites: a shaped satchel, tier by colour + trim
+        genPack(base + "/item/canvas_pack.png",     0xFFD8C99E, 0xFFB6A578, 0);
+        genPack(base + "/item/leather_pack.png",    0xFF8A5E38, 0xFF5E4128, 1);
+        genPack(base + "/item/studded_pack.png",    0xFF6E4A2E, 0xFF4A3020, 2);
+        genPack(base + "/item/reinforced_pack.png", 0xFF5A4E42, 0xFF3A322A, 3);
+        genPack(base + "/item/runed_pack.png",      0xFF4E3E5E, 0xFF2E2440, 4);
 
         System.out.println("Packwork textures generated.");
     }
@@ -193,39 +193,84 @@ public class GenTextures {
 
     // ---------- pack sprite ----------
 
-    static void genPack(String path, int hi, int lo, boolean studs) throws Exception {
+    // per-row [xstart,xend] silhouette of a satchel: narrow handle, a flap, a body that
+    // bulges into side pockets, then tapers to the base. Index = y (null rows are empty).
+    static final int[][] PACK_ROWS = {
+            null, null,                                 // 0,1
+            {6, 9}, {6, 9},                             // 2,3  handle loop
+            {3, 12}, {3, 12},                           // 4,5  flap top
+            {2, 13}, {2, 13}, {2, 13}, {2, 13},         // 6-9  flap / upper body
+            {1, 14}, {1, 14}, {1, 14},                  // 10-12 body + side pockets
+            {2, 13}, {2, 13}, {3, 12},                  // 13-15 taper to base
+    };
+
+    /** A shaped adventurer's pack: body + flap + buckle + straps + side pockets, tier-trimmed. */
+    static void genPack(String path, int hi, int lo, int tier) throws Exception {
         BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Random rnd = new Random(11);
-        // body 3..13 x, 4..15 y
+        Random rnd = new Random(11 + tier);
+        int edge = shade(lo, -46);
+
+        // body fill with a vertical gradient + grain
         for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++) {
-                boolean body = x >= 3 && x <= 12 && y >= 4 && y <= 15;
-                boolean flap = x >= 3 && x <= 12 && y >= 4 && y <= 8;
-                if (!body) { img.setRGB(x, y, 0); continue; }
-                float t = (y - 4) / 11f;
-                int c = lerp(hi, lo, t);
-                int n = (int) ((valueNoise(x, y, rnd, 3) - 0.5f) * 14);
-                c = shade(c, n);
-                if (flap) c = shade(c, 10); // flap catches light
+            if (PACK_ROWS[y] == null) continue;
+            for (int x = PACK_ROWS[y][0]; x <= PACK_ROWS[y][1]; x++) {
+                int c = lerp(hi, lo, clampf((y - 2) / 13f));
+                c = shade(c, (int) ((valueNoise(x, y, rnd, 3) - 0.5f) * 12));
                 img.setRGB(x, y, c);
             }
         }
-        // outline
-        outline(img, LEATHER_EDGE);
-        // flap seam (stitched)
-        for (int x = 4; x <= 12; x += 2) img.setRGB(x, 9, STITCH);
-        // brass buckle
-        img.setRGB(7, 10, BRASS_HI); img.setRGB(8, 10, BRASS);
-        img.setRGB(7, 11, BRASS); img.setRGB(8, 11, BRASS_LO);
-        // straps
-        vline(img, 5, 5, 15, shade(lo, -20));
-        vline(img, 10, 5, 15, shade(lo, -20));
-        if (studs) {
-            img.setRGB(4, 12, BRASS_HI); img.setRGB(11, 12, BRASS_HI);
-            img.setRGB(4, 14, BRASS); img.setRGB(11, 14, BRASS);
+        // hollow the handle loop
+        img.setRGB(7, 3, 0); img.setRGB(8, 3, 0);
+        // flap catches light (y4..9), then a shadow seam separates flap from body
+        for (int y = 4; y <= 9; y++)
+            for (int x = 2; x <= 13; x++)
+                if (opaque(img, x, y)) img.setRGB(x, y, shade(img.getRGB(x, y), 12));
+        for (int x = 2; x <= 13; x++) if (opaque(img, x, 10)) img.setRGB(x, 10, shade(img.getRGB(x, 10), -26));
+        for (int x = 3; x <= 12; x += 2) if (opaque(img, x, 9)) img.setRGB(x, 9, STITCH); // flap stitch
+
+        // side-pocket seams
+        for (int y = 10; y <= 13; y++) { darkPix(img, 3, y, lo, -22); darkPix(img, 12, y, lo, -22); }
+        // two front straps
+        for (int y = 5; y <= 15; y++) { darkPix(img, 5, y, lo, -34); darkPix(img, 10, y, lo, -34); }
+        // brass buckles on the straps + a central clasp
+        buckle(img, 5, 8); buckle(img, 10, 8);
+        img.setRGB(7, 11, BRASS_HI); img.setRGB(8, 11, BRASS); img.setRGB(7, 12, BRASS); img.setRGB(8, 12, BRASS_LO);
+
+        // per-tier trim: canvas twine -> leather -> studs -> steel plates -> runes
+        switch (tier) {
+            case 0 -> { img.setRGB(6, 6, STITCH); img.setRGB(9, 6, STITCH); img.setRGB(7, 7, STITCH); img.setRGB(8, 7, STITCH); }
+            case 2 -> { for (int x = 3; x <= 12; x += 3) img.setRGB(x, 5, BRASS_HI); }
+            case 3 -> { plate(img, 2, 6); plate(img, 11, 6); plate(img, 1, 11); plate(img, 12, 11); }
+            case 4 -> {
+                int rune = 0xFFC2ABFF;
+                img.setRGB(6, 6, rune); img.setRGB(7, 7, rune); img.setRGB(6, 8, rune);
+                img.setRGB(9, 6, rune); img.setRGB(10, 7, rune); img.setRGB(9, 8, rune);
+            }
+            default -> {}
         }
+        outline(img, edge);
         ImageIO.write(img, "PNG", new File(path));
     }
+
+    static boolean opaque(BufferedImage img, int x, int y) {
+        return x >= 0 && y >= 0 && x < img.getWidth() && y < img.getHeight() && (img.getRGB(x, y) >>> 24) != 0;
+    }
+
+    static void darkPix(BufferedImage img, int x, int y, int base, int d) {
+        if (opaque(img, x, y)) img.setRGB(x, y, shade(base, d));
+    }
+
+    static void buckle(BufferedImage img, int x, int y) {
+        img.setRGB(x, y, BRASS_HI); img.setRGB(x, y + 1, BRASS_LO);
+    }
+
+    static void plate(BufferedImage img, int x, int y) {
+        int steel = 0xFFB9B4AC;
+        img.setRGB(x, y, steel); img.setRGB(x + 1, y, shade(steel, -20));
+        img.setRGB(x, y + 1, shade(steel, -20)); img.setRGB(x + 1, y + 1, shade(steel, -40));
+    }
+
+    static float clampf(float v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
     // ---------- placed-pack block faces ----------
 
@@ -297,50 +342,213 @@ public class GenTextures {
         ImageIO.write(img, "PNG", new File(path));
     }
 
-    /** A 16x16 leather charm: brass loop up top, a leather tag, and a coloured emblem. */
-    static void genTrinket(String path, int accent, int emblem) throws Exception {
+    // ---------- distinct trinket silhouettes (fix: they all read as the same leather tag) ----------
+
+    /** A round magnetite medallion on a brass cord, with a red horseshoe magnet (Lodestone Charm). */
+    static void genDisc(String path, int face, int rim) throws Exception {
         BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        Random rnd = new Random(accent);
-        // brass loop (top)
-        for (int y = 1; y <= 3; y++)
-            for (int x = 6; x <= 9; x++)
-                if (x == 6 || x == 9 || y == 1) img.setRGB(x, y, y == 1 ? BRASS_HI : BRASS);
-        // leather tag body 3..12 x, 4..14 y (rounded)
-        for (int y = 4; y <= 14; y++) {
-            for (int x = 3; x <= 12; x++) {
-                boolean corner = (x <= 3 || x >= 12) && (y <= 4 || y >= 14);
-                if (corner) continue;
-                int c = lerp(LEATHER_HI, LEATHER_LO, (y - 4) / 10f);
-                c = shade(c, (int) ((valueNoise(x, y, rnd, 6) - 0.5f) * 12));
-                img.setRGB(x, y, c);
+        Random rnd = new Random(41);
+        img.setRGB(7, 0, BRASS); img.setRGB(8, 0, BRASS);
+        img.setRGB(6, 1, BRASS_HI); img.setRGB(9, 1, BRASS_HI);
+        int cx = 7, cy = 9, r2 = 30;
+        for (int y = 3; y <= 15; y++)
+            for (int x = 1; x <= 14; x++) {
+                int dx = x - cx, dy = y - cy, d = dx * dx + dy * dy;
+                if (d <= r2) img.setRGB(x, y, shade(d >= r2 - 12 ? rim : face,
+                        (int) ((valueNoise(x, y, rnd, 4) - 0.5f) * 10)));
             }
-        }
-        // stitched border hint
-        for (int x = 5; x <= 10; x += 2) { img.setRGB(x, 5, STITCH); img.setRGB(x, 13, STITCH); }
-        // emblem in the accent colour
-        int a = accent;
-        switch (emblem) {
-            case 0 -> { // swirl / dot cluster
-                img.setRGB(7, 8, a); img.setRGB(8, 8, a); img.setRGB(8, 9, a);
-                img.setRGB(7, 9, shade(a, -20)); img.setRGB(6, 10, a);
-            }
-            case 1 -> { // feather (vertical quill)
-                for (int y = 7; y <= 12; y++) img.setRGB(8, y, a);
-                img.setRGB(7, 8, a); img.setRGB(9, 9, a); img.setRGB(7, 10, a); img.setRGB(9, 11, a);
-            }
-            case 2 -> { // ring / compass
-                for (int[] d : new int[][]{{7,7},{8,7},{6,8},{9,8},{6,9},{9,9},{7,10},{8,10}}) img.setRGB(d[0], d[1], a);
-                img.setRGB(8, 8, shade(a, 30));
-            }
-            case 3 -> { // cross / strap
-                for (int i = 6; i <= 9; i++) { img.setRGB(i, i + 1, a); img.setRGB(i, 10 - (i - 6), a); }
-            }
-            default -> { // bar block / book
-                for (int y = 8; y <= 11; y++) for (int x = 6; x <= 9; x++) img.setRGB(x, y, x == 6 ? shade(a, 30) : a);
-            }
-        }
-        outline(img, LEATHER_EDGE);
+        int red = 0xFFC64B4B;
+        for (int y = 7; y <= 11; y++) { img.setRGB(5, y, red); img.setRGB(9, y, red); }
+        img.setRGB(6, 7, red); img.setRGB(7, 7, red); img.setRGB(8, 7, red);
+        img.setRGB(5, 11, 0xFFECECEC); img.setRGB(9, 11, 0xFFECECEC);
+        outline(img, shade(rim, -46));
         ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A brass compass rose: a ring around a four-point star, north tip red (Compass Rose). */
+    static void genCompass(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int cx = 8, cy = 8;
+        for (int y = 1; y <= 15; y++)
+            for (int x = 1; x <= 15; x++) {
+                int dx = x - cx, dy = y - cy, d = dx * dx + dy * dy;
+                if (d <= 49 && d >= 30) img.setRGB(x, y, d >= 44 ? BRASS_LO : BRASS);
+                else if (d < 30) img.setRGB(x, y, 0xFF2A2418);
+            }
+        for (int i = -4; i <= 4; i++) {
+            img.setRGB(cx, cy + i, i < 0 ? 0xFFC64B4B : BRASS_HI);
+            img.setRGB(cx + i, cy, BRASS_HI);
+        }
+        img.setRGB(cx, cy, 0xFFFFE9B0);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A diagonal leather bandolier with pouches and a brass buckle (Restock Strap). */
+    static void genBandolier(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int strap = 0xFF7A4E2A, dark = shade(strap, -30);
+        for (int i = 0; i < 16; i++)
+            for (int w = -1; w <= 1; w++) {
+                int x = i + w;
+                if (x >= 0 && x < 16) img.setRGB(x, i, w == 1 ? dark : strap);
+            }
+        pouchBox(img, 3, 6, 0xFF6E4526);
+        pouchBox(img, 9, 10, 0xFF6E4526);
+        img.setRGB(7, 7, BRASS_HI); img.setRGB(8, 8, BRASS);
+        outline(img, shade(strap, -50));
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    static void pouchBox(BufferedImage img, int x, int y, int c) {
+        fillRect(img, x, y, 4, 4, c);
+        hline(img, x, x + 3, y + 3, shade(c, -26));
+        img.setRGB(x + 1, y, STITCH); img.setRGB(x + 2, y, STITCH);
+    }
+
+    /** A dark drawstring pouch with a violet void swirl (Bottomless Lining). */
+    static void genPouch(String path, int base) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(53);
+        for (int x = 6; x <= 9; x++) { img.setRGB(x, 3, shade(base, 24)); img.setRGB(x, 4, base); }
+        img.setRGB(5, 4, STITCH); img.setRGB(10, 4, STITCH);
+        for (int y = 5; y <= 15; y++)
+            for (int x = 3; x <= 12; x++) {
+                int dx = x - 7, dy = y - 10;
+                if (dx * dx + dy * dy <= 27)
+                    img.setRGB(x, y, shade(base, (int) ((valueNoise(x, y, rnd, 7) - 0.5f) * 14)));
+            }
+        int glow = 0xFF9C86D8;
+        img.setRGB(7, 10, glow); img.setRGB(8, 10, glow); img.setRGB(8, 11, glow);
+        img.setRGB(6, 11, glow); img.setRGB(6, 9, glow); img.setRGB(9, 9, glow);
+        outline(img, shade(base, -40));
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A rolled canvas tool-kit with a hammer + awl poking out the top (Repair Kit). */
+    static void genToolRoll(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int canvas = 0xFFC2B187, canvasLo = 0xFF9E8E66;
+        for (int y = 5; y <= 15; y++)
+            for (int x = 3; x <= 12; x++)
+                img.setRGB(x, y, lerp(canvas, canvasLo, (x - 3) / 9f));
+        for (int y = 6; y <= 15; y += 4) hline(img, 3, 12, y, 0xFF7A4E2A);
+        img.setRGB(5, 2, 0xFFB9B4AC); img.setRGB(6, 2, 0xFF8A857C); img.setRGB(5, 3, 0xFFB9B4AC); img.setRGB(5, 4, 0xFF6E4526);
+        img.setRGB(9, 2, 0xFF9AA0A6); img.setRGB(9, 3, 0xFF9AA0A6); img.setRGB(9, 4, 0xFF6E4526);
+        outline(img, 0xFF5E4128);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** Two crossed holster straps with a central brass ring (Quick-Draw Straps). */
+    static void genCrossStraps(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int strap = 0xFF9A4340, dark = shade(strap, -30);
+        for (int i = 2; i <= 13; i++) {
+            img.setRGB(i, i, strap); img.setRGB(i, i - 1, dark);
+            img.setRGB(15 - i, i, strap); img.setRGB(15 - i, i - 1, dark);
+        }
+        for (int[] d : new int[][]{{6,7},{9,7},{6,8},{9,8},{7,6},{8,6},{7,9},{8,9}}) img.setRGB(d[0], d[1], BRASS);
+        img.setRGB(7, 7, 0xFF2A2418); img.setRGB(8, 8, 0xFF2A2418);
+        outline(img, shade(strap, -50));
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A blue ledger book with a white quill laid across it (Quill & Ledger). */
+    static void genLedger(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int cover = 0xFF3E5A86, coverLo = 0xFF2C426A;
+        for (int y = 3; y <= 13; y++)
+            for (int x = 3; x <= 12; x++)
+                img.setRGB(x, y, lerp(cover, coverLo, (y - 3) / 10f));
+        for (int y = 3; y <= 13; y++) {
+            img.setRGB(3, y, shade(coverLo, -20));
+            img.setRGB(12, y, CANVAS); img.setRGB(11, y, y % 2 == 0 ? CANVAS_LO : CANVAS);
+        }
+        img.setRGB(4, 4, BRASS); img.setRGB(11, 4, BRASS);
+        for (int i = 0; i < 8; i++) img.setRGB(5 + i, 12 - i, 0xFFF2F2F2);
+        img.setRGB(4, 13, 0xFF2A2418);
+        img.setRGB(12, 5, 0xFFDADADA); img.setRGB(13, 4, 0xFFBFBFBF);
+        outline(img, 0xFF1E2A44);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A rounded leather waterskin with a corked neck and a water sheen (Waterskin Rack). */
+    static void genWaterskin(String path) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        Random rnd = new Random(61);
+        int skin = 0xFF7A5636, skinLo = 0xFF5E4128;
+        fillRect(img, 7, 2, 2, 3, 0xFF4A3020);
+        img.setRGB(6, 3, BRASS); img.setRGB(9, 3, BRASS);
+        for (int y = 5; y <= 15; y++)
+            for (int x = 2; x <= 13; x++) {
+                int dx = x - 7, dy = y - 10;
+                if (dx * dx + (dy * dy * 3) / 4 <= 34)
+                    img.setRGB(x, y, shade(lerp(skin, skinLo, (y - 5) / 10f),
+                            (int) ((valueNoise(x, y, rnd, 8) - 0.5f) * 10)));
+            }
+        img.setRGB(5, 8, 0xFF6FA8D6); img.setRGB(5, 9, 0xFF6FA8D6); img.setRGB(6, 8, 0xFF8FC0E4);
+        hline(img, 3, 12, 11, 0xFF4A3020);
+        outline(img, 0xFF3E2A18);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A slim corked glass vial of glowing liquid (Soul Vial; colour-swappable). */
+    static void genVial(String path, int liquid) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int glass = 0xFFBFD6D0, glassLo = 0xFF8FA9A4;
+        fillRect(img, 6, 1, 4, 3, 0xFF8A5E30); img.setRGB(6, 3, BRASS_LO); img.setRGB(9, 3, BRASS_LO);
+        fillRect(img, 6, 4, 4, 2, glassLo);
+        for (int y = 6; y <= 15; y++)
+            for (int x = 4; x <= 11; x++) {
+                if ((x <= 4 || x >= 11) && y >= 14) continue;
+                img.setRGB(x, y, (x == 4 || x == 11) ? glassLo : glass);
+            }
+        for (int y = 9; y <= 14; y++)
+            for (int x = 5; x <= 10; x++)
+                img.setRGB(x, y, shade(liquid, (y - 9) * -4));
+        img.setRGB(6, 10, shade(liquid, 40));
+        img.setRGB(5, 7, 0xFFFFFFFF); img.setRGB(5, 8, 0xFFEAF2F0);
+        outline(img, 0xFF3A4A46);
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A tall faceted crystal wrapped in copper wire (Charge Crystal). */
+    static void genCrystal(String path, int col) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int hi = shade(col, 44), lo = shade(col, -44);
+        int[][] rows = {{7,8},{6,9},{6,9},{5,10},{5,10},{5,10},{6,9},{6,9},{7,8},{7,8}};
+        for (int i = 0; i < rows.length; i++) {
+            int y = 2 + i;
+            for (int x = rows[i][0]; x <= rows[i][1]; x++)
+                img.setRGB(x, y, x <= 7 ? hi : (x >= 9 ? lo : col));
+        }
+        for (int i = 0; i < 9; i++) img.setRGB(8, 2 + i, shade(hi, 24));
+        int cu = 0xFFB5702E;
+        for (int x = 5; x <= 10; x++) img.setRGB(x, x % 2 == 0 ? 8 : 9, cu);
+        outline(img, shade(lo, -40));
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    /** A small wooden rack holding two round flasks of bottled vapour (Flask Harness). */
+    static void genFlasks(String path, int vapor) throws Exception {
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int wood = 0xFF6E4A2A;
+        vline(img, 2, 4, 15, wood); vline(img, 13, 4, 15, wood);
+        hline(img, 2, 13, 10, shade(wood, 20)); hline(img, 2, 13, 15, wood);
+        flask(img, 5, vapor);
+        flask(img, 10, vapor);
+        outline(img, shade(wood, -40));
+        ImageIO.write(img, "PNG", new File(path));
+    }
+
+    static void flask(BufferedImage img, int cx, int vapor) {
+        int glass = 0xFFCFE0DA;
+        img.setRGB(cx, 4, 0xFF8A5E30); img.setRGB(cx, 5, glass);
+        for (int y = 6; y <= 9; y++)
+            for (int x = cx - 2; x <= cx + 1; x++) {
+                int dx = x - cx, dy = y - 8;
+                if (dx * dx + dy * dy <= 5) img.setRGB(x, y, y >= 7 ? shade(vapor, (y - 7) * -8) : glass);
+            }
+        img.setRGB(cx - 2, 7, 0xFFFFFFFF);
     }
 
     static void outline(BufferedImage img, int col) {
