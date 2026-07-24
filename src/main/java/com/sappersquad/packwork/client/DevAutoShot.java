@@ -39,7 +39,8 @@ public final class DevAutoShot {
         SHOOT_GRID, HOVER, HW, PIN1, PW1, SHOOT_PINNED, PIN2, PW2, SHOOT_UNPINNED,
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
         OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
-        PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK, DONE
+        PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
+        WLINEUP, SHOOT_LINEUP, SHOOT_INHAND, DONE
     }
 
     private static Phase phase = Phase.BOOT;
@@ -195,8 +196,28 @@ public final class DevAutoShot {
             case WBLOCK -> { if (++wait > 15) phase = Phase.SHOOT_BLOCK; } // menu opens + syncs
             case SHOOT_BLOCK -> {
                 grab(mc, "packwork_placed_gui"); // the SAME organizer, opened from the block
-                phase = Phase.DONE;
-                Packwork.LOGGER.info("[autoshot] done - screenshots written");
+                giveLineup(mc);                  // hand over the whole item set for a lineup shot
+                phase = Phase.WLINEUP; wait = 0;
+            }
+            case WLINEUP -> {
+                if (++wait > 8) {
+                    if (mc.player != null) mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+                    phase = Phase.SHOOT_LINEUP; wait = 0;
+                }
+            }
+            case SHOOT_LINEUP -> {
+                if (++wait > 6) {
+                    grab(mc, "packwork_lineup");  // every pack tier + trinket in the inventory grid
+                    mc.setScreen(null);            // drop to first person, holding the Runed pack
+                    phase = Phase.SHOOT_INHAND; wait = 0;
+                }
+            }
+            case SHOOT_INHAND -> {
+                if (++wait > 12) {
+                    grab(mc, "packwork_inhand");  // the revamped pack sprite in hand
+                    phase = Phase.DONE;
+                    Packwork.LOGGER.info("[autoshot] done - screenshots written");
+                }
             }
             default -> {}
         }
@@ -345,6 +366,24 @@ public final class DevAutoShot {
                             buf.writeVarInt(be.getTier().ordinal());
                         });
             }
+        });
+    }
+
+    /** Fill the player inventory with every pack tier + trinket + the handbook, holding a Runed pack. */
+    private static void giveLineup(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.getInventory().clearContent();
+            for (com.sappersquad.packwork.pack.PackTier t : com.sappersquad.packwork.pack.PackTier.values())
+                sp.getInventory().add(new ItemStack(ModItems.pack(t).get()));
+            for (com.sappersquad.packwork.trinket.TrinketType tt : com.sappersquad.packwork.trinket.TrinketType.values())
+                sp.getInventory().add(new ItemStack(ModItems.trinket(tt).get()));
+            sp.getInventory().add(new ItemStack(ModItems.HANDBOOK.get()));
+            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.RUNED).get()));
+            sp.getInventory().selected = 0;
+            Packwork.LOGGER.info("[autoshot] lineup handed over");
         });
     }
 

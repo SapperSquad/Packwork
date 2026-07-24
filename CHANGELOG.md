@@ -2,6 +2,23 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## Unreleased — playtest polish
+
+### Fixed
+- **Search text is crisp now.** The search field was drawn with a drop shadow, which muddied
+  dark text on the pale canvas strip into a fuzzy look; it now draws sharp at every GUI scale.
+- **Hover + P to pin actually shows.** Pinning is now a rebindable keybind (shows in Controls),
+  a brass pin-head marks every item pinned to the active tab, and a hovered item's tooltip
+  reminds you "[P] Pin to this tab" - so the pin is visible instead of silently happening.
+
+### Changed (first art pass — expect iteration)
+- **Packs are shaped, not squares.** The item sprite is now a satchel (handle, flap, buckle,
+  straps, side pockets) and the placed block is a proper 3D pack (draped flap, handle, straps),
+  each tier still distinct by colour + trim (canvas → leather → studs → steel plates → runes).
+- **Every trinket has its own silhouette.** No more identical leather tags: a magnetite
+  medallion, a brass compass rose, a bandolier, a void pouch, a tool roll, crossed straps, a
+  quill-and-ledger, a waterskin, a green soul vial, an amber charge crystal, a flask rack.
+
 ## 0.1.0 "First Haul" — 2026-07-23
 
 The first shippable build: the self-sorting pack, the material ladder, the trinket
