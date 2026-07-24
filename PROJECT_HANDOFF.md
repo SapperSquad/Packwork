@@ -19,6 +19,31 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
 > first build); bump/label at publish. 23 GameTests green; jar builds clean.
 
+**2026-07-23 art pass 4 (backpack silhouette) — DONE & verified in-game.** Alex reviewed the
+hero packs: shading was good but the silhouette had come out too ROUND — the packs read like
+pouches/orbs (the runed one like a magic orb), not rugged backpacks. Reshaped in-pipeline,
+keeping every fidelity gain from pass 3.
+- **The 5 pack sprites are now unmistakable backpacks.** `heroPack` in `tools/GenTextures.java`
+  swapped its elliptical `dome()` form for a **superellipse cushion** (`superForm`): a boxy,
+  gently tapered body with a flat bottom, plus a **prominent wide flap** draped over the top
+  third with a hard stitched hem + AO shadow beneath it, a central closure strap through a brass
+  buckle straddling the hem, a top grab-handle loop, and side pockets. Kept from pass 3: the
+  32×32 form-shading, AO, rim light, specular buckle glint, and the per-tier material ladder
+  (canvas weave+twine → leather grain+buckle → brass studs ringing the flap → riveted steel
+  plates+band → deep leather+glowing runes+gem). **Verified as pixels at hotbar size**: a new
+  offline preview (`tools/pack_small_preview.png`, box-downscaled to 16px & 12px) plus the live
+  hotbar/inventory-row/in-hand/GUI-host-slot shots — it reads as a pack even shrunk.
+- **Energy gauge unified with the Charge Crystal (Alex confirmed: match them).** The right-rail
+  energy gauge in `PackScreen.drawEnergyGauge` went from amber to the crystal's cool blue
+  (`0xFF3EA9C4` fill on `0xFF15323B` glass), so the icon and the gauge agree; still distinct
+  from the deeper water-blue fluid gauge.
+- **Placed block:** the block MODEL is already boxy (body + draped flap + handle + buckle +
+  straps) and its leather/brass faces + per-tier tint match the item's material language, so a
+  set-down pack matches the held one. **Per-tier block trim (studs/plates/runes carried into the
+  world) is still the noted follow-up** — it needs per-tier block models keyed off a tier
+  blockstate property, which the block deliberately doesn't carry (tier is BE-synced light only).
+- 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
+
 **2026-07-23 art pass 3 (hero packs) — DONE & verified in-game.** Alex asked for hero art on
 the 5 packs plus cleanup on 3 weak trinkets.
 - **The 5 packs are now 32×32 hero sprites**, rendered by a form-shading model in
@@ -33,9 +58,8 @@ the 5 packs plus cleanup on 3 weak trinkets.
   runes on the block would need per-tier block textures + models; noted as a follow-up.)
 - **3 trinkets cleaned:** Restock Strap → bold central brass buckle + two studded pouches;
   Charge Crystal → cool-blue faceted crystal wound in dark copper on a brass mount (kills the
-  candle-flame read); Lodestone Charm → dark magnetite stone on a cord, no antennae. NOTE: the
-  energy *gauge* on the rail is still amber while the crystal *icon* is now blue — a deliberate
-  readability call; unify if Alex prefers.
+  candle-flame read); Lodestone Charm → dark magnetite stone on a cord, no antennae. (The
+  energy gauge was still amber here; art pass 4 unified it to the crystal's cool blue.)
 - Verified in-game (`runClient -Pautoshot`, single clean run): hero packs in-hand, in the
   hotbar/inventory row, the GUI host slot, and three placed blocks in-world; all 26×29-centred,
   no edge touch; 23 GameTests green.
@@ -114,8 +138,8 @@ Quick-Draw (break-replace), Quill & Ledger (custom-tab rules). Effects run serve
 each trinket-gated and stacked as a gauge on the right rail: Waterskin Rack (fluid tank,
 `FluidHandler.ITEM`, glass gauge, click-with-cursor fill/drain via `FluidUtil`); Soul Vial
 (XP via `PackXpStore`, green gauge, click siphon / shift pour, auto-mends Mending gear);
-Charge Crystal (arcane charge via `PackEnergyStorage` implementing `IEnergyStorage`, amber
-gauge, any FE source fills it, tops up powered tools in hand, + the gated Forgework bridge
+Charge Crystal (arcane charge via `PackEnergyStorage` implementing `IEnergyStorage`, cool
+crystal-blue gauge, any FE source fills it, tops up powered tools in hand, + the gated Forgework bridge
 above). All three capabilities are exposed **only when the fitting is present**. The 4th
 store — Gas (Flask Harness + Mekanism chemical cap) — is **deferred** (needs the Mekanism
 dep); leave the shipped stores as the template: component + (gated) capability + STORE

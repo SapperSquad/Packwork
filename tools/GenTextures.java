@@ -58,6 +58,8 @@ public class GenTextures {
         System.out.println("Packwork textures generated.");
         writeMontage("tools/sprite_montage.png");
         System.out.println("Montage written to tools/sprite_montage.png");
+        writeSmallPreview("tools/pack_small_preview.png");
+        System.out.println("Small-size preview written to tools/pack_small_preview.png");
     }
 
     // =====================================================================
@@ -184,73 +186,109 @@ public class GenTextures {
 
     static void heroPack(String name, int tier, int[] R) throws Exception {
         BufferedImage img = new BufferedImage(PS, PS, BufferedImage.TYPE_INT_ARGB);
-        int[] strap = {shade(R[0], -4), shade(R[1], -10), shade(R[2], -14), shade(R[3], -14)};
+        int[] strap = {shade(R[0], -6), shade(R[1], -12), shade(R[2], -16), shade(R[3], -16)};
 
-        // geometry (in 32px space)
-        double bcx = 16, bcy = 20.2, bhw = 12.7, bhh = 10.4;  // body (one rounded form, flatter base)
-        double fcx = 16, fcy = 13.2, fhw = 12.6, fhh = 8.0;   // flap (draped over top+front)
-        double lpx = 6.0, rpx = 26.0, pcy = 18.5, phw = 3.1, phh = 5.0; // side pockets (mid-body bulges)
+        // ---- geometry (32px space): an unmistakable BACKPACK, not a pouch ----
+        //  * body is a rounded RECTANGLE (superellipse), gently tapered, with a flat base
+        //  * a wide flap is draped over the top third, overhanging the body sides, with a
+        //    hard hem line the closure strap crosses -- the single strongest backpack cue
+        double bcx = 16, bcy = 19.0, bhh = 11.2;             // body centre + half-height (y ~7.8..30.2)
+        double bhwTop = 9.4, bhwBot = 11.8;                  // taper: narrow at the top, wide at the base
+        double fcx = 16, fcy = 9.8, fhw = 12.2, fhh = 5.8;   // flap: wide rounded box over the top
+        double flapBottom = fcy + fhh;                       // ~15.6, the hem line
+        double plcx = 5.2, prcx = 26.8, pcy = 23.0, phw = 3.3, phh = 4.9; // side pockets
 
         for (int y = 0; y < PS; y++) {
             for (int x = 0; x < PS; x++) {
                 double px = x + 0.5, py = y + 0.5;
-                int col = 0; double best = -2; int mat = -1; // mat: 0 leather,1 pocket,2 flap
-                // body
-                double vb = dome(px, py, bcx, bcy, bhw, bhh);
-                if (vb > -1 && py > 12) { best = vb; mat = 0; }
-                // pockets (slightly recessed/darker, drawn where they extend past the body sides)
-                double vpl = dome(px, py, lpx, pcy, phw, phh);
-                double vpr = dome(px, py, rpx, pcy, phw, phh);
+                int mat = -1; double best = -2; // mat: 0 body, 1 pocket, 2 flap
+                // body (trapezoid: half-width grows toward the base)
+                double ry = (py - bcy) / bhh;
+                double bhw = bhwTop + (bhwBot - bhwTop) * (ry + 1) / 2;
+                double vb = superForm(px, py, bcx, bcy, bhw, bhh, 3.7, 1.7, -0.02);
+                if (vb > -1) { best = vb; mat = 0; }
+                // side pockets, in front of the body's lower sides, a touch recessed
+                double vpl = superForm(px, py, plcx, pcy, phw, phh, 3.0, 1.5, -0.05);
+                double vpr = superForm(px, py, prcx, pcy, phw, phh, 3.0, 1.5, -0.05);
                 double vp = Math.max(vpl, vpr);
-                if (vp > -1 && vp - 0.08 > best) { best = vp - 0.08; mat = 1; }
-                // flap on top (front upper), wins over body/pockets
-                double vf = dome(px, py, fcx, fcy, fhw, fhh);
-                if (vf > -1 && py < 21.5) { best = vf + 0.06; mat = 2; }
+                if (vp > -1) { best = vp; mat = 1; }
+                // flap draped on top, wins over body/pockets in the upper third
+                double vf = superForm(px, py, fcx, fcy, fhw, fhh, 3.2, 1.4, 0.05);
+                if (vf > -1) { best = vf; mat = 2; }
                 if (mat < 0) continue;
 
                 double v = best;
-                // ambient occlusion: darken the body just under the flap's hanging edge
-                double flapEdge = ell(px, py, fcx, fcy, fhw, fhh); // ~0 at flap rim
-                if (mat != 2 && py > fcy && flapEdge > -0.18 && flapEdge < 0.14) v -= 0.22 * (0.14 - Math.abs(flapEdge + 0.02)) / 0.16;
-                col = ramp(R, v);
-                img.setRGB(x, y, col);
+                // ambient occlusion: darken the body just beneath the flap's hanging hem
+                if (mat != 2 && py > flapBottom && py < flapBottom + 2.6) {
+                    double fx = Math.abs(px - fcx) / fhw;
+                    if (fx < 0.92) v -= 0.26 * (1 - (py - flapBottom) / 2.6) * (1 - fx * 0.4);
+                }
+                // seam shadow at the top edge where a pocket is sewn to the body
+                if (mat == 1 && py < pcy - phh + 2.2) v -= 0.10;
+                img.setRGB(x, y, ramp(R, v));
             }
         }
 
-        // top handle: a leather loop (drawn as a ring behind the flap top)
-        for (int y = 2; y <= 9; y++)
-            for (int x = 11; x <= 20; x++) {
-                double o = ell(x + 0.5, y + 0.5, 15.8, 5.6, 4.6, 3.9);
-                double in = ell(x + 0.5, y + 0.5, 15.8, 6.2, 2.5, 2.6);
-                if (o > 0 && in < 0 && (img.getRGB(x, y) >>> 24) == 0) {
-                    double v = 0.5 + 0.5 * (-((x - 15.8) / 4.6) * LX - ((y - 5.6) / 3.9) * LY);
-                    img.setRGB(x, y, ramp(R, v - 0.12));
-                }
-            }
-
-        // central strap running under the flap down to the base, with thickness
-        for (int y = 6; y < 30; y++)
-            for (int x = 14; x <= 17; x++) {
-                if ((img.getRGB(x, y) >>> 24) == 0) continue;
-                double nx = (x - 15.5) / 2.0;
-                double v = 0.5 - 0.28 * nx - 0.10;              // cylinder shade
-                if (x == 14) v -= 0.28; if (x == 17) v -= 0.18; // edges = thickness
-                if (x == 15) v += 0.10;
-                img.setRGB(x, y, ramp(strap, v));
-            }
-
-        heroBuckle(img, tier);
-        heroStitchAndTrim(img, tier, R);
-        outline(img, shade(R[0], -14));
+        heroHandle(img, R);                       // top grab loop, peeking over the flap
+        heroFlapStrap(img, strap);                // the closure strap down the front
+        heroBuckle(img, tier);                    // brass buckle straddling the hem
+        heroStitchAndTrim(img, tier, R, fcx, fcy, fhw, fhh);
+        outline(img, shade(R[0], -16));
         centerCheck(name, img);
         ImageIO.write(img, "PNG", new File(BASE + "/item/" + name + ".png"));
         RENDERED.put(name, img);
     }
 
-    /** A brass (or twine, for canvas) buckle on the flap front, with a bright specular glint. */
+    /** Rounded-box (superellipse) cushion brightness, lit top-left. -1 = outside the form.
+     *  power ~3-4 = boxy silhouette; nzScale scales the puffiness; lift shifts overall value. */
+    static double superForm(double px, double py, double cx, double cy, double hw, double hh,
+                            double power, double nzScale, double lift) {
+        double nx = (px - cx) / hw, ny = (py - cy) / hh;
+        double e = Math.pow(Math.abs(nx), power) + Math.pow(Math.abs(ny), power);
+        if (e > 1) return -1;
+        double nz = Math.sqrt(1 - e) * nzScale + 0.35;
+        double gx = nx == 0 ? 0 : Math.pow(Math.abs(nx), power - 1) * Math.signum(nx);
+        double gy = ny == 0 ? 0 : Math.pow(Math.abs(ny), power - 1) * Math.signum(ny);
+        double nl = Math.sqrt(gx * gx + gy * gy + nz * nz);
+        gx /= nl; gy /= nl; nz /= nl;
+        double diff = -(gx * LX + gy * LY) + nz * LZ;
+        double v = 0.30 + 0.64 * diff + lift;
+        if (e > 0.72) v -= (e - 0.72) * 0.85; // form shadow rolling into the rim
+        return v;
+    }
+
+    /** A leather grab-handle loop at the top centre, peeking over the flap (drawn behind it). */
+    static void heroHandle(BufferedImage img, int[] R) {
+        double cx = 16, cy = 4.3, ohw = 4.3, ohh = 3.8, ihw = 2.3, ihh = 2.5;
+        for (int y = 0; y <= 8; y++)
+            for (int x = 10; x <= 22; x++) {
+                double o = ell(x + 0.5, y + 0.5, cx, cy, ohw, ohh);
+                double in = ell(x + 0.5, y + 0.5, cx, cy, ihw, ihh);
+                if (o > 0 && in < 0 && (img.getRGB(x, y) >>> 24) == 0) {
+                    double nx = (x + 0.5 - cx) / ohw, ny = (y + 0.5 - cy) / ohh;
+                    double v = 0.5 - nx * LX * 0.8 - ny * LY * 0.8;
+                    img.setRGB(x, y, ramp(R, v - 0.10));
+                }
+            }
+    }
+
+    /** The closure strap running from under the flap down the front to the base, with thickness. */
+    static void heroFlapStrap(BufferedImage img, int[] strap) {
+        for (int y = 10; y <= 27; y++)
+            for (int x = 14; x <= 17; x++) {
+                if ((img.getRGB(x, y) >>> 24) == 0) continue; // stay on the pack
+                double nx = (x - 15.5) / 2.0;
+                double v = 0.52 - 0.30 * nx - 0.08;               // cylinder shade
+                if (x == 14) v -= 0.30; if (x == 17) v -= 0.20;   // side edges = thickness
+                if (x == 15) v += 0.10;
+                img.setRGB(x, y, ramp(strap, v));
+            }
+    }
+
+    /** A brass (or twine, for canvas) buckle on the flap front straddling the hem, with a glint. */
     static void heroBuckle(BufferedImage img, int tier) {
         boolean twine = tier == 0;
-        int bx = 12, by = 15, bw = 8, bh = 7;
+        int bx = 12, by = 13, bw = 8, bh = 7;
         for (int y = by; y < by + bh; y++)
             for (int x = bx; x < bx + bw; x++) {
                 boolean frame = x <= bx + 1 || x >= bx + bw - 2 || y <= by + 1 || y >= by + bh - 2;
@@ -269,50 +307,56 @@ public class GenTextures {
     }
 
     /** Stitching along the flap hem + the per-tier material story on top of the base render. */
-    static void heroStitchAndTrim(BufferedImage img, int tier, int[] R) {
-        int stitch = ramp(R, 0.92);
-        // dashed stitch line just inside the flap's hanging edge (an arc)
-        for (int x = 5; x <= 27; x++) {
-            int y = (int) Math.round(13.5 + Math.sqrt(Math.max(0, 1 - Math.pow((x + 0.5 - 16) / 12.0, 2))) * 6.6);
-            if (((x) & 1) == 0 && (img.getRGB(x, y) >>> 24) != 0) img.setRGB(x, y, stitch);
+    static void heroStitchAndTrim(BufferedImage img, int tier, int[] R,
+                                  double fcx, double fcy, double fhw, double fhh) {
+        int stitch = ramp(R, 0.94);
+        // dashed stitch line riding just inside the flap's hem (follows the superellipse contour)
+        for (int x = 4; x <= 27; x++) {
+            if (x >= 14 && x <= 17) continue;              // the closure strap crosses here
+            double nx = (x + 0.5 - fcx) / fhw;
+            if (Math.abs(nx) > 0.95) continue;
+            double ny = Math.pow(Math.max(0, 1 - Math.pow(Math.abs(nx), 3.2)), 1 / 3.2);
+            int y = (int) Math.round(fcy + ny * fhh) - 1;
+            if (y < 0 || y >= PS) continue;
+            if ((x & 1) == 0 && (img.getRGB(x, y) >>> 24) != 0) img.setRGB(x, y, stitch);
         }
         switch (tier) {
             case 0 -> { // canvas: woven crosshatch + a twine cross-lashing on the flap
-                for (int y = 3; y < 30; y++)
+                for (int y = 3; y < 31; y++)
                     for (int x = 2; x < 30; x++) {
                         if ((img.getRGB(x, y) >>> 24) == 0) continue;
                         if (((x + y) % 4 == 0)) img.setRGB(x, y, shade(img.getRGB(x, y), 8));
                         else if (((x - y + 40) % 4 == 0)) img.setRGB(x, y, shade(img.getRGB(x, y), -8));
                     }
                 int tw = shade(R[1], -14);
-                for (int i = 0; i < 6; i++) { setIf(img, 9 + i, 9 + i, tw); setIf(img, 22 - i, 9 + i, tw); }
+                for (int i = 0; i < 6; i++) { setIf(img, 10 + i, 5 + i, tw); setIf(img, 22 - i, 5 + i, tw); }
             }
             case 1 -> leatherGrain(img, R);       // supple leather grain
             case 2 -> { // studded: leather grain + a ring of brass studs round the flap
                 leatherGrain(img, R);
-                int[][] studs = {{7, 9}, {11, 6}, {16, 5}, {21, 6}, {25, 9}, {6, 14}, {26, 14}, {9, 18}, {23, 18}};
+                int[][] studs = {{8, 6}, {12, 4}, {16, 3}, {20, 4}, {24, 6}, {6, 10}, {26, 10}, {9, 14}, {23, 14}};
                 for (int[] s : studs) heroStud(img, s[0], s[1]);
             }
             case 3 -> { // reinforced: riveted steel corner plates + a steel band across the flap
                 leatherGrain(img, R);
-                heroPlate(img, 5, 6); heroPlate(img, 22, 6); heroPlate(img, 5, 22); heroPlate(img, 22, 22);
-                for (int x = 10; x <= 21; x++) { // steel band
-                    if ((img.getRGB(x, 11) >>> 24) != 0) img.setRGB(x, 11, ramp(STEELR, 0.5 - (x - 15.5) * 0.02));
+                heroPlate(img, 5, 6); heroPlate(img, 23, 6); heroPlate(img, 5, 24); heroPlate(img, 23, 24);
+                for (int x = 9; x <= 22; x++) { // steel band across the flap, just above the hem
+                    if ((img.getRGB(x, 11) >>> 24) != 0) img.setRGB(x, 11, ramp(STEELR, 0.52 - (x - 15.5) * 0.02));
                     if ((img.getRGB(x, 12) >>> 24) != 0) img.setRGB(x, 12, ramp(STEELR, 0.34));
                 }
             }
             case 4 -> { // runed: deep-dyed leather grain + glowing glyphs + a gem in the buckle
                 leatherGrain(img, R);
                 int glow = 0xFFB9A0FF, glowHi = 0xFFEADCFF;
-                int[][] g1 = {{9, 8}, {9, 9}, {9, 10}, {10, 9}, {8, 11}, {10, 11}}; // left glyph
-                int[][] g2 = {{22, 8}, {22, 9}, {22, 10}, {21, 9}, {23, 9}, {22, 11}}; // right glyph
+                int[][] g1 = {{8, 7}, {8, 8}, {8, 9}, {9, 8}, {7, 10}, {9, 10}};   // left glyph on the flap
+                int[][] g2 = {{23, 7}, {23, 8}, {23, 9}, {22, 8}, {24, 8}, {23, 10}}; // right glyph
                 for (int[] p : g1) setIf(img, p[0], p[1], glow);
                 for (int[] p : g2) setIf(img, p[0], p[1], glow);
-                setIf(img, 9, 9, glowHi); setIf(img, 22, 9, glowHi);
-                for (int[] p : new int[][]{{15, 25}, {16, 25}, {15, 26}, {16, 26}}) setIf(img, p[0], p[1], glow);
+                setIf(img, 8, 8, glowHi); setIf(img, 23, 8, glowHi);
+                for (int[] p : new int[][]{{15, 24}, {16, 24}, {15, 25}, {16, 25}}) setIf(img, p[0], p[1], glow); // body sigil
                 // gem in the buckle centre
-                img.setRGB(15, 18, 0xFF8A6BE0); img.setRGB(16, 18, 0xFFB9A0FF);
-                img.setRGB(15, 19, 0xFF6E4FC0); img.setRGB(16, 19, 0xFF9C82E8);
+                img.setRGB(15, 16, 0xFF8A6BE0); img.setRGB(16, 16, 0xFFB9A0FF);
+                img.setRGB(15, 17, 0xFF6E4FC0); img.setRGB(16, 17, 0xFF9C82E8);
             }
             default -> {}
         }
@@ -674,6 +718,62 @@ public class GenTextures {
                             m.setRGB(cx0 + x * scale + dx, cy0 + y * scale + dy, c);
                 }
             i++;
+        }
+        new File(path).getParentFile().mkdirs();
+        ImageIO.write(m, "PNG", new File(path));
+    }
+
+    /** Box-average downscale of a square ARGB sprite (premultiplied so edges don't fringe). */
+    static BufferedImage downscale(BufferedImage s, int n) {
+        int S = s.getWidth();
+        BufferedImage o = new BufferedImage(n, n, BufferedImage.TYPE_INT_ARGB);
+        double sc = S / (double) n;
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++) {
+                double a = 0, r = 0, g = 0, b = 0, cnt = 0;
+                int x0 = (int) (x * sc), x1 = (int) ((x + 1) * sc), y0 = (int) (y * sc), y1 = (int) ((y + 1) * sc);
+                for (int sy = y0; sy < Math.max(y0 + 1, y1); sy++)
+                    for (int sx = x0; sx < Math.max(x0 + 1, x1); sx++) {
+                        int c = s.getRGB(sx, sy);
+                        double al = (c >>> 24) & 0xFF;
+                        a += al; r += al * ((c >> 16) & 0xFF); g += al * ((c >> 8) & 0xFF); b += al * (c & 0xFF); cnt++;
+                    }
+                int A = (int) Math.round(a / cnt);
+                int R = a > 0 ? (int) Math.round(r / a) : 0, G = a > 0 ? (int) Math.round(g / a) : 0, B = a > 0 ? (int) Math.round(b / a) : 0;
+                o.setRGB(x, y, (A << 24) | (R << 16) | (G << 8) | B);
+            }
+        return o;
+    }
+
+    /** The five packs downscaled to hotbar sizes (16/12px) on a stone-grey slot strip, so the
+     *  "does it read as a backpack when small?" question can be judged without launching a client. */
+    static void writeSmallPreview(String path) throws Exception {
+        String[] packs = {"canvas_pack", "leather_pack", "studded_pack", "reinforced_pack", "runed_pack"};
+        int[] sizes = {16, 12};
+        int slot = 22, gap = 4, up = 8; // each cell upscaled by `up` for eyeballing
+        int cols = packs.length, rows = sizes.length;
+        int cellW = slot * up, cellH = slot * up;
+        int mw = cols * cellW + (cols + 1) * gap, mh = rows * cellH + (rows + 1) * gap;
+        BufferedImage m = new BufferedImage(mw, mh, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < mh; y++) for (int x = 0; x < mw; x++) m.setRGB(x, y, 0xFF2B2B30);
+        for (int ri = 0; ri < rows; ri++) {
+            int n = sizes[ri];
+            for (int ci = 0; ci < cols; ci++) {
+                BufferedImage src = RENDERED.get(packs[ci]);
+                BufferedImage small = downscale(src, n);
+                int cx0 = gap + ci * (cellW + gap), cy0 = gap + ri * (cellH + gap);
+                // grey slot background with a vanilla-ish bevel
+                for (int y = 0; y < cellH; y++) for (int x = 0; x < cellW; x++) m.setRGB(cx0 + x, cy0 + y, 0xFF8B8B8B);
+                int off = ((slot - n) / 2) * up; // centre the small sprite in the slot
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++) {
+                        int c = small.getRGB(x, y);
+                        if ((c >>> 24) < 8) continue;
+                        for (int dy = 0; dy < up; dy++)
+                            for (int dx = 0; dx < up; dx++)
+                                m.setRGB(cx0 + off + x * up + dx, cy0 + off + y * up + dy, c);
+                    }
+            }
         }
         new File(path).getParentFile().mkdirs();
         ImageIO.write(m, "PNG", new File(path));
