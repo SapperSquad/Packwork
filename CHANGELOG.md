@@ -7,17 +7,28 @@ All notable changes, newest first. Dates are the suite's working dates.
 ### Fixed
 - **Search text is crisp now.** The search field was drawn with a drop shadow, which muddied
   dark text on the pale canvas strip into a fuzzy look; it now draws sharp at every GUI scale.
-- **Hover + P to pin actually shows.** Pinning is now a rebindable keybind (shows in Controls),
-  a brass pin-head marks every item pinned to the active tab, and a hovered item's tooltip
-  reminds you "[P] Pin to this tab" - so the pin is visible instead of silently happening.
+- **Nothing sits low or bleeds off the slot anymore.** Every Packwork sprite (5 packs, 11
+  trinkets, the handbook, the block-item) was re-authored to a shared centred box with a 1px
+  margin, so no icon runs to the edge or hangs low in its cell. A tiny audit tool
+  (`tools/AnalyzeSprites.java`) proves each sprite's bounding box and margins.
+- **Hover + P to pin actually shows — and now you can't miss it.** Pinning is a rebindable
+  keybind (shows in Controls) and a pinned slot wears a bold red ribbon with a brass tack in
+  its corner (was a faint pin-head); a hovered item's tooltip still reminds you "[P] Pin to
+  this tab".
 
-### Changed (first art pass — expect iteration)
-- **Packs are shaped, not squares.** The item sprite is now a satchel (handle, flap, buckle,
-  straps, side pockets) and the placed block is a proper 3D pack (draped flap, handle, straps),
-  each tier still distinct by colour + trim (canvas → leather → studs → steel plates → runes).
-- **Every trinket has its own silhouette.** No more identical leather tags: a magnetite
-  medallion, a brass compass rose, a bandolier, a void pouch, a tool roll, crossed straps, a
-  quill-and-ledger, a waterskin, a green soul vial, an amber charge crystal, a flask rack.
+### Changed — art pass (hand-authored, second cut)
+- **Sprites are hand-authored pixel art now, not procedural.** Every icon is placed pixel by
+  pixel with a top-left light source, a per-material value ramp (shadow → mid → light →
+  highlight) and a clean dark outline, so the set reads as crafted leather-and-brass gear
+  instead of generated noise.
+- **A real tier ladder on the packs.** canvas (twine lashings) → leather (brass buckle) →
+  studded (brass studs round the flap) → reinforced (riveted steel plates + a steel band) →
+  runed (glowing glyphs + a gem in the buckle). Detail and material climb, not just the hue.
+- **The murky icons got fixed.** Quill & Ledger is a legible open book with a quill + ink nib;
+  the Charge Crystal is a faceted crystal wound in copper on a brass mount (no longer a
+  candle-flame); Quick-Draw Straps are two clearly buckled belts (no longer a red ✗); the
+  Repair Kit is a hammer on an anvil; and the Soul Vial (one green vial) reads apart from the
+  Flask Harness (a rack of two vapour flasks) and the Waterskin (corked, with a water sheen).
 
 ## 0.1.0 "First Haul" — 2026-07-23
 
