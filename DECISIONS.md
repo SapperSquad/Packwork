@@ -181,6 +181,55 @@ one can be flipped later without unpicking the rest:
   reading the block entity's tier (synced light — tier only, never the 256-slot contents),
   multiplied over a light-leather base texture. Verified in-game with pixels inspected.
 
+## 2026-07-23 — the three deferred integrations lit up (gas / Curios / JEI)
+
+All three stay strict SOFT deps: `compileOnly` the API + `ModList.isLoaded`-gated + exactly one
+class importing each mod, never classloaded without it. Verified: the mod builds, loads, and
+passes all 22 GameTests with NONE of the three present (the default runtime carries no interop
+dep; runtime inclusion is opt-in per gradle flag). Maven wiring lives in `build.gradle` +
+`gradle.properties`; the repos (blamejared, theillusivec4, modmaven) resolve in this env.
+
+- **Maven coordinates (pinned, verified to resolve):** JEI `mezz.jei:jei-1.21.1-neoforge-api`
+  + `-neoforge` `19.39.0.368` (maven.blamejared.com); Curios
+  `top.theillusivec4.curios:curios-neoforge:9.5.1+1.21.1:api` (+ full for runtime)
+  (maven.theillusivec4.top / blamejared); Mekanism `mekanism:Mekanism:1.21.1-10.7.19.85:api`
+  (+ full) (modmaven.dev). Combined dev test: `-Pjei` / `-Pcurios` / `-Pmekanism` add the full
+  mod to the runtime.
+
+- **GAS = Alchemist's Flask Harness (Mekanism). LIVE-verified in a combined headless runtime.**
+  A STORE trinket + a dist-neutral `PackChemical` component (a chemical id string + an amount,
+  so `ModComponents` never imports Mekanism) + `compat/mekanism/MekanismChemicalStore` (the one
+  class touching `mekanism.*`) implementing `IChemicalHandler` over the component, exposed on the
+  pack item AND the placed block-entity, gated by the trinket + `ModList.isLoaded("mekanism")`.
+  The capability TOKEN is recreated with Mekanism's own `mekanism:chemical_handler` name and the
+  standard MultiTypeCapability shape (item = void, block = sided Direction) - the api-only
+  artifact ships `IChemicalHandler` but NOT the token, so recreating the interned token is the
+  correct way to interop. **Verified:** `runGameTestServer -Pmekanism` loads Mekanism and the
+  gated test exposes the cap (1 tank, tier capacity), resolves the real `mekanism:hydrogen`
+  chemical, and inserts 3000 mB / extracts exactly 3000 - 1:1, no loss. A violet "bottled
+  vapors" gauge shows on the right rail (dist-neutral render, only when Mekanism is loaded).
+  The recipe carries a `neoforge:mod_loaded` condition so the Flask Harness is only craftable
+  with Mekanism (no dead craftable). NOTE: interop with Mekanism's PIPES relies on the token
+  match, which is the standard shape; the handler + registration + chemical resolution are
+  proven in-runtime, a live pipe-to-pack transfer was not separately staged.
+
+- **CURIOS = the back wear slot. LIVE-verified.** `compat/curios/CuriosCompat` (the one class
+  touching `top.theillusivec4.curios.*`) registers every pack tier as a curio during common
+  setup (gated); a `data/curios/slots/back.json` + a `curios:back` item tag assign the packs to
+  the back slot. A worn pack's trinkets keep running - `curioTick` funnels into the new
+  `TrinketEffects.applyWornPack`, so magnet/restock/repair/soul-vial/charge work worn exactly as
+  pocketed. Native inventory-use + the B keybind stay the fallback when Curios is absent.
+  **Verified** in `runClient -Pcurios`: the player has a back slot, the pack is assigned to it,
+  and it equips (logged). Opening the GUI from the worn slot is NOT wired in v1 (open it from
+  the inventory) - a flagged follow-up, since the menu binds to an inventory slot or a
+  block-entity, not a Curios slot.
+
+- **JEI = recipe/usage lookup. LIVE.** `compat/jei/PackworkJeiPlugin` (the one class touching
+  `mezz.jei.*`) is a `@JeiPlugin` - JEI discovers it by annotation and loads it only when JEI is
+  present, so it self-gates (no ModList check needed). Adds an in-JEI info page for every pack
+  tier (with its slot/socket counts, from the SSOT), every trinket (reusing its tooltip blurb),
+  and the handbook. Verified in `runClient -Pjei`.
+
 ## Superseded — the three "inert trinkets" note
 
 - **Feather / Quick-Draw / Quill & Ledger** were shipped-but-inert in Phase 2. As of the

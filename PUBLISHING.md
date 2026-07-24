@@ -65,6 +65,7 @@ full pack carries everything inside straight up. Then slot brass **trinkets** in
 | Waterskin Rack | a real fluid tank, shown as a glass gauge |
 | Soul Vial | stores your XP and auto-mends your gear from it |
 | Charge Crystal | an arcane charge in copper-wound glass, topping up your powered tools |
+| Alchemist's Flask Harness | a chemical tank for bottled vapors (with Mekanism) |
 
 New to the pack? Craft the **Outfitter's Handbook** and right-click it — five chapters walk
 you through sorting, trinkets, tiers, and the stores, in-game.
@@ -79,10 +80,13 @@ because the sorting is virtual over one store.
 
 ## Needs nothing, plays with everything
 
-Zero hard dependencies. Pantrywork food tags fold into the Food tab when it's installed.
-With Forgework installed, a Forgework Flux cable charges a placed pack's Charge Crystal
-directly (1 Flux = 1 FE), and the crystal tops up your carried Forgework terminals too —
-every one of these is simply absent when its mod isn't there.
+Zero hard dependencies — every cross-mod touch lights up only when its mod is present:
+**Mekanism** turns the Flask Harness into a real chemical tank its pipes can fill;
+**Curios** lets you wear the pack in the back slot (trinkets keep working worn);
+**Forgework** Flux cables charge a placed pack's Charge Crystal, 1 Flux = 1 FE, and the
+crystal tops up carried Forgework terminals; **JEI** shows every pack, trinket, and the
+handbook in its lookup; and **Pantrywork** food tags fold into the Food tab. Remove any of
+them and Packwork just carries on without it.
 
 *One more store is coming — an Alchemist's Flask Harness for bottled vapors — a fitting
 you can see, never a tank-and-cable panel. Curios back-slot wear and JEI lookup are on the
@@ -103,10 +107,11 @@ way too.*
 | `card_trinkets.png` (TODO) | The working fittings. |
 
 **Art carrying version-specific claims** (trinket counts, resource-store list, MC
-version): keep it in step with the changelog. Right now **fluids, XP, and energy** ship
-among the resource stores (gas does NOT yet) — don't let a banner claim four. **Placeable
-packs**, the **Forgework Flux bridge** (item- AND block-level), and the **Outfitter's
-Handbook** are in; **Curios wear** and **JEI** are not — don't promise them as present.
+version): keep it in step with the changelog. All **four** resource stores now ship (fluids,
+XP, energy always; **gas** with Mekanism). Placeable packs, the Forgework Flux bridge (item-
+AND block-level), the Outfitter's Handbook, **Curios** back-slot wear, **Mekanism** gas, and
+**JEI** lookup are all in — but note the mod-gated ones (gas, Curios, JEI, Forgework) light up
+only with their mod, so don't imply they work standalone.
 
 ---
 

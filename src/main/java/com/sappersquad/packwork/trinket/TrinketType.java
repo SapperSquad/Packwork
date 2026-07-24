@@ -27,7 +27,8 @@ public enum TrinketType {
     // resource-store fittings (Phase 3)
     WATERSKIN("waterskin_rack", Kind.STORE),
     SOUL_VIAL("soul_vial", Kind.STORE),
-    CHARGE_CRYSTAL("charge_crystal", Kind.STORE);
+    CHARGE_CRYSTAL("charge_crystal", Kind.STORE),
+    FLASK_HARNESS("flask_harness", Kind.STORE);
 
     public enum Kind { PASSIVE, TICK, STORE }
 

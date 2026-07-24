@@ -56,6 +56,7 @@ public class GenTextures {
         genTrinket(base + "/item/waterskin_rack.png", 0xFF4A8BD6, 1);
         genTrinket(base + "/item/soul_vial.png", 0xFF74C043, 2);
         genTrinket(base + "/item/charge_crystal.png", 0xFFE0902C, 0);
+        genTrinket(base + "/item/flask_harness.png", 0xFFB08AD8, 1);
 
         // the in-house guide book: a leather-bound handbook with brass corners
         genBook(base + "/item/outfitters_handbook.png");

@@ -156,8 +156,8 @@ public final class DevAutoShot {
                     ? null : server.getPlayerList().getPlayers().get(0);
             if (sp == null) return;
 
-            // a Reinforced pack (3 trinket sockets) so the right rail is on show
-            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.REINFORCED).get());
+            // a Runed pack (4 trinket sockets) so all four store gauges can be on show
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.RUNED).get());
             IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
@@ -176,15 +176,22 @@ public final class DevAutoShot {
             };
             for (int i = 0; i < spread.length; i++) h.insertItem(i, spread[i], false);
 
-            // fit two trinkets so the right rail shows a filled socket + a slot for the Compass Rose
+            // fit all four store trinkets so every gauge on the right rail shows a level
             var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
-                    () -> pack, com.sappersquad.packwork.pack.PackTier.REINFORCED);
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.RUNED);
             sockets.insertItem(0, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
             sockets.insertItem(1, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL).get()), false);
             sockets.insertItem(2, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+            sockets.insertItem(3, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false);
+            // half-fill the chemical tank (dist-neutral component) so the flask gauge shows a
+            // level when run with Mekanism present (-Pmekanism); harmless without it.
+            pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_CHEMICAL.get(),
+                    new com.sappersquad.packwork.pack.PackChemical("mekanism:hydrogen",
+                            com.sappersquad.packwork.pack.PackChemical.capacityFor(pack) * 2 / 3));
             // stash XP + charge so both the soul-vial and charge-crystal gauges show a level
             pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_XP.get(),
                     com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack) * 2 / 3);
@@ -201,6 +208,12 @@ public final class DevAutoShot {
 
             sp.getInventory().items.set(0, pack);
             sp.getInventory().selected = 0;
+
+            // Curios (optional): prove the pack wears in the back slot (gated; logs the result).
+            if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
+                com.sappersquad.packwork.compat.curios.CuriosCompat.devEquip(sp, pack.copy());
+            }
+
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[autoshot] pack filled and opened");
         });

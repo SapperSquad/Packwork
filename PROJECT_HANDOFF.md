@@ -76,36 +76,40 @@ store — Gas (Flask Harness + Mekanism chemical cap) — is **deferred** (needs
 dep); leave the shipped stores as the template: component + (gated) capability + STORE
 trinket + gauge + gametest.
 
-**Still open (deferred, ready to enable — see next section):** the Gas store (Mekanism),
-Curios back-slot wear, and JEI. The placed-pack block-entity now exists (and carries the
-block-level Forgework bridge); a dedicated Outfitter's Bench upgrade station is still just an
-idea (the preserving upgrade recipe covers the need for now). **README.md / PUBLISHING.md /
-CHANGELOG.md exist** — keep their copy in step with code.
+**All four resource stores now ship** (fluids/XP/energy always; gas via the gated Mekanism
+integration), and **Curios wear + JEI are in** (all soft deps — see the integrations section).
+The placed-pack block-entity carries the block-level Forgework + Mekanism caps. Still open: a
+dedicated Outfitter's Bench upgrade station (the preserving recipe covers the need for now), a
+quest chapter, `CLAUDE.md`, and opening the pack GUI from the Curios slot. **README.md /
+PUBLISHING.md / CHANGELOG.md exist** — keep their copy in step with code.
 
-## Enabling the deferred integrations
+## The three optional integrations — DONE (gas / Curios / JEI), soft-dep verified
 
-Each is written to compile and ship **without** its dep and light up when present. To
-enable one, drop in exactly the dev dependency named below (mirror the Forgework wiring in
-`build.gradle` — `compileOnly` the API, add a `-P` flag or `localRuntime` for a combined
-test), add its `[[dependencies]]` `optional` block in `neoforge.mods.toml`, and write the
-one gated `compat/<mod>/` class (the only class allowed to import that mod).
+All three are strict SOFT deps: `compileOnly` the API in `build.gradle`, `ModList.isLoaded`-
+gated, one class per mod under `compat/`. The mod builds, loads, and passes all 22 GameTests
+with **none** present (verified). Runtime inclusion is opt-in per flag so the default stays
+dependency-free: `./gradlew runClient -Pjei -Pcurios -Pmekanism` (any subset). Pinned
+versions in `gradle.properties`; repos (blamejared, theillusivec4, modmaven) in `build.gradle`.
 
-- **Gas store → Mekanism.** Dev dep: the **Mekanism API** jar (its `mekanism.api.*`
-  chemical capability), from Mekanism's maven or a local build. Build a `Flask Harness`
-  STORE trinket + a `PACK_CHEMICAL` component + `compat/mekanism/MekanismGasBridge` exposing
-  Mekanism's chemical handler cap on the stack, gated `ModList.isLoaded("mekanism")`. Add a
-  glass gauge to the right rail beside the others (`PackScreen.drawStoreGauges`). Follow the
-  Waterskin Rack end-to-end as the template.
-- **Curios back-slot wear → Curios.** Dev dep: the **Curios API** (`top.theillusivec4.curios`)
-  as `compileOnly` + its maven repo (not in the local cache). Register the pack in the
-  `back` slot behind `ModList.isLoaded("curios")` in one `compat/curios/` class; native
-  inventory-use + the B keybind stay the fallback so Curios is never required.
-- **JEI.** Dev dep: `mezz.jei:jei-1.21.1-neoforge-api` (`compileOnly`) + full JEI
-  `runtimeOnly` (as PhytoForge does). One `compat/jei/PackworkJeiPlugin` behind
-  `ModList.isLoaded("jei")`; wire the tier-upgrade recipe + trinket recipes into the
-  recipe/usage view.
+- **Gas → Mekanism (`compat/mekanism/MekanismChemicalStore`).** Flask Harness STORE trinket +
+  dist-neutral `PackChemical` component (id + amount, so nothing always-loaded imports
+  Mekanism) + an `IChemicalHandler` over it, on the item AND the placed block-entity, gated by
+  the trinket + `ModList.isLoaded("mekanism")`. Cap token recreated with Mekanism's own
+  `mekanism:chemical_handler` name (item=void, block=sided) since the api artifact ships the
+  interface but not the token. Right-rail vapor gauge. Recipe gated by `neoforge:mod_loaded`.
+  **Verified in `runGameTestServer -Pmekanism`:** cap present, tier capacity, real hydrogen
+  resolved, 3000 mB in / 3000 out. (Live pipe-to-pack not separately staged — see DECISIONS.)
+- **Curios → back slot (`compat/curios/CuriosCompat`).** Registers each pack as a curio;
+  `data/curios/slots/back.json` + the `curios:back` item tag put it in the back slot; a worn
+  pack's trinkets keep ticking via `TrinketEffects.applyWornPack`. **Verified in
+  `runClient -Pcurios`** (player has the slot, pack fits + equips). Opening the GUI while worn
+  is a v1 follow-up (the menu binds to an inventory slot or a block-entity, not a Curios slot).
+- **JEI → info pages (`compat/jei/PackworkJeiPlugin`).** `@JeiPlugin` (self-gating via JEI's
+  annotation discovery); info pages for every pack tier, every trinket, and the handbook.
+  **Verified in `runClient -Pjei`.**
 
-Do **not** add these deps or pull them from Maven now — SapperSquad enables them one at a time.
+To add ANOTHER integration later, mirror this: `compileOnly` the API (+ a `-P<mod>` runtime
+flag), an `optional` block in `neoforge.mods.toml`, and one gated `compat/<mod>/` class.
 
 ### Original status (Phase 0/1)
 
@@ -152,8 +156,10 @@ world, fills a pack across every tab, opens it, switches tabs, and writes screen
   Registered in `reg/ModBlocks` + `reg/ModBlockEntities`; block caps in `PackworkCapabilities`.
 - `trinket/` — `TrinketType` (SSOT table), `TrinketItem`, `TrinketAccess`, `TrinketEffects`
   (per-tick effects + the Quick-Draw break handler + its dupe-safe `pullReplacement`).
-- `compat/forgework/` — `ForgeworkFluxBridge`, the ONLY class importing `com.forgework.*`;
-  reached strictly behind `ModList.isLoaded("forgework")`. Add future `compat/<mod>/` here.
+- `compat/` — one gated class per mod, the ONLY class importing that mod: `forgework/`
+  (`ForgeworkFluxBridge`), `mekanism/` (`MekanismChemicalStore`), `curios/` (`CuriosCompat`),
+  `jei/` (`PackworkJeiPlugin`, self-gated by `@JeiPlugin`). Each reached only behind
+  `ModList.isLoaded` (JEI via annotation discovery).
 - `guide/` — `HandbookItem` (opens the guide), `HandbookContent` (dist-neutral chapter data,
   interpolates SSOT numbers). The screen itself is `client/OutfitterHandbookScreen`.
 - `client/` — `PackScreen` (the rail + controls), `OutfitterHandbookScreen`,

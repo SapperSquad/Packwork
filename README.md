@@ -50,6 +50,7 @@ and trinkets straight up — a craft never eats what's inside.
 | **Waterskin Rack** | Fits a fluid tank: a glass gauge you fill with a bucket or flask. |
 | **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
 | **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. With Forgework installed it also feeds your portable terminals, 1 Flux = 1 FE. |
+| **Alchemist's Flask Harness** | A rack of flasks for bottled vapors — a chemical tank any Mekanism pipe fills. *(Needs Mekanism; craftable only when it's installed.)* |
 
 ## Set it down
 
@@ -94,13 +95,20 @@ cd Packwork
 
 Textures are generated procedurally — `java tools/GenTextures.java` after editing them.
 
-## On the roadmap
+## Optional friends (each simply absent when its mod isn't)
 
-One more resource store is coming — an **Alchemist's Flask Harness** for bottled vapors
-(Mekanism chemicals), never a tank-and-cable panel. Plus **Curios** back-slot wear and
-**JEI** recipe lookup. Each lights up when its mod is installed and is simply absent when
-it isn't — zero hard dependencies, always. (The Forgework Flux bridge and the Outfitter's
-Handbook are already in.)
+Zero hard dependencies — every one of these lights up only when its mod is installed:
+
+- **Mekanism** — the Alchemist's Flask Harness becomes a real chemical tank; Mekanism pipes
+  fill a placed pack with bottled vapors.
+- **Curios** — wear the pack in the **back** slot, and its trinkets keep working while worn.
+- **Forgework** — a placed pack's Charge Crystal charges straight off Forgework's Flux cables
+  (1 Flux = 1 FE), and the crystal tops up your carried Forgework terminals.
+- **JEI** — look up any pack tier, trinket, or the handbook from the recipe screen.
+- **Pantrywork** — its food tags fold into the Food tab.
+
+Everything else — the sorting, the tiers, the fluid/XP/charge stores, the placeable block,
+and the Outfitter's Handbook — is always there, no mods required.
 
 ---
 

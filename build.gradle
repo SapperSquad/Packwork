@@ -21,7 +21,10 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    // Optional-integration APIs. All compile-only + ModList-gated; none is a hard dep.
+    maven { url = 'https://maven.blamejared.com' }        // JEI, Curios
+    maven { url = 'https://maven.theillusivec4.top' }     // Curios (creator maven)
+    maven { url = 'https://modmaven.dev' }                // Mekanism API
 }
 
 base {
@@ -99,6 +102,31 @@ dependencies {
     // runtime can be tested in-process (./gradlew runGameTestServer -Pforgework).
     if (project.hasProperty('forgework')) {
         localRuntime files('../Forgework/build/libs/forgework-0.3.0.jar')
+    }
+
+    // --- Optional integrations (all SOFT deps) ---------------------------------
+    // compileOnly the API so the one gated compat class per mod compiles; the mod
+    // never hard-depends on any of them (ModList.isLoaded gates every touch, and
+    // neoforge.mods.toml marks each optional). Runtime inclusion is opt-in per flag
+    // so the DEFAULT build/run/tests stay dependency-free and the "none present"
+    // invariant is real. Combined test: e.g. ./gradlew runClient -Pjei -Pcurios.
+
+    // JEI — recipe/usage lookup.
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    if (project.hasProperty('jei')) {
+        runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+    }
+
+    // Curios — the "back" wear slot.
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
+    if (project.hasProperty('curios')) {
+        runtimeOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+    }
+
+    // Mekanism — the gas/chemical store. API-only artifact at compile time.
+    compileOnly "mekanism:Mekanism:${mekanism_version}:api"
+    if (project.hasProperty('mekanism')) {
+        runtimeOnly "mekanism:Mekanism:${mekanism_version}"
     }
 }
 
