@@ -5,6 +5,11 @@ All notable changes, newest first. Dates are the suite's working dates.
 ## Unreleased — playtest polish
 
 ### Fixed
+- **A set-down canvas pack's buckle is twine now, matching the one in your hand.** The placed
+  canvas block wore a brass buckle like the higher tiers, but the canvas *item* closes with a
+  twine buckle — so the block and the item disagreed. The canvas block's buckle now reads as pale
+  woven twine cord. The other four tiers keep their brass buckles, and the canvas straps are
+  unchanged.
 - **Search text is crisp now.** The search field was drawn with a drop shadow, which muddied
   dark text on the pale canvas strip into a fuzzy look; it now draws sharp at every GUI scale.
 - **Nothing sits low or bleeds off the slot anymore.** Every Packwork sprite (5 packs, 11

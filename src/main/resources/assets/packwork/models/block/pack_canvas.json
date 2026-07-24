@@ -1,9 +1,10 @@
 {
-  "__comment": "canvas-tier placed pack: shared geometry, this tier's leather + trimmed front.",
+  "__comment": "canvas-tier placed pack: shared geometry, this tier's leather + trimmed front, and a twine buckle (repoints #buckle off the shared brass) so the set-down pack matches its item.",
   "parent": "packwork:block/pack_shape",
   "textures": {
     "front": "packwork:block/pack_canvas_front",
     "leather": "packwork:block/pack_canvas_leather",
+    "buckle": "packwork:block/pack_block_twine",
     "particle": "packwork:block/pack_canvas_leather"
   }
 }
