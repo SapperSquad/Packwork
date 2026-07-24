@@ -22,11 +22,20 @@ public final class PackKeyMappings {
     public static final KeyMapping OPEN = new KeyMapping(
             "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
 
+    /**
+     * Pin/unpin the hovered grid item to the active tab. Only meaningful inside the pack GUI,
+     * so it has no client-tick handler - {@code PackScreen.keyPressed} matches against it. It's
+     * registered so it shows up (and is rebindable) in vanilla Controls; default P.
+     */
+    public static final KeyMapping PIN = new KeyMapping(
+            "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, "key.categories.inventory");
+
     @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registrar {
         @SubscribeEvent
         public static void register(RegisterKeyMappingsEvent event) {
             event.register(OPEN);
+            event.register(PIN);
         }
     }
 

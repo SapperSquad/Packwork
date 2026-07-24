@@ -46,7 +46,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             0xFF7A5A9B, 0xFF9C8265, 0xFFC9A24B, 0xFF6E7B8B
     };
 
-    private EditBox searchBox;
+    private CrispEditBox searchBox;
     private EditBox renameBox;
     private boolean renaming = false;
 
@@ -68,11 +68,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     @Override
     protected void init() {
         super.init();
-        searchBox = new EditBox(this.font, leftPos + 11, topPos + 20, 152, 10, Component.translatable("packwork.ui.search"));
-        searchBox.setBordered(false);
+        searchBox = new CrispEditBox(this.font, leftPos + 11, topPos + 20, 152, 10,
+                Component.translatable("packwork.ui.search"), 0xFF3A2A18);
         searchBox.setMaxLength(48);
-        searchBox.setTextColor(0x3A2A18);
-        searchBox.setHint(Component.translatable("packwork.ui.search"));
+        searchBox.setHintText(Component.translatable("packwork.ui.search"));
         searchBox.setValue(menu.search());
         searchBox.setResponder(s -> PackClientActions.setSearch(menu, s));
         addRenderableWidget(searchBox);
@@ -157,6 +156,43 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     // ---------- foreground ----------
 
+    /** A brass pin-head in the top-left corner of every item pinned to the active tab. */
+    private void drawPinMarkers(GuiGraphics g) {
+        if (menu.flatten()) return;
+        String active = menu.activeTab();
+        com.sappersquad.packwork.sort.PackLayout layout = menu.layout();
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 300); // ride above the item sprites (item z ~150, count ~200)
+        for (Slot s : menu.slots) {
+            if (!(s instanceof PackViewSlot vs) || !vs.isActive() || !s.hasItem()) continue;
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
+            if (active.equals(layout.pinnedTab(key))) {
+                int x = leftPos + s.x, y = topPos + s.y;
+                g.fill(x - 1, y - 1, x + 5, y + 5, 0xFF2A1C10);         // dark ring
+                g.fill(x, y, x + 4, y + 4, 0xFFC9A24B);                 // brass head
+                g.fill(x + 1, y + 1, x + 3, y + 3, 0xFFF0DCA0);         // highlight
+                g.fill(x + 3, y + 3, x + 5, y + 7, 0xFF7A5A34);         // short tail
+            }
+        }
+        g.pose().popPose();
+    }
+
+    /** Append a "[P] Pin to this tab" line to a hovered grid item's tooltip, so it's discoverable. */
+    @Override
+    protected List<Component> getTooltipFromContainerItem(ItemStack stack) {
+        List<Component> tip = super.getTooltipFromContainerItem(stack);
+        if (!menu.flatten() && this.hoveredSlot instanceof PackViewSlot && this.hoveredSlot.hasItem()) {
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            boolean pinnedHere = menu.activeTab().equals(menu.layout().pinnedTab(key));
+            List<Component> out = new ArrayList<>(tip);
+            out.add(Component.translatable(pinnedHere ? "packwork.ui.unpin_key" : "packwork.ui.pin_key",
+                            PackKeyMappings.PIN.getTranslatedKeyMessage())
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            return out;
+        }
+        return tip;
+    }
+
     @Override
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         if (!renaming) {
@@ -167,6 +203,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
+        drawPinMarkers(g);
         if (renaming) renameBox.render(g, mouseX, mouseY, partialTick);
         drawButtons(g, mouseX, mouseY);
         drawPageNav(g, mouseX, mouseY);
@@ -469,16 +506,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         Slot hovered = this.hoveredSlot;
         boolean overGrid = hovered instanceof PackViewSlot && hovered.hasItem();
+
+        // Pin/unpin the hovered item to the active tab. Rebindable keybind (default P), so it
+        // reads the mapping rather than a hardcoded key and shows up in vanilla Controls.
+        if (PackKeyMappings.PIN.matches(key, scan) && overGrid && !menu.flatten()) {
+            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem());
+            String pinned = menu.layout().pinnedTab(itemKey);
+            if (menu.activeTab().equals(pinned)) PackClientActions.unpin(menu, itemKey.toString());
+            else PackClientActions.pin(menu, menu.activeTab(), itemKey.toString());
+            return true;
+        }
+
         switch (key) {
-            case GLFW.GLFW_KEY_P -> { // pin / unpin hovered item to the active tab
-                if (overGrid && !menu.flatten()) {
-                    String id = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem()).toString();
-                    String pinned = menu.layout().pinnedTab(BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem()));
-                    if (menu.activeTab().equals(pinned)) PackClientActions.unpin(menu, id);
-                    else PackClientActions.pin(menu, menu.activeTab(), id);
-                    return true;
-                }
-            }
             case GLFW.GLFW_KEY_I -> { // stamp hovered item as the active custom tab's icon
                 if (overGrid && isActiveCustom()) {
                     String id = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem()).toString();
@@ -499,6 +538,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             default -> {}
         }
         return super.keyPressed(key, scan, mods);
+    }
+
+    /** Dev harness only: force which slot counts as hovered, so a synthetic key press can target it. */
+    public void devHover(int menuIndex) {
+        this.hoveredSlot = (menuIndex >= 0 && menuIndex < menu.slots.size()) ? menu.slots.get(menuIndex) : null;
     }
 
     private boolean isActiveCustom() {
