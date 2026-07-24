@@ -16,19 +16,30 @@ All notable changes, newest first. Dates are the suite's working dates.
   its corner (was a faint pin-head); a hovered item's tooltip still reminds you "[P] Pin to
   this tab".
 
-### Changed — art pass (hand-authored, second cut)
+### Changed — art pass (hand-authored)
 - **Sprites are hand-authored pixel art now, not procedural.** Every icon is placed pixel by
   pixel with a top-left light source, a per-material value ramp (shadow → mid → light →
   highlight) and a clean dark outline, so the set reads as crafted leather-and-brass gear
   instead of generated noise.
-- **A real tier ladder on the packs.** canvas (twine lashings) → leather (brass buckle) →
-  studded (brass studs round the flap) → reinforced (riveted steel plates + a steel band) →
-  runed (glowing glyphs + a gem in the buckle). Detail and material climb, not just the hue.
 - **The murky icons got fixed.** Quill & Ledger is a legible open book with a quill + ink nib;
-  the Charge Crystal is a faceted crystal wound in copper on a brass mount (no longer a
-  candle-flame); Quick-Draw Straps are two clearly buckled belts (no longer a red ✗); the
-  Repair Kit is a hammer on an anvil; and the Soul Vial (one green vial) reads apart from the
-  Flask Harness (a rack of two vapour flasks) and the Waterskin (corked, with a water sheen).
+  Quick-Draw Straps are two clearly buckled belts (no longer a red ✗); the Repair Kit is a
+  hammer on an anvil; and the Soul Vial (one green vial) reads apart from the Flask Harness (a
+  rack of two vapour flasks) and the Waterskin (corked, with a water sheen).
+
+### Changed — hero packs + trinket polish
+- **The five packs are hero art now (32×32).** Each pack is a rounded, form-shaded leather
+  bag — a draped flap with a stitched hem, a brass buckle with a metal glint, a strap with
+  real thickness, side pockets, a top handle — lit against a rounded form with ambient
+  occlusion in the fold and a rim light. The material story climbs the ladder: **canvas** weave
+  + twine → **leather** grain + brass buckle → **studded** leather + a ring of brass studs →
+  **reinforced** steel corner plates + a steel band → **runed** deep-dyed leather with glowing
+  glyphs + a gem in the buckle. The placed-block leather + brass faces got the same lift so a
+  set-down pack matches the one in your hand.
+- **Three trinkets sharpened.** The **Restock Strap** is now a bold bandolier — a big central
+  brass buckle with a studded pouch above and below. The **Charge Crystal** is unmistakably a
+  faceted crystal (cool blue, wound in dark copper on a brass mount) instead of reading like a
+  flame. The **Lodestone Charm** is a dark iron-grey magnetite stone with a faint violet sheen
+  on a cord (no more antennae).
 
 ## 0.1.0 "First Haul" — 2026-07-23
 

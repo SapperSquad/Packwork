@@ -145,6 +145,23 @@ one can be flipped later without unpicking the rest:
   Pack, Sorting, Trinkets, Tiers & Upgrades, The Stores. Verified in-game via the autoshot
   harness with pixels inspected.
 
+## 2026-07-23 — hero packs at 32×32; Charge Crystal recoloured (reopen with evidence)
+
+- **The 5 pack item sprites are 32×32; everything else stays 16×16.** The packs are the icons
+  the player stares at constantly (hand + inventory), so they earn the higher resolution and a
+  form-shading renderer (`heroPack` in `tools/GenTextures.java`: rounded-form dome lighting, AO
+  in seams, rim light, stitching, a specular buckle). `item/generated` renders a 32×32 sprite
+  crisply at any GUI scale. Trinkets/handbook stay 16×16 (they read fine and cost less to
+  author). The placed-block faces went 32×32 too so a set-down pack matches the held one.
+- **Per-tier trim on the *block* is deferred.** The placed block tints ONE leather tile per
+  tier; studs/plates/runes on the block would need per-tier block textures + models. The
+  block's material lift (grain, stitching, brass) is universal; per-tier block trim is a
+  follow-up if Alex wants the set-down pack to carry the same ladder detail as the item.
+- **Charge Crystal is cool blue, not amber (Alex, 2026-07-23).** Amber read as a candle flame;
+  a cool faceted crystal wound in dark copper is unambiguous. The energy *gauge* on the rail is
+  still amber ("arcane charge") — a deliberate icon-vs-gauge split, flagged for Alex to unify
+  if the mismatch bothers him.
+
 ## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
 
 - **Item icons are hand-authored pixel art; big tiled surfaces stay procedural.** After the

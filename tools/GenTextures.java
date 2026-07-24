@@ -121,98 +121,269 @@ public class GenTextures {
     }
 
     // =====================================================================
-    //  packs - one silhouette, per-tier material ramp + escalating trim
+    //  packs - HERO art (32x32), form-shaded: rounded body + draped flap with a
+    //  stitched hem, a brass buckle with a specular glint, straps with thickness,
+    //  side pockets, a top handle, per-tier material story + a selective outline.
+    //  Not noise-fill: every surface is lit by a top-left light against a rounded
+    //  form model, with ambient occlusion in the fold seams and a rim light.
     // =====================================================================
 
-    // Body tones are digits 0(outline/darkest)..4(highlight); 'T' strap (drawn dark leather);
-    // the buckle + tier trim are overlaid in code so canvas can wear twine and runed a gem.
-    static final String[] PACK = {
-    //   0123456789012345
-        "................", // 0
-        "......0000......", // 1  handle top
-        "......0..0......", // 2  handle hole
-        "....03443320....", // 3  flap top (rounded)
-        "...0344332220...", // 4  flap
-        "...0334TT3220...", // 5  flap, central strap begins
-        "...0333TT3220...", // 6  flap
-        "..02233TT32220..", // 7  flap widens (buckle sits here)
-        "..01111TT11110..", // 8  hem shadow where flap meets body
-        ".032222TT222210.", // 9  body + side pockets
-        ".021222TT222120.", // 10 body, pocket seams
-        ".021222TT222120.", // 11 body
-        "..01222TT22210..", // 12 taper
-        "...0122TT2210...", // 13 taper
-        "....01111110....", // 14 base (dark contact)
-        "................", // 15
-    };
-
-    static void genPacks() throws Exception {
-        // ramp: {outline, shadow, mid, light, hi}
-        genPack("canvas_pack",     new int[]{0xFF6A5836, 0xFF9C8B5F, 0xFFC0B084, 0xFFD8C99C, 0xFFEADCB4}, 0);
-        genPack("leather_pack",    new int[]{0xFF241505, 0xFF4A3016, 0xFF6B4A26, 0xFF8A6234, 0xFFA87C46}, 1);
-        genPack("studded_pack",    new int[]{0xFF1A1006, 0xFF35220F, 0xFF52371B, 0xFF6E4A26, 0xFF875E32}, 2);
-        genPack("reinforced_pack", new int[]{0xFF1C1B18, 0xFF383129, 0xFF52493C, 0xFF6E6353, 0xFF89806C}, 3);
-        genPack("runed_pack",      new int[]{0xFF160F26, 0xFF2A1E44, 0xFF3F2E60, 0xFF574080, 0xFF6E56A0}, 4);
+    static final int PS = 32; // hero pack sprite size
+    // light direction (top-left-front), normalised
+    static final double LX, LY, LZ;
+    static {
+        double lx = -0.55, ly = -0.62, lz = 0.56, l = Math.sqrt(lx * lx + ly * ly + lz * lz);
+        LX = lx / l; LY = ly / l; LZ = lz / l;
     }
 
-    static void genPack(String name, int[] ramp, int tier) throws Exception {
-        Map<Character, Integer> p = new HashMap<>();
-        p.put('0', ramp[0]); p.put('1', ramp[1]); p.put('2', ramp[2]);
-        p.put('3', ramp[3]); p.put('4', ramp[4]);
-        p.put('T', shade(ramp[1], -14)); // strap: darker than the body, same family
-        drawItem(name, PACK, p);
-        BufferedImage img = RENDERED.get(name);
+    static void genPacks() throws Exception {
+        // 7-stop leather ramp per tier (dark -> light) + a flag for the material story
+        heroPack("canvas_pack", 0, new int[]{
+            0xFF544527, 0xFF6E5A34, 0xFF897249, 0xFFA68E5F, 0xFFC2AB79, 0xFFD8C494, 0xFFEEDDB2});
+        heroPack("leather_pack", 1, new int[]{
+            0xFF1C1108, 0xFF321F10, 0xFF4C3319, 0xFF684627, 0xFF875E38, 0xFFA6784B, 0xFFC49468});
+        heroPack("studded_pack", 2, new int[]{
+            0xFF150D06, 0xFF261809, 0xFF3A2811, 0xFF513920, 0xFF6B4E2E, 0xFF87663F, 0xFFA07C50});
+        heroPack("reinforced_pack", 3, new int[]{
+            0xFF16130E, 0xFF272319, 0xFF3B3527, 0xFF524A38, 0xFF6C6249, 0xFF897C5D, 0xFFA89A75});
+        heroPack("runed_pack", 4, new int[]{
+            0xFF130C22, 0xFF201430, 0xFF302144, 0xFF43305C, 0xFF574178, 0xFF6F5695, 0xFF8A70B4});
+    }
 
-        // brass (or twine) buckle centred on the flap hem
+    // brass and steel ramps (7-stop) shared by fittings/trim
+    static final int[] BRASSR = {0xFF3E2C0E, 0xFF5E4514, 0xFF80611C, 0xFFA6842C, 0xFFC9A542, 0xFFE6C56E, 0xFFF8E6A0};
+    static final int[] STEELR = {0xFF26272C, 0xFF3E4046, 0xFF585B62, 0xFF787C84, 0xFF9CA0A8, 0xFFC2C6CD, 0xFFE8EAEE};
+
+    static int ramp(int[] r, double v) {
+        if (v < 0) v = 0; if (v > 1) v = 1;
+        double f = v * (r.length - 1);
+        int i = (int) f;
+        if (i >= r.length - 1) return r[r.length - 1];
+        return lerp(r[i], r[i + 1], (float) (f - i));
+    }
+
+    /** Signed "insideness" of a rounded ellipse: >0 inside, ~0 at the rim (in 0..1 radius units). */
+    static double ell(double x, double y, double cx, double cy, double hw, double hh) {
+        double nx = (x - cx) / hw, ny = (y - cy) / hh;
+        return 1.0 - Math.sqrt(nx * nx + ny * ny);
+    }
+
+    /** Dome brightness of a rounded form at (x,y) for centre/half-extents, lit top-left. -1 = outside. */
+    static double dome(double x, double y, double cx, double cy, double hw, double hh) {
+        double nx = (x - cx) / hw, ny = (y - cy) / hh;
+        double r2 = nx * nx + ny * ny;
+        if (r2 > 1.0) return -1;
+        double nz = Math.sqrt(1 - r2);
+        double diff = -(nx * LX + ny * LY) + nz * LZ; // surface normal (nx,ny,nz) . light
+        double v = 0.42 + 0.58 * diff;
+        double r = Math.sqrt(r2);
+        if (r > 0.82) v -= (r - 0.82) * 1.7; // form shadow rolling into the rim
+        if (r > 0.5 && nx < -0.15 && ny < 0.1) v += (r - 0.5) * 0.5; // rim light on the top-left edge
+        return v;
+    }
+
+    static void heroPack(String name, int tier, int[] R) throws Exception {
+        BufferedImage img = new BufferedImage(PS, PS, BufferedImage.TYPE_INT_ARGB);
+        int[] strap = {shade(R[0], -4), shade(R[1], -10), shade(R[2], -14), shade(R[3], -14)};
+
+        // geometry (in 32px space)
+        double bcx = 16, bcy = 20.2, bhw = 12.7, bhh = 10.4;  // body (one rounded form, flatter base)
+        double fcx = 16, fcy = 13.2, fhw = 12.6, fhh = 8.0;   // flap (draped over top+front)
+        double lpx = 6.0, rpx = 26.0, pcy = 18.5, phw = 3.1, phh = 5.0; // side pockets (mid-body bulges)
+
+        for (int y = 0; y < PS; y++) {
+            for (int x = 0; x < PS; x++) {
+                double px = x + 0.5, py = y + 0.5;
+                int col = 0; double best = -2; int mat = -1; // mat: 0 leather,1 pocket,2 flap
+                // body
+                double vb = dome(px, py, bcx, bcy, bhw, bhh);
+                if (vb > -1 && py > 12) { best = vb; mat = 0; }
+                // pockets (slightly recessed/darker, drawn where they extend past the body sides)
+                double vpl = dome(px, py, lpx, pcy, phw, phh);
+                double vpr = dome(px, py, rpx, pcy, phw, phh);
+                double vp = Math.max(vpl, vpr);
+                if (vp > -1 && vp - 0.08 > best) { best = vp - 0.08; mat = 1; }
+                // flap on top (front upper), wins over body/pockets
+                double vf = dome(px, py, fcx, fcy, fhw, fhh);
+                if (vf > -1 && py < 21.5) { best = vf + 0.06; mat = 2; }
+                if (mat < 0) continue;
+
+                double v = best;
+                // ambient occlusion: darken the body just under the flap's hanging edge
+                double flapEdge = ell(px, py, fcx, fcy, fhw, fhh); // ~0 at flap rim
+                if (mat != 2 && py > fcy && flapEdge > -0.18 && flapEdge < 0.14) v -= 0.22 * (0.14 - Math.abs(flapEdge + 0.02)) / 0.16;
+                col = ramp(R, v);
+                img.setRGB(x, y, col);
+            }
+        }
+
+        // top handle: a leather loop (drawn as a ring behind the flap top)
+        for (int y = 2; y <= 9; y++)
+            for (int x = 11; x <= 20; x++) {
+                double o = ell(x + 0.5, y + 0.5, 15.8, 5.6, 4.6, 3.9);
+                double in = ell(x + 0.5, y + 0.5, 15.8, 6.2, 2.5, 2.6);
+                if (o > 0 && in < 0 && (img.getRGB(x, y) >>> 24) == 0) {
+                    double v = 0.5 + 0.5 * (-((x - 15.8) / 4.6) * LX - ((y - 5.6) / 3.9) * LY);
+                    img.setRGB(x, y, ramp(R, v - 0.12));
+                }
+            }
+
+        // central strap running under the flap down to the base, with thickness
+        for (int y = 6; y < 30; y++)
+            for (int x = 14; x <= 17; x++) {
+                if ((img.getRGB(x, y) >>> 24) == 0) continue;
+                double nx = (x - 15.5) / 2.0;
+                double v = 0.5 - 0.28 * nx - 0.10;              // cylinder shade
+                if (x == 14) v -= 0.28; if (x == 17) v -= 0.18; // edges = thickness
+                if (x == 15) v += 0.10;
+                img.setRGB(x, y, ramp(strap, v));
+            }
+
+        heroBuckle(img, tier);
+        heroStitchAndTrim(img, tier, R);
+        outline(img, shade(R[0], -14));
+        centerCheck(name, img);
+        ImageIO.write(img, "PNG", new File(BASE + "/item/" + name + ".png"));
+        RENDERED.put(name, img);
+    }
+
+    /** A brass (or twine, for canvas) buckle on the flap front, with a bright specular glint. */
+    static void heroBuckle(BufferedImage img, int tier) {
         boolean twine = tier == 0;
-        int bLo = twine ? shade(ramp[1], -20) : BRASS_LO;
-        int bMid = twine ? shade(ramp[2], -10) : BRASS;
-        int bHi = twine ? ramp[3] : BRASS_HI;
-        // buckle frame x6..9, y7..9
-        fillRect(img, 6, 7, 4, 3, bLo);
-        fillRect(img, 7, 7, 2, 1, bHi);
-        img.setRGB(6, 8, bMid); img.setRGB(9, 8, bMid);
-        img.setRGB(7, 8, shade(ramp[0], 10)); img.setRGB(8, 8, shade(ramp[0], 10)); // pin hole
-        img.setRGB(7, 9, bMid); img.setRGB(8, 9, bLo);
+        int bx = 12, by = 15, bw = 8, bh = 7;
+        for (int y = by; y < by + bh; y++)
+            for (int x = bx; x < bx + bw; x++) {
+                boolean frame = x <= bx + 1 || x >= bx + bw - 2 || y <= by + 1 || y >= by + bh - 2;
+                if (!frame) continue; // hollow centre shows the strap through the buckle
+                double nx = (x - (bx + bw / 2.0)) / (bw / 2.0), ny = (y - (by + bh / 2.0)) / (bh / 2.0);
+                double v = 0.5 - 0.34 * nx - 0.30 * ny;
+                if (twine) img.setRGB(x, y, ramp(new int[]{0xFF6A5836, 0xFF9C8B5F, 0xFFC0B084, 0xFFD8C99C, 0xFFEADCB4}, v - 0.05));
+                else img.setRGB(x, y, ramp(BRASSR, v));
+            }
+        if (!twine) { // specular glint on the top-left of the frame
+            img.setRGB(bx + 1, by, 0xFFF8E6A0); img.setRGB(bx + 2, by, 0xFFFDF0C0);
+            img.setRGB(bx, by + 1, 0xFFF8E6A0);
+        }
+        // prong across the hollow
+        for (int y = by + 2; y <= by + bh - 3; y++) img.setRGB(bx + bw / 2 - 1, y, twine ? 0xFF7A6540 : ramp(BRASSR, 0.5));
+    }
 
-        // per-tier trim climbing the ladder
+    /** Stitching along the flap hem + the per-tier material story on top of the base render. */
+    static void heroStitchAndTrim(BufferedImage img, int tier, int[] R) {
+        int stitch = ramp(R, 0.92);
+        // dashed stitch line just inside the flap's hanging edge (an arc)
+        for (int x = 5; x <= 27; x++) {
+            int y = (int) Math.round(13.5 + Math.sqrt(Math.max(0, 1 - Math.pow((x + 0.5 - 16) / 12.0, 2))) * 6.6);
+            if (((x) & 1) == 0 && (img.getRGB(x, y) >>> 24) != 0) img.setRGB(x, y, stitch);
+        }
         switch (tier) {
-            case 0 -> { // canvas: twine cross-lashing on the flap
-                int tw = shade(ramp[1], -22), th = ramp[4];
-                img.setRGB(4, 4, tw); img.setRGB(5, 5, tw); img.setRGB(6, 6, th);
-                img.setRGB(11, 4, tw); img.setRGB(10, 5, tw); img.setRGB(9, 6, th);
+            case 0 -> { // canvas: woven crosshatch + a twine cross-lashing on the flap
+                for (int y = 3; y < 30; y++)
+                    for (int x = 2; x < 30; x++) {
+                        if ((img.getRGB(x, y) >>> 24) == 0) continue;
+                        if (((x + y) % 4 == 0)) img.setRGB(x, y, shade(img.getRGB(x, y), 8));
+                        else if (((x - y + 40) % 4 == 0)) img.setRGB(x, y, shade(img.getRGB(x, y), -8));
+                    }
+                int tw = shade(R[1], -14);
+                for (int i = 0; i < 6; i++) { setIf(img, 9 + i, 9 + i, tw); setIf(img, 22 - i, 9 + i, tw); }
             }
-            case 2 -> { // studded: brass studs around the flap edge
-                int[][] studs = {{4, 4}, {6, 3}, {9, 3}, {11, 4}, {3, 6}, {12, 6}, {4, 9}, {11, 9}};
-                for (int[] s : studs) { stud(img, s[0], s[1]); }
+            case 1 -> leatherGrain(img, R);       // supple leather grain
+            case 2 -> { // studded: leather grain + a ring of brass studs round the flap
+                leatherGrain(img, R);
+                int[][] studs = {{7, 9}, {11, 6}, {16, 5}, {21, 6}, {25, 9}, {6, 14}, {26, 14}, {9, 18}, {23, 18}};
+                for (int[] s : studs) heroStud(img, s[0], s[1]);
             }
-            case 3 -> { // reinforced: riveted steel corner plates + edge band
-                plate(img, 3, 3); plate(img, 10, 3); plate(img, 3, 10); plate(img, 10, 10);
-                for (int x = 5; x <= 10; x += 2) img.setRGB(x, 4, 0xFFB8BAC2); // steel flap band
+            case 3 -> { // reinforced: riveted steel corner plates + a steel band across the flap
+                leatherGrain(img, R);
+                heroPlate(img, 5, 6); heroPlate(img, 22, 6); heroPlate(img, 5, 22); heroPlate(img, 22, 22);
+                for (int x = 10; x <= 21; x++) { // steel band
+                    if ((img.getRGB(x, 11) >>> 24) != 0) img.setRGB(x, 11, ramp(STEELR, 0.5 - (x - 15.5) * 0.02));
+                    if ((img.getRGB(x, 12) >>> 24) != 0) img.setRGB(x, 12, ramp(STEELR, 0.34));
+                }
             }
-            case 4 -> { // runed: glowing glyphs on the flap + a gem on the buckle
-                int rune = 0xFFC2ABFF, glow = 0xFFEADCFF;
-                img.setRGB(5, 4, rune); img.setRGB(5, 5, glow); img.setRGB(4, 5, rune);
-                img.setRGB(10, 4, rune); img.setRGB(10, 5, glow); img.setRGB(11, 5, rune);
-                img.setRGB(6, 12, rune); img.setRGB(9, 12, rune);
-                img.setRGB(7, 8, 0xFF9C7BE8); img.setRGB(8, 8, 0xFFCBB4FF); // gem in the buckle
+            case 4 -> { // runed: deep-dyed leather grain + glowing glyphs + a gem in the buckle
+                leatherGrain(img, R);
+                int glow = 0xFFB9A0FF, glowHi = 0xFFEADCFF;
+                int[][] g1 = {{9, 8}, {9, 9}, {9, 10}, {10, 9}, {8, 11}, {10, 11}}; // left glyph
+                int[][] g2 = {{22, 8}, {22, 9}, {22, 10}, {21, 9}, {23, 9}, {22, 11}}; // right glyph
+                for (int[] p : g1) setIf(img, p[0], p[1], glow);
+                for (int[] p : g2) setIf(img, p[0], p[1], glow);
+                setIf(img, 9, 9, glowHi); setIf(img, 22, 9, glowHi);
+                for (int[] p : new int[][]{{15, 25}, {16, 25}, {15, 26}, {16, 26}}) setIf(img, p[0], p[1], glow);
+                // gem in the buckle centre
+                img.setRGB(15, 18, 0xFF8A6BE0); img.setRGB(16, 18, 0xFFB9A0FF);
+                img.setRGB(15, 19, 0xFF6E4FC0); img.setRGB(16, 19, 0xFF9C82E8);
             }
             default -> {}
         }
-        ImageIO.write(img, "PNG", new File(BASE + "/item/" + name + ".png"));
     }
 
-    static void stud(BufferedImage img, int x, int y) {
-        img.setRGB(x, y, BRASS_LO); img.setRGB(x, y - 1, BRASS); // a raised rivet with a top glint
-        set(img, x, y - 2, BRASS_HI);
+    static void leatherGrain(BufferedImage img, int[] R) {
+        Random rnd = new Random(19);
+        for (int y = 0; y < PS; y++)
+            for (int x = 0; x < PS; x++) {
+                if ((img.getRGB(x, y) >>> 24) == 0) continue;
+                // fine horizontal grain: subtle darker creases every few rows + a touch of variation
+                int d = 0;
+                if ((y % 5 == 0) && ((x + y) % 3 != 0)) d -= 7;
+                d += (int) ((valueNoise(x, y, rnd, 6) - 0.5f) * 6);
+                img.setRGB(x, y, shade(img.getRGB(x, y), d));
+            }
     }
 
-    static void plate(BufferedImage img, int x, int y) {
-        int lo = 0xFF5C5E67, mid = 0xFF9EA0A8, hi = 0xFFD0D2D8;
-        fillRect(img, x, y, 3, 3, mid);
-        img.setRGB(x, y, hi); img.setRGB(x + 1, y, hi);
-        img.setRGB(x + 2, y + 2, lo); img.setRGB(x, y + 2, lo);
-        img.setRGB(x + 2, y, 0xFFF6E29A); // a brass rivet in the corner
+    static void heroStud(BufferedImage img, int x, int y) {
+        if ((img.getRGB(x, y) >>> 24) == 0) return;
+        img.setRGB(x, y, ramp(BRASSR, 0.7));
+        setIf(img, x, y - 1, ramp(BRASSR, 0.95)); // top glint
+        setIf(img, x + 1, y, ramp(BRASSR, 0.5));
+        setIf(img, x, y + 1, ramp(BRASSR, 0.28)); // contact shadow
+    }
+
+    static void heroPlate(BufferedImage img, int x, int y) {
+        for (int j = 0; j < 4; j++)
+            for (int i = 0; i < 4; i++) {
+                if ((img.getRGB(x + i, y + j) >>> 24) == 0) continue;
+                double v = 0.55 - i * 0.05 - j * 0.06;
+                img.setRGB(x + i, y + j, ramp(STEELR, v));
+            }
+        setIf(img, x, y, ramp(STEELR, 0.9));
+        setIf(img, x + 3, y, ramp(BRASSR, 0.85)); // a brass rivet corner
+        setIf(img, x + 3, y + 3, ramp(BRASSR, 0.7));
+    }
+
+    static void setIf(BufferedImage img, int x, int y, int c) {
+        if (x < 0 || y < 0 || x >= img.getWidth() || y >= img.getHeight()) return;
+        if ((img.getRGB(x, y) >>> 24) != 0) img.setRGB(x, y, c);
+    }
+
+    /** Darken opaque pixels that border transparency, for a clean selective 1px outline. */
+    static void outline(BufferedImage img, int col) {
+        int w = img.getWidth(), h = img.getHeight();
+        boolean[][] edge = new boolean[w][h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                if ((img.getRGB(x, y) >>> 24) == 0) continue;
+                for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nx = x + d[0], ny = y + d[1];
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h || (img.getRGB(nx, ny) >>> 24) == 0) { edge[x][y] = true; break; }
+                }
+            }
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                if (edge[x][y]) img.setRGB(x, y, blendToward(img.getRGB(x, y), col, 0.7f));
+    }
+
+    /** Blend a colour toward a target by t (keeps a hint of the surface hue in the outline). */
+    static int blendToward(int c, int t, float f) { return lerp(c, t, f); }
+
+    /** Print a warning if the opaque content isn't reasonably centred / hits the sheet edge. */
+    static void centerCheck(String name, BufferedImage img) {
+        int w = img.getWidth(), h = img.getHeight(), minX = w, minY = h, maxX = -1, maxY = -1;
+        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            if ((img.getRGB(x, y) >>> 24) > 8) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+        if (maxX < 0) return;
+        if (minX == 0 || minY == 0 || maxX == w - 1 || maxY == h - 1)
+            System.out.println("  ! " + name + " touches the sheet edge (box " + minX + "," + minY + " -> " + maxX + "," + maxY + ")");
     }
 
     // =====================================================================
@@ -220,12 +391,12 @@ public class GenTextures {
     // =====================================================================
 
     static void genTrinkets() throws Exception {
-        // Lodestone Charm: a faceted slate-blue magnetite gem on a brass cap, iron bits clinging
+        // Lodestone Charm: a dark iron-grey magnetite stone on a cord, faint violet sheen
         drawItem("lodestone_charm", LODESTONE,
-                with(base(), '1', 0xFF2B3A55, '2', 0xFF44567A, '3', 0xFF6E82AB, '4', 0xFFA7BADF));
+                with(base(), '1', 0xFF20242C, '2', 0xFF363C46, '3', 0xFF525A66, '4', 0xFF6E6E90, '5', 0xFF9A94C0));
         // Compass Rose: round brass case, cream dial, red north needle
         drawItem("compass_rose", COMPASS, base());
-        // Restock Strap: leather bandolier, brass buckle + two canvas pouches
+        // Restock Strap: a leather bandolier - bold central brass buckle + two studded pouches
         drawItem("restock_strap", RESTOCK, base());
         // Bottomless Lining: dark drawstring pouch with a violet void mouth
         drawItem("bottomless_lining", BOTTOMLESS,
@@ -242,9 +413,9 @@ public class GenTextures {
         // Soul Vial: single tall corked vial of glowing green soul-liquid + a wisp
         drawItem("soul_vial", SOULVIAL,
                 with(base(), '1', 0xFF1F6B2E, '2', 0xFF37A03F, '3', 0xFF63C85A, '4', 0xFF9CE88F));
-        // Charge Crystal: faceted amber crystal wound in copper, on a brass base
+        // Charge Crystal: cool faceted crystal wound in dark copper, on a brass mount (not a flame)
         drawItem("charge_crystal", CRYSTAL,
-                with(base(), '1', 0xFF8A4E12, '2', 0xFFC67A22, '3', 0xFFE8A23A, '4', 0xFFFBD06A));
+                with(base(), '1', 0xFF16515E, '2', 0xFF2E8CA0, '3', 0xFF5CC3D6, '4', 0xFFAEEFF7));
         // Flask Harness: a wooden rack of two round vapour flasks
         drawItem("flask_harness", FLASKS,
                 with(base(), '1', 0xFF5E3A8A, '2', 0xFF8A5CC0, '3', 0xFFB48CE0, '4', 0xFFD9C4F5));
@@ -253,19 +424,19 @@ public class GenTextures {
     //        0123456789012345
     static final String[] LODESTONE = {
         "................", // 0
-        ".......nn.......", // 1  brass ring loop
-        "......n..n......", // 2
-        "......adda......", // 3  brass cap
-        ".....143221.....", // 4  faceted magnetite gem
-        "....14433221....", // 5
-        "...144o322221...", // 6  specular glint
-        "...1443322221...", // 7
-        "...1433222221...", // 8
-        "....14322221....", // 9
-        "....13222221....", // 10
-        ".....132221.....", // 11
-        "......1221......", // 12
-        "................", // 13
+        ".......rr.......", // 1  leather cord
+        ".......rr.......", // 2
+        ".....122221.....", // 3  magnetite stone
+        "....12344421....", // 4
+        "...1234554321...", // 5  violet sheen on the top-left
+        "...1235543321...", // 6
+        "...1234433221...", // 7
+        "...1233332221...", // 8
+        "...1123322211...", // 9
+        "....11332211....", // 10
+        "....11222111....", // 11
+        ".....112211.....", // 12
+        "......1111......", // 13 base
         "................", // 14
         "................", // 15
     };
@@ -291,20 +462,20 @@ public class GenTextures {
 
     static final String[] RESTOCK = {
         "................", // 0
-        "......nAan......", // 1  brass buckle
-        "......rLLr......", // 2  strap
-        "......rLLr......", // 3
-        "......rLLr......", // 4
-        ".wCccvrLLr......", // 5  left pouch
-        ".wcacvrLLr......", // 6  brass stud
-        ".wcccvrLLr......", // 7
-        ".wvvvwrLLr......", // 8
-        "......rLLrvccCw.", // 9  right pouch
-        "......rLLrvcacw.", // 10 brass stud
-        "......rLLrvcccw.", // 11
-        "......rLLrwvvvw.", // 12
-        "......rLLr......", // 13 strap tail
-        ".......ll.......", // 14 pointed tip
+        "......rLLr......", // 1  bandolier belt
+        "...wcccccccw....", // 2  top pouch
+        "...cCvaaavCc....", // 3  flap + brass stud
+        "...wcccccccw....", // 4
+        "......rLLr......", // 5  belt
+        ".....nAAAAn.....", // 6  bold brass buckle
+        ".....nArrAn.....", // 7  frame, belt through it
+        ".....nArrAn.....", // 8
+        ".....nAAAAn.....", // 9
+        "......rLLr......", // 10 belt
+        "...wcccccccw....", // 11 bottom pouch
+        "...cCvaaavCc....", // 12 flap + brass stud
+        "...wcccccccw....", // 13
+        "......rLLr......", // 14 belt tail
         "................", // 15
     };
 
@@ -424,20 +595,20 @@ public class GenTextures {
 
     static final String[] CRYSTAL = {
         "................", // 0
-        ".......oo.......", // 1  spark at the tip
-        ".......11.......", // 2  crystal point
-        "......1431......", // 3
-        ".....144321.....", // 4
-        "....14443221....", // 5
-        "....1uUHuUu1....", // 6  copper coil band (dark wire)
-        "....14o33221....", // 7  bright core
-        "....13333221....", // 8
-        ".....1uUHu1.....", // 9  lower copper band
-        "......13221.....", // 10
-        "......1221......", // 11 crystal base point
-        "......adda......", // 12 brass mount
-        "......nnnn......", // 13
-        "................", // 14
+        ".......4........", // 1  spark at the tip
+        ".......14.......", // 2  crystal point
+        "......1442......", // 3  faceted (light left / mid right)
+        ".....134432.....", // 4
+        "....13444322....", // 5
+        "....1uUHuUu2....", // 6  dark copper wire band
+        "....13444322....", // 7
+        "....13443222....", // 8
+        ".....134322.....", // 9
+        ".....1uUHu2.....", // 10 lower copper wire band
+        "......1322......", // 11
+        ".......12.......", // 12 base point
+        "......nBBn......", // 13 brass mount
+        "......naan......", // 14
         "................", // 15
     };
 
@@ -484,23 +655,23 @@ public class GenTextures {
     // =====================================================================
 
     static void writeMontage(String path) throws Exception {
-        int scale = 14, gap = 10, cols = 6, bg = 0xFF3A3A40;
-        int cell = 16 * scale;
+        int cell = 224, gap = 10, cols = 6, bg = 0xFF3A3A40; // sprites normalise to a 224px cell
         int rows = (RENDERED.size() + cols - 1) / cols;
         int mw = cols * cell + (cols + 1) * gap, mh = rows * cell + (rows + 1) * gap;
         BufferedImage m = new BufferedImage(mw, mh, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < mh; y++) for (int x = 0; x < mw; x++) m.setRGB(x, y, bg); // flat plain field
         int i = 0;
         for (Map.Entry<String, BufferedImage> e : RENDERED.entrySet()) {
-            int cx = gap + (i % cols) * (cell + gap), cy = gap + (i / cols) * (cell + gap);
+            int cx0 = gap + (i % cols) * (cell + gap), cy0 = gap + (i / cols) * (cell + gap);
             BufferedImage s = e.getValue();
-            for (int y = 0; y < 16; y++)
-                for (int x = 0; x < 16; x++) {
+            int n = s.getWidth(), scale = Math.max(1, cell / n);
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++) {
                     int c = s.getRGB(x, y);
                     if ((c >>> 24) == 0) continue; // let the plain field show through
                     for (int dy = 0; dy < scale; dy++)
                         for (int dx = 0; dx < scale; dx++)
-                            m.setRGB(cx + x * scale + dx, cy + y * scale + dy, c);
+                            m.setRGB(cx0 + x * scale + dx, cy0 + y * scale + dy, c);
                 }
             i++;
         }
@@ -593,6 +764,12 @@ public class GenTextures {
         img.setRGB(cx, cy, BRASS_HI);
     }
 
+    /** A domed brass rivet for the 32px block brass tile. */
+    static void blockRivet(BufferedImage img, int cx, int cy) {
+        for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) set(img, cx + i, cy + j, BRASS_LO);
+        set(img, cx, cy, BRASS_HI); set(img, cx - 1, cy - 1, BRASS); set(img, cx, cy - 1, BRASS_HI);
+    }
+
     static void panel(BufferedImage img, int x, int y, int w, int h, int hi, int lo) {
         for (int j = 0; j < h; j++) {
             int c = lerp(hi, lo, j / (float) h);
@@ -601,36 +778,50 @@ public class GenTextures {
         rect(img, x, y, w, h, shade(lo, -30));
     }
 
+    /** 32x32 light near-neutral leather face for the placed block: fine grain, worn mottling,
+     *  a stitched seam and a quilted bevel. Kept light/neutral so the per-tier tint (multiply)
+     *  controls the hue. Higher-res than before so a set-down pack matches the hero item. */
     static void genBlockLeather(String path) throws Exception {
-        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int N = 32;
+        BufferedImage img = new BufferedImage(N, N, BufferedImage.TYPE_INT_ARGB);
         Random rnd = new Random(31);
-        int hi = 0xFFCDC6BA, lo = 0xFFB6B0A4;
-        for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++) {
-                int c = lerp(hi, lo, y / 16f);
-                c = shade(c, (int) ((valueNoise(x, y, rnd, 12) - 0.5f) * 18));
+        int hi = 0xFFD2CBBE, lo = 0xFFB4AEA2;
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++) {
+                int c = lerp(hi, lo, y / (float) N);
+                // fine horizontal grain creases + low-amplitude worn mottling (structured, not noise-fill)
+                int d = (int) ((valueNoise(x / 2, y, rnd, 12) - 0.5f) * 10);
+                if (y % 6 == 0 && (x + y) % 3 != 0) d -= 8;
+                if (y % 6 == 3) d += 5;
+                c = shade(c, d);
                 img.setRGB(x, y, c);
             }
-        }
-        for (int x = 1; x < 15; x += 3) img.setRGB(x, 5, STITCH);
-        for (int i = 0; i < 16; i++) {
-            img.setRGB(0, i, shade(lo, -26)); img.setRGB(15, i, shade(lo, -26));
-            img.setRGB(i, 0, shade(lo, -26)); img.setRGB(i, 15, shade(lo, -26));
+        // a stitched seam a third of the way down (groove + light stitches)
+        for (int x = 0; x < N; x++) img.setRGB(x, 10, shade(lo, -22));
+        for (int x = 1; x < N; x += 4) { img.setRGB(x, 10, STITCH); img.setRGB(x + 1, 9, shade(STITCH, -30)); }
+        // quilted bevel: light top/left, shadow bottom/right
+        for (int i = 0; i < N; i++) {
+            img.setRGB(i, 0, shade(hi, 14)); img.setRGB(0, i, shade(hi, 10));
+            img.setRGB(i, N - 1, shade(lo, -28)); img.setRGB(N - 1, i, shade(lo, -24));
         }
         ImageIO.write(img, "PNG", new File(path));
     }
 
+    /** 32x32 brushed-brass face for the placed block's buckle + straps: vertical sheen + rivets. */
     static void genBlockBrass(String path) throws Exception {
-        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        int N = 32;
+        BufferedImage img = new BufferedImage(N, N, BufferedImage.TYPE_INT_ARGB);
         Random rnd = new Random(37);
-        for (int y = 0; y < 16; y++) {
-            for (int x = 0; x < 16; x++) {
-                int c = lerp(BRASS_HI, BRASS_LO, y / 16f);
-                c = shade(c, (int) ((valueNoise(x, y, rnd, 15) - 0.5f) * 14));
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++) {
+                // vertical brushed sheen: a bright column toward the left third
+                double sheen = 1 - Math.min(1, Math.abs(x - N * 0.38) / (N * 0.5));
+                int c = lerp(BRASS_LO, BRASS_HI, (float) (0.35 + 0.5 * sheen));
+                c = shade(c, (int) ((valueNoise(x, y / 2, rnd, 15) - 0.5f) * 8));
                 img.setRGB(x, y, c);
             }
-        }
-        rivet(img, 4, 4); rivet(img, 11, 11);
+        for (int i = 0; i < N; i++) { img.setRGB(0, i, BRASS_LO); img.setRGB(N - 1, i, shade(BRASS_LO, -18)); }
+        blockRivet(img, 7, 7); blockRivet(img, 24, 24); blockRivet(img, 24, 7); blockRivet(img, 7, 24);
         ImageIO.write(img, "PNG", new File(path));
     }
 

@@ -19,6 +19,27 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
 > first build); bump/label at publish. 23 GameTests green; jar builds clean.
 
+**2026-07-23 art pass 3 (hero packs) — DONE & verified in-game.** Alex asked for hero art on
+the 5 packs plus cleanup on 3 weak trinkets.
+- **The 5 packs are now 32×32 hero sprites**, rendered by a form-shading model in
+  `tools/GenTextures.java` (`heroPack`): a rounded body + draped flap dome lit top-left, AO in
+  the flap seam, a rim light, a stitched hem, a brass buckle with a specular glint, a strap
+  with thickness, side pockets and a handle. Per-tier material story: canvas weave+twine →
+  leather grain+buckle → brass studs → riveted steel plates+band → runed glyphs+gem. Item
+  model is `item/generated`, which renders a 32×32 sprite crisply in-slot/in-hand.
+- **The placed-block faces (`pack_block.png`, `pack_block_brass.png`) went to 32×32** with real
+  leather grain + a stitched seam + a bevel, and brushed brass + rivets, so a set-down pack
+  matches the held item. (Per-tier trim on the *block* is still just the tint — studs/plates/
+  runes on the block would need per-tier block textures + models; noted as a follow-up.)
+- **3 trinkets cleaned:** Restock Strap → bold central brass buckle + two studded pouches;
+  Charge Crystal → cool-blue faceted crystal wound in dark copper on a brass mount (kills the
+  candle-flame read); Lodestone Charm → dark magnetite stone on a cord, no antennae. NOTE: the
+  energy *gauge* on the rail is still amber while the crystal *icon* is now blue — a deliberate
+  readability call; unify if Alex prefers.
+- Verified in-game (`runClient -Pautoshot`, single clean run): hero packs in-hand, in the
+  hotbar/inventory row, the GUI host slot, and three placed blocks in-world; all 26×29-centred,
+  no edge touch; 23 GameTests green.
+
 **2026-07-23 art pass 2 — DONE & verified in-game.** Alex playtested art pass 1 and called
 two shots: sprites sitting low / bleeding off the slot, and art that was "okay, not blown
 away." Both actioned.
