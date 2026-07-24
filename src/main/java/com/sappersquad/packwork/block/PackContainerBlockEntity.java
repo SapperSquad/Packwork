@@ -19,9 +19,10 @@ import net.minecraft.world.level.block.state.BlockState;
  * the fluid/XP/energy stores - so placing and breaking is a lossless move of that one
  * stack, never a re-serialisation that could drop or dupe a field.
  *
- * <p>Only the tier is synced to the client (for the tinted block render); the full stack
- * stays server-side and reaches an open GUI through the menu's own synced host slot, so a
- * 256-slot pack never floods block updates.
+ * <p>The client render comes from the {@code tier} blockstate property (per-tier models +
+ * textures), not from this entity, so the full stack stays server-side and reaches an open GUI
+ * through the menu's own synced host slot - a 256-slot pack never floods block updates. The
+ * tier is still tracked here for the server-side GUI-open packet and drops.
  */
 public class PackContainerBlockEntity extends BlockEntity {
 
@@ -37,7 +38,7 @@ public class PackContainerBlockEntity extends BlockEntity {
         return packStack;
     }
 
-    /** Adopt a pack stack (on placement) or replace it. Re-syncs the tinted render + caps. */
+    /** Adopt a pack stack (on placement) or replace it. Keeps the per-tier render + caps in step. */
     public void setPackStack(ItemStack stack) {
         this.packStack = stack;
         this.tier = PackItem.tierOf(stack);
@@ -45,7 +46,15 @@ public class PackContainerBlockEntity extends BlockEntity {
         if (level != null) {
             invalidateCapabilities();
             if (!level.isClientSide) {
-                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+                BlockState st = getBlockState();
+                // Keep the rendered tier (a blockstate property) in step with the stored pack.
+                // On normal placement getStateForPlacement already set it, so this is a no-op; it
+                // covers a stack set AFTER a bare placement (test harness) or a whole-pack swap.
+                if (st.hasProperty(PackContainerBlock.TIER) && st.getValue(PackContainerBlock.TIER) != tier) {
+                    level.setBlock(worldPosition, st.setValue(PackContainerBlock.TIER, tier), 3);
+                } else {
+                    level.sendBlockUpdated(worldPosition, st, st, 3);
+                }
             }
         }
     }

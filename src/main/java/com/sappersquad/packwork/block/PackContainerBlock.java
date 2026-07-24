@@ -1,7 +1,9 @@
 package com.sappersquad.packwork.block;
 
 import com.mojang.serialization.MapCodec;
+import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.pack.PackMenu;
+import com.sappersquad.packwork.pack.PackTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -22,6 +24,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
@@ -41,13 +44,17 @@ public class PackContainerBlock extends BaseEntityBlock {
 
     public static final MapCodec<PackContainerBlock> CODEC = simpleCodec(PackContainerBlock::new);
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    /** The material tier, set from the placed pack item so per-tier models/textures resolve
+     *  statically in the world (studs/plates/runes). Contents still live on the block entity;
+     *  this is render state only and never feeds the drop (see {@link #getDrops}). */
+    public static final EnumProperty<PackTier> TIER = EnumProperty.create("tier", PackTier.class);
 
     // A pack resting on the ground: a squat box, not a full cube.
     private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 13, 14);
 
     public PackContainerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(TIER, PackTier.LEATHER));
     }
 
     @Override
@@ -57,13 +64,16 @@ public class PackContainerBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, TIER);
     }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
-        // Front (the buckle/flap face) turns to face whoever placed it.
-        return defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+        // Front (the buckle/flap face) turns to face whoever placed it; the tier comes from the
+        // pack being set down, so the placed model shows that tier's trim.
+        return defaultBlockState()
+                .setValue(FACING, ctx.getHorizontalDirection().getOpposite())
+                .setValue(TIER, PackItem.tierOf(ctx.getItemInHand()));
     }
 
     @Override

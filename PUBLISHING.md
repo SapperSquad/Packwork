@@ -72,8 +72,9 @@ you through sorting, trinkets, tiers, and the stores, in-game.
 
 ## Set it down, pipe it up
 
-Sneak-right-click to stand a pack in the world — leather and brass, tinted for its tier,
-facing you. Break it and you get the pack back with everything still inside. A placed pack
+Sneak-right-click to stand a pack in the world — leather and brass, wearing its tier's own
+trim (twine, studs, steel plates, or glowing runes), facing you. Break it and you get the
+pack back with everything still inside. A placed pack
 speaks NeoForge's own item, fluid, and energy capabilities, so hoppers, pipes, and cables
 feed it with no bridge block — and dropped-in items auto-file into the right compartment,
 because the sorting is virtual over one store.
@@ -103,7 +104,7 @@ way too.*
 | `packwork_combat.png` (real shot) | One compartment: weapons and armor, claimed automatically. |
 | `packwork_search.png` (real shot) | Search "iron" — flattened to just what matches. |
 | `packwork_handbook.png` (real shot) | The Outfitter's Handbook, open to "The Pack". |
-| `packwork_placed_world.png` (real shot) | Three tier-tinted packs set down in the world. |
+| `packwork_placed_world.png` (real shot) | All five per-tier packs set down in the world, each wearing its trim. |
 | `card_trinkets.png` (TODO) | The working fittings. |
 
 **Art carrying version-specific claims** (trinket counts, resource-store list, MC

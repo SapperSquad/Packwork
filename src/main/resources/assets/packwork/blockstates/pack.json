@@ -1,8 +1,29 @@
 {
+  "__comment": "facing rotates the pack; tier picks the per-tier model so studs/plates/runes carry into the world. Tier is set from the placed pack item (PackContainerBlock.getStateForPlacement); contents live on the block entity.",
   "variants": {
-    "facing=north": { "model": "packwork:block/pack" },
-    "facing=east":  { "model": "packwork:block/pack", "y": 90 },
-    "facing=south": { "model": "packwork:block/pack", "y": 180 },
-    "facing=west":  { "model": "packwork:block/pack", "y": 270 }
+    "facing=north,tier=canvas": { "model": "packwork:block/pack_canvas" },
+    "facing=east,tier=canvas":  { "model": "packwork:block/pack_canvas", "y": 90 },
+    "facing=south,tier=canvas": { "model": "packwork:block/pack_canvas", "y": 180 },
+    "facing=west,tier=canvas":  { "model": "packwork:block/pack_canvas", "y": 270 },
+
+    "facing=north,tier=leather": { "model": "packwork:block/pack_leather" },
+    "facing=east,tier=leather":  { "model": "packwork:block/pack_leather", "y": 90 },
+    "facing=south,tier=leather": { "model": "packwork:block/pack_leather", "y": 180 },
+    "facing=west,tier=leather":  { "model": "packwork:block/pack_leather", "y": 270 },
+
+    "facing=north,tier=studded": { "model": "packwork:block/pack_studded" },
+    "facing=east,tier=studded":  { "model": "packwork:block/pack_studded", "y": 90 },
+    "facing=south,tier=studded": { "model": "packwork:block/pack_studded", "y": 180 },
+    "facing=west,tier=studded":  { "model": "packwork:block/pack_studded", "y": 270 },
+
+    "facing=north,tier=reinforced": { "model": "packwork:block/pack_reinforced" },
+    "facing=east,tier=reinforced":  { "model": "packwork:block/pack_reinforced", "y": 90 },
+    "facing=south,tier=reinforced": { "model": "packwork:block/pack_reinforced", "y": 180 },
+    "facing=west,tier=reinforced":  { "model": "packwork:block/pack_reinforced", "y": 270 },
+
+    "facing=north,tier=runed": { "model": "packwork:block/pack_runed" },
+    "facing=east,tier=runed":  { "model": "packwork:block/pack_runed", "y": 90 },
+    "facing=south,tier=runed": { "model": "packwork:block/pack_runed", "y": 180 },
+    "facing=west,tier=runed":  { "model": "packwork:block/pack_runed", "y": 270 }
   }
 }

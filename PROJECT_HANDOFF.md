@@ -37,12 +37,34 @@ keeping every fidelity gain from pass 3.
   energy gauge in `PackScreen.drawEnergyGauge` went from amber to the crystal's cool blue
   (`0xFF3EA9C4` fill on `0xFF15323B` glass), so the icon and the gauge agree; still distinct
   from the deeper water-blue fluid gauge.
-- **Placed block:** the block MODEL is already boxy (body + draped flap + handle + buckle +
-  straps) and its leather/brass faces + per-tier tint match the item's material language, so a
-  set-down pack matches the held one. **Per-tier block trim (studs/plates/runes carried into the
-  world) is still the noted follow-up** — it needs per-tier block models keyed off a tier
-  blockstate property, which the block deliberately doesn't carry (tier is BE-synced light only).
+- **Placed block:** the block MODEL is boxy (body + draped flap + handle + buckle + straps) and
+  its leather/brass faces + per-tier tint matched the item's material language. **Per-tier block
+  trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
+
+**2026-07-24 art pass 5 (per-tier placed-block trim) — DONE & verified in-game.** The deferred
+follow-up: a set-down pack now shows its tier's detailing in the world, not just a tinted base.
+- **A `tier` `EnumProperty<PackTier>` blockstate** (5 values) drives per-tier models + textures
+  statically. It's set from the placed pack item in `PackContainerBlock.getStateForPlacement`
+  (and re-synced in `PackContainerBlockEntity.setPackStack` for the test/stack-swap path).
+  **Contents still live on the block entity**; the blockstate is render-only and never feeds the
+  drop, so the place↔break round-trip is byte-for-byte lossless and the break returns the
+  right-tier item exactly as before.
+- **Per-tier faces, from `tools/GenTextures.java` (shared `TIER_RAMP`):** each tier gets a
+  colour-baked `pack_<tier>_leather` (body/sides/top) + a trimmed `pack_<tier>_front` (the flap
+  face) carrying the item ladder — canvas weave+twine → leather grain → **brass stud ring** →
+  **riveted steel corner plates + band** → **glowing runed glyphs + gem**. Trim is kept clear of
+  the 3D brass buckle/straps. One shared `pack_shape` model holds the geometry; five tiny child
+  models (`pack_<tier>`) swap textures; a 20-variant blockstate (facing × tier) picks them. The
+  old block colour handler + neutral `pack_block.png` were removed (colour is baked now).
+- **Runed glow:** the Runed tier emits block light (`lightLevel` on the `tier` property) and its
+  glyphs are bright/high-contrast, so a set-down Runed pack visibly glows.
+- **Verified in-game** (`runClient -Pautoshot`): all five tiers placed side by side show distinct
+  trim; the placed-pack GUI still opens/binds (title "Studded Pack", contents + gauges); a
+  break/replace check breaks the Runed pack (drop logged as `packwork:runed_pack`) and re-places a
+  Leather pack, whose render retracks with no stale trim. **24 GameTests green** (added
+  `placedTierDrivesBlockstateAndDrop`: the render tier tracks the pack, the drop stays right-tier,
+  a swap retracks). `compileJava` clean; version stays **0.1.0**.
 
 **2026-07-23 art pass 3 (hero packs) — DONE & verified in-game.** SapperSquad asked for hero art on
 the 5 packs plus cleanup on 3 weak trinkets.

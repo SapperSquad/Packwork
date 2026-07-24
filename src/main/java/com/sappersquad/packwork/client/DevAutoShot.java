@@ -40,6 +40,7 @@ public final class DevAutoShot {
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
         OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
+        WBREAK, SHOOT_BROKEN, WREPLACE, SHOOT_REPLACED,
         WLINEUP, SHOOT_LINEUP, SHOOT_INHAND, DONE
     }
 
@@ -48,6 +49,7 @@ public final class DevAutoShot {
     private static int wait = 0;
     private static String customTabId = "custom:0";
     private static net.minecraft.core.BlockPos placedMiddle = null;
+    private static net.minecraft.core.BlockPos placedLast = null;
 
     @SubscribeEvent
     public static void onTick(ClientTickEvent.Post event) {
@@ -189,13 +191,26 @@ public final class DevAutoShot {
             }
             case WPLACE -> { if (++wait > 30) phase = Phase.SHOOT_WORLD; } // let chunks re-render
             case SHOOT_WORLD -> {
-                grab(mc, "packwork_placed_world"); // three tier-tinted packs on the ground
+                grab(mc, "packwork_placed_world"); // all five per-tier packs on the ground
                 openBlock(mc);
                 phase = Phase.WBLOCK; wait = 0;
             }
             case WBLOCK -> { if (++wait > 15) phase = Phase.SHOOT_BLOCK; } // menu opens + syncs
             case SHOOT_BLOCK -> {
                 grab(mc, "packwork_placed_gui"); // the SAME organizer, opened from the block
+                mc.setScreen(null);              // close the GUI, back to the world row
+                breakPlacedPack(mc);             // break the Runed pack - logs the RIGHT-tier drop
+                phase = Phase.WBREAK; wait = 0;
+            }
+            case WBREAK -> { if (++wait > 24) phase = Phase.SHOOT_BROKEN; } // let the chunk re-render
+            case SHOOT_BROKEN -> {
+                grab(mc, "packwork_broken");     // a gap where the Runed pack was (it was returned)
+                replacePlacedPack(mc);           // set a Leather pack down in the same spot
+                phase = Phase.WREPLACE; wait = 0;
+            }
+            case WREPLACE -> { if (++wait > 24) phase = Phase.SHOOT_REPLACED; }
+            case SHOOT_REPLACED -> {
+                grab(mc, "packwork_replaced");   // a Leather pack now renders there - render retracks
                 giveLineup(mc);                  // hand over the whole item set for a lineup shot
                 phase = Phase.WLINEUP; wait = 0;
             }
@@ -298,7 +313,7 @@ public final class DevAutoShot {
         });
     }
 
-    /** Set three tier-tinted pack blocks on a stone-brick pad and stand the player back to view them. */
+    /** Set all five per-tier pack blocks on a stone-brick pad and stand the player back to view them. */
     private static void placeBlocks(Minecraft mc) {
         var server = mc.getSingleplayerServer();
         if (server == null) return;
@@ -310,40 +325,74 @@ public final class DevAutoShot {
             net.minecraft.core.BlockPos base = sp.blockPosition();
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
             var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
-            for (int dx = -2; dx <= 3; dx++)
+            for (int dx = -2; dx <= 7; dx++)
                 for (int dz = -3; dz <= 6; dz++) {
                     for (int dy = 0; dy <= 4; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
                     lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
                 }
-            com.sappersquad.packwork.pack.PackTier[] tiers = {
-                    com.sappersquad.packwork.pack.PackTier.LEATHER,
-                    com.sappersquad.packwork.pack.PackTier.REINFORCED,
-                    com.sappersquad.packwork.pack.PackTier.RUNED };
-            for (int i = 0; i < 3; i++) {
+            // one of every tier, in ladder order, so the per-tier trim can be compared side by side
+            com.sappersquad.packwork.pack.PackTier[] tiers =
+                    com.sappersquad.packwork.pack.PackTier.values();
+            for (int i = 0; i < tiers.length; i++) {
                 net.minecraft.core.BlockPos bp = base.offset(i, 0, 4);
-                lvl.setBlock(bp, com.sappersquad.packwork.reg.ModBlocks.PACK.get().defaultBlockState()
-                        .setValue(com.sappersquad.packwork.block.PackContainerBlock.FACING,
-                                net.minecraft.core.Direction.NORTH), 3);
-                if (lvl.getBlockEntity(bp) instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
-                    ItemStack pk = new ItemStack(ModItems.pack(tiers[i]).get());
-                    if (i == 1) { // give the middle pack a full loadout so its opened GUI shows content
-                        var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(() -> pk, tiers[i]);
-                        sockets.insertItem(0, new ItemStack(ModItems.trinket(
-                                com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
-                        pk.set(com.sappersquad.packwork.reg.ModComponents.PACK_ENERGY.get(),
-                                com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pk) / 2);
-                        var st = new com.sappersquad.packwork.pack.PackInventory(pk, tiers[i]);
-                        st.insertItem(0, new ItemStack(Items.DIAMOND, 20), false);
-                        st.insertItem(1, new ItemStack(Items.IRON_INGOT, 40), false);
-                        st.insertItem(2, new ItemStack(Items.BREAD, 32), false);
-                        placedMiddle = bp;
-                    }
-                    be.setPackStack(pk);
-                }
+                placePackBlock(lvl, bp, tiers[i], i == 2); // give the middle (Studded) a loadout for the GUI shot
+                if (i == 2) placedMiddle = bp;
+                if (i == tiers.length - 1) placedLast = bp; // the Runed one, for the break/replace check
             }
-            // stand back on the pad and look at the row
-            sp.connection.teleport(base.getX() + 1.5, base.getY(), base.getZ() - 2.5, 0f, 12f);
-            Packwork.LOGGER.info("[autoshot] placed pack blocks");
+            // stand back and centre the five-wide row
+            sp.connection.teleport(base.getX() + 2.5, base.getY(), base.getZ() - 2.5, 0f, 14f);
+            Packwork.LOGGER.info("[autoshot] placed five per-tier pack blocks");
+        });
+    }
+
+    /** Set one pack block of the given tier down, optionally with a small loadout for the GUI shot. */
+    private static void placePackBlock(net.minecraft.server.level.ServerLevel lvl,
+                                       net.minecraft.core.BlockPos bp,
+                                       com.sappersquad.packwork.pack.PackTier tier, boolean loadout) {
+        lvl.setBlock(bp, com.sappersquad.packwork.reg.ModBlocks.PACK.get().defaultBlockState()
+                .setValue(com.sappersquad.packwork.block.PackContainerBlock.FACING, net.minecraft.core.Direction.NORTH)
+                .setValue(com.sappersquad.packwork.block.PackContainerBlock.TIER, tier), 3);
+        if (!(lvl.getBlockEntity(bp) instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be)) return;
+        ItemStack pk = new ItemStack(ModItems.pack(tier).get());
+        if (loadout) {
+            var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(() -> pk, tier);
+            sockets.insertItem(0, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
+            pk.set(com.sappersquad.packwork.reg.ModComponents.PACK_ENERGY.get(),
+                    com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pk) / 2);
+            var st = new com.sappersquad.packwork.pack.PackInventory(pk, tier);
+            st.insertItem(0, new ItemStack(Items.DIAMOND, 20), false);
+            st.insertItem(1, new ItemStack(Items.IRON_INGOT, 40), false);
+            st.insertItem(2, new ItemStack(Items.BREAD, 32), false);
+        }
+        be.setPackStack(pk);
+    }
+
+    /** Break the placed Runed pack the way the world does - via the block's own drops - and log the
+     *  returned item's tier, proving break hands back the RIGHT tier, then clear the block. */
+    private static void breakPlacedPack(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || placedLast == null) return;
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).serverLevel();
+            var state = lvl.getBlockState(placedLast);
+            var be = lvl.getBlockEntity(placedLast);
+            var drops = net.minecraft.world.level.block.Block.getDrops(state, lvl, placedLast, be);
+            String dropped = drops.isEmpty() ? "NOTHING" : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getKey(drops.get(0).getItem()).toString();
+            Packwork.LOGGER.info("[autoshot] broke the Runed placed pack -> drop is {}", dropped);
+            lvl.setBlock(placedLast, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+        });
+    }
+
+    /** Set a Leather pack down where the Runed one was, to show the render retracks to the new tier. */
+    private static void replacePlacedPack(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || placedLast == null) return;
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).serverLevel();
+            placePackBlock(lvl, placedLast, com.sappersquad.packwork.pack.PackTier.LEATHER, false);
+            Packwork.LOGGER.info("[autoshot] re-placed a Leather pack in the gap");
         });
     }
 

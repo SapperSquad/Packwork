@@ -55,8 +55,9 @@ and trinkets straight up — a craft never eats what's inside.
 ## Set it down
 
 Sneak-right-click a block face to **stand the pack in the world** — it sits there as a
-leather-and-brass pack, tinted for its tier and facing you. Break it (or middle-click to
-pick it up) and you get the pack item back with every last thing still inside — contents,
+leather-and-brass pack facing you, wearing its tier's own trim (canvas twine, brass studs,
+riveted steel plates, or glowing runes; a Runed pack even glows). Break it (or middle-click
+to pick it up) and you get the pack item back with every last thing still inside — contents,
 layout, trinkets, and any fluid, charge, or XP. Right-click a placed pack to open the same
 tabbed organizer.
 

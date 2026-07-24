@@ -395,6 +395,41 @@ public class PackworkGameTests {
     }
 
     /**
+     * The placed pack's render tier (a blockstate property, driving per-tier models/textures)
+     * tracks the pack it holds, and the break still hands back the RIGHT-tier item. Proves the
+     * per-tier block trim can never desync from, or corrupt, the stored pack: the blockstate is
+     * render-only, the drop comes from the block entity's stack.
+     */
+    @GameTest(template = "empty")
+    public static void placedTierDrivesBlockstateAndDrop(GameTestHelper helper) {
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+        var world = helper.absolutePos(p);
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get()); // bare place = default (leather)
+        var be = (com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p);
+
+        // adopt a Runed pack: the blockstate tier must follow so the runed model renders
+        be.setPackStack(new ItemStack(ModItems.pack(PackTier.RUNED).get()));
+        net.minecraft.world.level.block.state.BlockState st = helper.getLevel().getBlockState(world);
+        helper.assertTrue(st.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.RUNED,
+                "the placed block's render tier follows the pack it holds (runed)");
+
+        // the break drop is the RIGHT-tier pack, read from the block entity - not the blockstate
+        var drops = net.minecraft.world.level.block.Block.getDrops(st, helper.getLevel(), world, be);
+        helper.assertTrue(drops.size() == 1 && drops.get(0).getItem() == ModItems.pack(PackTier.RUNED).get(),
+                "breaking a runed placed pack returns a Runed pack, count " + drops.size());
+
+        // swap the whole pack to a different tier: the render tier retracks, no stale trim, no dupe
+        be.setPackStack(new ItemStack(ModItems.pack(PackTier.CANVAS).get()));
+        st = helper.getLevel().getBlockState(world);
+        helper.assertTrue(st.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.CANVAS,
+                "the render tier retracks a whole-pack swap (canvas)");
+        var canvasDrops = net.minecraft.world.level.block.Block.getDrops(st, helper.getLevel(), world, be);
+        helper.assertTrue(canvasDrops.size() == 1 && canvasDrops.get(0).getItem() == ModItems.pack(PackTier.CANVAS).get(),
+                "and now breaks into a Canvas pack");
+        helper.succeed();
+    }
+
+    /**
      * The correctness-critical invariant: placing a pack and breaking it round-trips EVERY
      * field - items, trinkets, layout, and each resource store - byte for byte, with nothing
      * duplicated or dropped. (The block-entity holds the pack stack itself, so the drop is

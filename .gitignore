@@ -43,6 +43,7 @@ tools/work/
 # regenerable art-inspection montage + small-size preview (rebuilt by `java tools/GenTextures.java`)
 tools/sprite_montage.png
 tools/pack_small_preview.png
+tools/block_preview.png
 
 ### Packwork dev harness ###
 # transient launch logs from the runClient/-Pautoshot screenshot harness
