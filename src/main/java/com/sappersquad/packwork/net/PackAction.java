@@ -48,7 +48,9 @@ public enum PackAction {
      *  Requires a Quill &amp; Ledger fitted (the rule editor is its whole job). */
     ADD_TAB_RULE,
     /** s1 = custom tab id, arg = index into the tab's stored rule list. Ledger-gated too. */
-    REMOVE_TAB_RULE;
+    REMOVE_TAB_RULE,
+    /** s1 = tab id: flip that compartment between Tidy (auto-arranged) and Keep-my-layout. */
+    TOGGLE_TAB_MODE;
 
     private static final PackAction[] VALUES = values();
 

@@ -49,6 +49,9 @@ no rule wanted, so nothing ever disappears.
   ribbon, and beats every rule.
 - **Tidy Up, search, flatten** — merge and re-sort with one button, find anything across
   every tab, or collapse it all into one grid when you just want to rummage.
+- **Your layout, if you want it** — flip any compartment to *keep my layout* and items
+  stay in the exact cells you drop them; new arrivals fill the gaps, and Tidy Up still
+  re-sorts once when you ask.
 
 ## One pack, many fittings
 

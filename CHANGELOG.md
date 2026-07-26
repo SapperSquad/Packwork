@@ -28,6 +28,18 @@ All notable changes, newest first. Dates are the suite's working dates.
   note both ways, and the tooltip says what pinning *means* in plain words: "Keep in this
   tab — auto-sort won't move it."
 
+### Added — every compartment chooses: tidy, or keep my layout
+- **A per-compartment arrangement switch**, under the grid by the page count. TIDY is the
+  pack as you know it — the compartment arranges itself. Flip it to **KEEP MY LAYOUT** and
+  items stay in the exact cells you drop them: lay your tools out your way and they're
+  still there after a relog, after a trip, after a hopper tops the pack up — new arrivals
+  quietly fill the gaps instead of reshuffling your work. **Tidy Up still works as a
+  one-shot re-sort**; the sorted order just becomes your new starting layout. Flip back
+  and the pack takes over again.
+- Under the hood the arrangement is pure view — every item still lives exactly once in the
+  pack's one store, so a kept layout can never dupe or lose anything, and it rides the
+  pack through drops, placements, and upgrades like everything else.
+
 ### Changed — the Quill & Ledger got a real job
 - **Stamps just work now.** Stamp a custom compartment with a pickaxe and it gathers your
   tools; stamp it with bread and it gathers food — no fitting required. The stamp was
