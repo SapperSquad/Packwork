@@ -42,6 +42,31 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
+**2026-07-26 playtest wave 4 (in progress) — JEI real recipes + legible pinning.** Alex's
+live-client playtest called four things; the first two are landed. 42 GameTests green.
+
+1. **JEI renders the pack ladder as REAL recipes (bug).** The compat plugin only registered
+   info pages, so "how do I make each pack" showed lore. `PackworkJeiPlugin` now registers an
+   `ICraftingCategoryExtension<PackUpgradeRecipe>` (via `registerVanillaCategoryExtensions`,
+   verified against the pinned JEI 19.21.1.312 API jar): previous-tier pack + material cells
+   in, next pack out, shapeless-marked, and the result's tooltip notes that contents/layout/
+   trinkets/name/stores all carry up. Trinket + handbook + Canvas recipes are plain JSONs and
+   always rendered. Info pages stay as supplements. **Found under this: the upgrade could be
+   UNDERPAID** — `matches()` summed item counts but vanilla crafting consumes one item per
+   grid cell (`ResultSlot.onTake`), so 4 shells stacked in one cell bought the craft for 1.
+   Materials now count per CELL, exact (`found[m] == count`), `canCraftInDimensions` demands
+   1 + total cells, and the JEI layout is literally the gesture. Gametests updated (spread
+   inputs; a stacked input is pinned as NOT matching).
+2. **Pinning is legible (Alex: "I don't understand what it means").** Three layers:
+   (a) tooltip copy in plain words ("[P] Keep in this tab — auto-sort won't move it");
+   (b) feedback — a stitched parchment note over the panel names the tab on every pin/unpin;
+   (c) the natural gesture — placing an item into a tab its rules would NOT route it to
+   auto-pins it there. Mechanism: `PackViewSlot.setByPlayer` (the one hook vanilla fires only
+   for the player's own hand — place/merge/swap, verified in the decompiled sources) records
+   the placement; `PackMenu.clicked` flushes it AFTER the click resolves (rebinding mid-click
+   would fight vanilla's bookkeeping) and applies the pin identically on both sides — no new
+   packet. Handbook + README/PUBLISHING copy updated. Gametest `droppingIntoForeignTabAutoPins`.
+
 **2026-07-25 playtest wave 3 — DEPTH, the recipe chain, the Dragonhide tier, the Recipe
 Ledger.** Alex's four asks, all landed. 41 GameTests green; version stays **0.1.0**.
 

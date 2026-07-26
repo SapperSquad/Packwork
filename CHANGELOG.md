@@ -4,6 +4,30 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Fixed — JEI shows the real recipes
+- **"How do I make each pack" is a recipe again, not lore.** The tier-upgrade craft is a
+  custom recipe, and JEI was never taught to draw it — every pack above Canvas showed only
+  its info page. Packwork now hands JEI the real layout in the standard crafting category:
+  the previous tier's pack plus its materials in, the next pack out, marked shapeless, with
+  the carries-everything-up behaviour spelled out on the result's tooltip. Canvas, every
+  trinket, and the handbook were plain recipes all along and render as ever; the info pages
+  stay on as supplements.
+- **The upgrade can't be underpaid anymore.** Crafting consumes exactly one item per grid
+  cell when you take the result, but the upgrade recipe was counting item *totals* — so a
+  stack of four shulker shells in ONE cell matched, and the craft quietly charged you one.
+  Materials now count per CELL: spread them out, one per cell, like every vanilla recipe —
+  which is exactly the layout JEI draws.
+
+### Changed — pinning you can read
+- **Drop an item into a tab and it stays there.** Putting an item into a compartment its
+  rules wouldn't send it to now pins it on the spot — no more dropping bread into
+  Valuables and watching the sort snatch it back. A stitched parchment note says what
+  happened ("Pinned Bread to Ores & Valuables — auto-sort won't move it") and the red
+  ribbon appears immediately. Dropping an item where it already belongs pins nothing.
+- **P still works, and now it talks back.** The hover-and-press-P toggle shows the same
+  note both ways, and the tooltip says what pinning *means* in plain words: "Keep in this
+  tab — auto-sort won't move it."
+
 ### Added — deep slots (the headline)
 - **Every tier now deepens every slot.** A slot holds one vanilla stack per tier step: Canvas
   64 of a common item, Leather 128, Studded 192, Reinforced 256, Runed 320, Dragonhide 384 —

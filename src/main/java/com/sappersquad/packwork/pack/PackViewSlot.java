@@ -26,15 +26,31 @@ public class PackViewSlot extends Slot {
     private static final Container EMPTY_INV = new SimpleContainer(0);
 
     private final PackInventory handler;
+    @Nullable
+    private final PackMenu menu; // notified of player placements (auto-pin, kept layouts)
     private int backingIndex = -1;
     private boolean active = false;
 
     @Nullable
     private ItemStack cachedReturnedStack = null;
 
-    public PackViewSlot(PackInventory handler, int x, int y) {
+    public PackViewSlot(PackInventory handler, @Nullable PackMenu menu, int x, int y) {
         super(EMPTY_INV, 0, x, y);
         this.handler = handler;
+        this.menu = menu;
+    }
+
+    /**
+     * The one hook vanilla fires for a PLAYER's own hand on this slot - {@code safeInsert}
+     * (place and merge), the swap path, and the pickup-to-empty in {@code tryRemove} all
+     * route through here, while programmatic writes use {@link #set} directly. The menu
+     * uses it for the gestures that must read the player's intent: dropping an item into a
+     * tab it wouldn't sort to (auto-pin), and laying items out in a kept-layout tab.
+     */
+    @Override
+    public void setByPlayer(ItemStack stack, ItemStack previous) {
+        super.setByPlayer(stack, previous);
+        if (menu != null) menu.onPlayerSetViewSlot(this, stack);
     }
 
     /** Point this grid cell at a backing slot (or deactivate it). */

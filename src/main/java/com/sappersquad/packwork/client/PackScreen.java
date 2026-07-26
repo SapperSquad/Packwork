@@ -50,6 +50,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private EditBox renameBox;
     private boolean renaming = false;
 
+    // a stitched parchment note confirming a pin/unpin ("Pinned Bread to Ores...")
+    private Component pinNote = null;
+    private int pinNoteTicks = 0;
+
     // ---- the Recipe Ledger: the Tinker's Kit browser (pure client; items move server-side only) ----
     private static final int BR_W = 96;
     private static final int BR_COLS = 4;
@@ -116,6 +120,32 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         });
         addWidget(browserSearch);
         repositionForBrowser();   // a resize re-inits; keep the ledger shift if it's open
+
+        // dropping an item into a tab it wouldn't sort to auto-pins it there; say so
+        menu.setPinToast((stack, tabName) -> showPinNote(
+                Component.translatable("packwork.ui.pinned_note", stack.getHoverName(), tabName)));
+    }
+
+    /** Raise the pin note over the panel for a few seconds. */
+    private void showPinNote(Component note) {
+        this.pinNote = note;
+        this.pinNoteTicks = 70;
+    }
+
+    /** The parchment pin note, centred over the seam between the grid and your pockets. */
+    private void drawPinNote(GuiGraphics g) {
+        if (pinNote == null) return;
+        int w = this.font.width(pinNote) + 12;
+        int x = leftPos + (imageWidth - w) / 2;
+        int y = topPos + 141;
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 350); // above items, ribbons, and the page nav
+        g.fill(x, y, x + w, y + 13, 0xFFC8B892);            // parchment
+        g.fill(x, y, x + w, y + 1, 0xFFE2D6AE);             // lit top edge
+        g.fill(x, y + 12, x + w, y + 13, 0xFFA89A74);       // shaded bottom edge
+        g.renderOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
+        g.drawString(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
+        g.pose().popPose();
     }
 
     /**
@@ -143,6 +173,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // the menu opens; recompute the tab view each tick so the grid reflects the
         // live contents (and re-sorts itself as items move).
         menu.rebuildView();
+
+        if (pinNoteTicks > 0 && --pinNoteTicks == 0) pinNote = null;
 
         // The ledger lives and dies with the tool roll; refresh its list as stock shifts.
         hasKitCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
@@ -538,6 +570,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         drawPageNav(g, mouseX, mouseY);
         drawStoreGauges(g);
         drawBrowser(g, mouseX, mouseY);
+        drawPinNote(g);
         drawHoverTooltips(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
     }
@@ -1014,10 +1047,17 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // Pin/unpin the hovered item to the active tab. Rebindable keybind (default P), so it
         // reads the mapping rather than a hardcoded key and shows up in vanilla Controls.
         if (PackKeyMappings.PIN.matches(key, scan) && overGrid && !menu.flatten()) {
-            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem());
+            ItemStack held = hovered.getItem();
+            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
             String pinned = menu.layout().pinnedTab(itemKey);
-            if (menu.activeTab().equals(pinned)) PackClientActions.unpin(menu, itemKey.toString());
-            else PackClientActions.pin(menu, menu.activeTab(), itemKey.toString());
+            if (menu.activeTab().equals(pinned)) {
+                PackClientActions.unpin(menu, itemKey.toString());
+                showPinNote(Component.translatable("packwork.ui.unpinned_note", held.getHoverName()));
+            } else {
+                PackClientActions.pin(menu, menu.activeTab(), itemKey.toString());
+                showPinNote(Component.translatable("packwork.ui.pinned_note",
+                        held.getHoverName(), menu.tabName(menu.activeTab())));
+            }
             return true;
         }
 

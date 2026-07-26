@@ -45,7 +45,8 @@ no rule wanted, so nothing ever disappears.
   free — no config, no per-mod support. Two more (Charts & Bearings, The Catch) open up
   when you fit the trinket that earns them.
 - **Make your own** — name a compartment, stamp it with any item icon, dye it, drag to
-  reorder. **Pin** an item and it always lands there.
+  reorder. **Pin** an item by dropping it where you want it — it stays put, wears a red
+  ribbon, and beats every rule.
 - **Tidy Up, search, flatten** — merge and re-sort with one button, find anything across
   every tab, or collapse it all into one grid when you just want to rummage.
 
@@ -96,13 +97,10 @@ Zero hard dependencies — every cross-mod touch lights up only when its mod is 
 **Mekanism** turns the Flask Harness into a real chemical tank its pipes can fill;
 **Curios** lets you wear the pack in the back slot (trinkets keep working worn);
 **Forgework** Flux cables charge a placed pack's Charge Crystal, 1 Flux = 1 FE, and the
-crystal tops up carried Forgework terminals; **JEI** shows every pack, trinket, and the
-handbook in its lookup; and **Pantrywork** food tags fold into the Food tab. Remove any of
-them and Packwork just carries on without it.
-
-*One more store is coming — an Alchemist's Flask Harness for bottled vapors — a fitting
-you can see, never a tank-and-cable panel. Curios back-slot wear and JEI lookup are on the
-way too.*
+crystal tops up carried Forgework terminals; **JEI** renders every craft as a real recipe —
+tier upgrades included — plus info pages for every pack, trinket, and the handbook; and
+**Pantrywork** food tags fold into the Food tab. Remove any of them and Packwork just
+carries on without it.
 
 ---
 
