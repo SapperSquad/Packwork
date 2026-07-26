@@ -15,8 +15,12 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class PackClientActions {
 
     public static void send(PackMenu menu, PackAction action, int arg, String s1, String s2) {
-        // optimistic local apply for responsiveness
-        menu.handleAction(action.ordinal(), arg, s1 == null ? "" : s1, s2 == null ? "" : s2);
+        // Optimistic local apply for responsiveness - but only for the layout verbs. Anything
+        // that moves a real item or the player's XP waits for the server and takes the sync
+        // back, so a click can never half-apply twice.
+        if (!action.serverAuthoritative()) {
+            menu.handleAction(action.ordinal(), arg, s1 == null ? "" : s1, s2 == null ? "" : s2);
+        }
         PacketDistributor.sendToServer(PackActionPayload.of(action, arg, s1, s2));
     }
 

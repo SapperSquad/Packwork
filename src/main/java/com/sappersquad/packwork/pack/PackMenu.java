@@ -408,6 +408,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyXpSiphon() {
+        if (isClient()) return; // server-authoritative: it moves the player's own XP
         if (hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
             PackXpStore.siphon(liveStack(), playerInv.player);
             rebuildView();
@@ -415,10 +416,21 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyXpPour() {
+        if (isClient()) return; // server-authoritative: it moves the player's own XP
         if (hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
             PackXpStore.pour(liveStack(), playerInv.player);
             rebuildView();
         }
+    }
+
+    /**
+     * Actions that move real items or XP run on the server ONLY. The client copy of the menu
+     * mirrors layout verbs optimistically so the rail feels instant, but a cursor/inventory
+     * mutation applied on both sides either double-applies or desyncs until the next sync -
+     * so those wait for the server and take the sync back.
+     */
+    private boolean isClient() {
+        return playerInv.player.level().isClientSide();
     }
 
     public int xpStored() {
@@ -447,27 +459,70 @@ public class PackMenu extends AbstractContainerMenu {
         return com.sappersquad.packwork.pack.PackChemical.capacityFor(liveStack());
     }
 
-    /** Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.). */
+    /**
+     * Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.).
+     * Exactly ONE container is handled per click, whether you're holding one bucket or a
+     * stack of sixteen: NeoForge's {@code FluidUtil.tryEmptyContainer/tryFillContainer}
+     * operate on a single container and hand back a single result, so the old
+     * {@code setCarried(result)} silently ate the rest of the stack.
+     */
     public void applyFluidInteract() {
+        if (isClient()) return; // server-authoritative: it moves a real item on the cursor
         if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) return;
         ItemStack carried = getCarried();
         if (carried.isEmpty()) return;
         ItemStack pack = liveStack();
         PackFluidHandler tank = new PackFluidHandler(pack, PackFluidHandler.capacityFor(pack));
 
+        // Act on ONE container out of the carried stack.
+        ItemStack one = carried.copyWithCount(1);
+        Player player = playerInv.player;
+
         // first try to empty a filled container INTO the tank, else fill an empty one FROM it
-        var emptied = net.neoforged.neoforge.fluids.FluidUtil.tryEmptyContainer(
-                carried, tank, Integer.MAX_VALUE, null, true);
-        if (emptied.isSuccess()) {
-            setCarried(emptied.getResult());
-            rebuildView();
+        var result = net.neoforged.neoforge.fluids.FluidUtil.tryEmptyContainer(
+                one, tank, Integer.MAX_VALUE, player, true);
+        if (!result.isSuccess()) {
+            result = net.neoforged.neoforge.fluids.FluidUtil.tryFillContainer(
+                    one, tank, Integer.MAX_VALUE, player, true);
+        }
+        if (!result.isSuccess()) return;
+
+        spendOneCarried(result.getResult());
+        rebuildView();
+    }
+
+    /**
+     * Take one item off the cursor and hand the resulting container back, conserving exactly.
+     * The result goes back on the cursor when it can merge there, otherwise into the player's
+     * pockets, otherwise into the pack, and only as a last resort onto the floor - the pack
+     * pauses, it never punishes.
+     */
+    private void spendOneCarried(ItemStack result) {
+        ItemStack rest = getCarried().copy();
+        rest.shrink(1);
+        ItemStack give = result == null ? ItemStack.EMPTY : result.copy();
+
+        if (give.isEmpty()) {                       // consumable container (e.g. a water bottle drunk dry)
+            setCarried(rest);
             return;
         }
-        var filled = net.neoforged.neoforge.fluids.FluidUtil.tryFillContainer(
-                carried, tank, Integer.MAX_VALUE, null, true);
-        if (filled.isSuccess()) {
-            setCarried(filled.getResult());
-            rebuildView();
+        if (rest.isEmpty()) {                       // the cursor is free - the result simply takes its place
+            setCarried(give);
+            return;
+        }
+        if (ItemStack.isSameItemSameComponents(rest, give)
+                && rest.getCount() < rest.getMaxStackSize()) {
+            int room = Math.min(rest.getMaxStackSize() - rest.getCount(), give.getCount());
+            rest.grow(room);
+            give.shrink(room);
+        }
+        setCarried(rest);
+        if (give.isEmpty()) return;
+
+        Player player = playerInv.player;
+        if (!player.getInventory().add(give)) {     // pockets full? the pack takes it
+            ItemStack leftover = insertIntoPack(give);
+            if (!leftover.isEmpty()) player.drop(leftover, false); // truly nowhere left
         }
     }
 

@@ -46,4 +46,14 @@ public enum PackAction {
     public static PackAction byId(int id) {
         return id >= 0 && id < VALUES.length ? VALUES[id] : null;
     }
+
+    /**
+     * True for actions that move real items or XP rather than just re-arranging the view.
+     * The client never applies these locally - it asks and waits for the sync - because a
+     * client-side guess at the cursor or the player's XP either double-applies or desyncs.
+     * Layout verbs (tabs, search, pins) stay optimistic so the rail still feels instant.
+     */
+    public boolean serverAuthoritative() {
+        return this == FLUID_INTERACT || this == XP_SIPHON || this == XP_POUR;
+    }
 }

@@ -50,6 +50,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private EditBox renameBox;
     private boolean renaming = false;
 
+    // store gauges stacked under the sockets
+    private static final int GAUGE_W = 16;
+    private static final int GAUGE_H = 40;
+    private static final int GAUGE_GAP = 4;
+
     private int tabPitch = 25;
     private final List<int[]> tabRects = new ArrayList<>(); // x,y,w,h per rendered tab (screen coords)
     private int[] gaugeRect = null;   // fluid gauge, or null when there's no rack
@@ -257,33 +262,49 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private void drawStoreGauges(GuiGraphics g) {
         gaugeRect = null;
         xpGaugeRect = null;
-        int n = menu.trinketSlotCount();
+        energyGaugeRect = null;
+        flaskGaugeRect = null;
         int x = leftPos + PackMenu.TRINKET_X - 1;
-        int y = topPos + PackMenu.TRINKET_Y0 + Math.max(n, 1) * PackMenu.TRINKET_PITCH + 4;
-        int w = 16, h = 40;
+        int y = topPos + gaugeTopY();
+        int w = GAUGE_W, h = GAUGE_H;
 
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) {
             gaugeRect = new int[]{x, y, w, h};
             drawFluidGauge(g, x, y, w, h);
-            y += h + 4;
+            y += h + GAUGE_GAP;
         }
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) {
             xpGaugeRect = new int[]{x, y, w, h};
             drawXpGauge(g, x, y, w, h);
-            y += h + 4;
+            y += h + GAUGE_GAP;
         }
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL)) {
             energyGaugeRect = new int[]{x, y, w, h};
             drawEnergyGauge(g, x, y, w, h);
-            y += h + 4;
+            y += h + GAUGE_GAP;
         }
         // Gas store: only meaningful with Mekanism, so the gauge appears only when it's loaded.
-        flaskGaugeRect = null;
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
                 && net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
             flaskGaugeRect = new int[]{x, y, w, h};
             drawFlaskGauge(g, x, y, w, h);
         }
+    }
+
+    /** First gauge's top edge, relative to {@code topPos} - the sockets end here. */
+    private int gaugeTopY() {
+        return PackMenu.TRINKET_Y0 + Math.max(menu.trinketSlotCount(), 1) * PackMenu.TRINKET_PITCH + 4;
+    }
+
+    /** How many store gauges the rail is showing right now (drives the rail's click region). */
+    private int gaugeCount() {
+        int n = 0;
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) n++;
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) n++;
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL)) n++;
+        if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
+                && net.neoforged.fml.ModList.get().isLoaded("mekanism")) n++;
+        return n;
     }
 
     private void drawFlaskGauge(GuiGraphics g, int x, int y, int w, int h) {
@@ -474,6 +495,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 else PackClientActions.xpSiphon(menu);
                 return true;
             }
+            // The charge crystal and flask harness have no click verb, but a click still has
+            // to be swallowed here so it never reaches vanilla's outside-the-panel handling.
+            if (energyGaugeRect != null && inRect((int) mx, (int) my, energyGaugeRect[0], energyGaugeRect[1], energyGaugeRect[2], energyGaugeRect[3])) {
+                return true;
+            }
+            if (flaskGaugeRect != null && inRect((int) mx, (int) my, flaskGaugeRect[0], flaskGaugeRect[1], flaskGaugeRect[2], flaskGaugeRect[3])) {
+                return true;
+            }
         }
         // rail tabs
         int tab = tabAt((int) mx, (int) my);
@@ -489,6 +518,33 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             return true;
         }
         return super.mouseClicked(mx, my, button);
+    }
+
+    /**
+     * The tab rail and the fittings rail deliberately hang OUTSIDE the panel rect, which is
+     * exactly the region vanilla treats as "clicked outside the GUI" - i.e. throw whatever is
+     * on the cursor onto the floor. That fired on mouse RELEASE
+     * ({@code AbstractContainerScreen.mouseReleased} -&gt; {@code slotClicked(null, -999, PICKUP)}
+     * -&gt; {@code player.drop(...)}), so consuming the press was never enough: clicking the
+     * waterskin gauge with a bucket filled the tank AND threw the bucket on the ground.
+     * Teaching the screen that its own rails count as inside kills it at the source, for the
+     * press and the release both.
+     */
+    @Override
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
+        if (isOverRail((int) mouseX, (int) mouseY)) return false;
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
+    }
+
+    /** Everything the pack draws beyond the panel edges: the tab rail left, the fittings rail right. */
+    private boolean isOverRail(int mx, int my) {
+        // left: stamped leather tabs (they tuck under the frame, so start a touch further out)
+        if (mx >= leftPos - TAB_W && mx < leftPos
+                && my >= topPos + RAIL_TOP && my < topPos + imageHeight) return true;
+        // right: brass sockets, then the stack of store gauges beneath them
+        int bottom = gaugeTopY() + gaugeCount() * (GAUGE_H + GAUGE_GAP);
+        return mx >= leftPos + PackMenu.TRINKET_X - 5 && mx < leftPos + PackMenu.TRINKET_X + 24
+                && my >= topPos + PackMenu.TRINKET_Y0 - 5 && my < topPos + bottom;
     }
 
     private int tabAt(int mx, int my) {
@@ -551,6 +607,12 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             default -> {}
         }
         return super.keyPressed(key, scan, mods);
+    }
+
+    /** Dev harness only: the waterskin gauge's centre in GUI space (null when there's no rack). */
+    public int[] devFluidGaugeCenter() {
+        return gaugeRect == null ? null
+                : new int[]{gaugeRect[0] + gaugeRect[2] / 2, gaugeRect[1] + gaugeRect[3] / 2};
     }
 
     /** Dev harness only: force which slot counts as hovered, so a synthetic key press can target it. */

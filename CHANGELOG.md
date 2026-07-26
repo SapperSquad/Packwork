@@ -5,6 +5,18 @@ All notable changes, newest first. Dates are the suite's working dates.
 ## Unreleased — playtest polish
 
 ### Fixed
+- **Filling the waterskin no longer throws your bucket on the floor.** The gauges and the tab
+  rail hang outside the panel's edge, and that strip is exactly where the game assumes you meant
+  to toss whatever you're holding — so a click that filled the tank *also* pitched the bucket at
+  your feet. The pack now counts its own rails as part of the pack, for the press and the
+  release both. Same fix covers clicking a leather tab with something on the cursor.
+- **A stack of buckets stays a stack.** Filling or emptying at the gauge handles exactly one
+  container per click: one goes in, one comes back — to your cursor if it fits there, else your
+  pockets, else the pack. Holding three water buckets used to leave you holding one empty one,
+  with the other two gone.
+- **The gauge waits for the server before it moves anything.** Anything that touches real items
+  or your XP — the waterskin, the soul vial's siphon and pour — is settled server-side now, so a
+  laggy click can't half-apply twice. Tabs, search and pins still respond instantly.
 - **A set-down canvas pack's buckle is twine now, matching the one in your hand.** The placed
   canvas block wore a brass buckle like the higher tiers, but the canvas *item* closes with a
   twine buckle — so the block and the item disagreed. The canvas block's buckle now reads as pale
