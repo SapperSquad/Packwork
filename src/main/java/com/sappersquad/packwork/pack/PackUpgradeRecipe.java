@@ -1,6 +1,5 @@
 package com.sappersquad.packwork.pack;
 
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.sappersquad.packwork.reg.ModComponents;
@@ -17,35 +16,54 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.common.crafting.SizedIngredient;
+
+import java.util.List;
 
 /**
- * Upgrades a filled pack one tier <em>without</em> a plain craft eating its contents:
- * a pack of the {@code from} tier plus its upgrade material becomes the {@code to}
- * tier with every component (items, layout, trinkets, custom name) carried over.
- * This is why the plain tier recipes never consume a lower pack.
+ * THE way up the ladder: a pack of the {@code from} tier plus this tier's materials
+ * becomes the {@code to} tier with every component - items, layout, trinkets, custom
+ * name, and all five stores - carried over. Since 2026-07-25 (Alex's call) this
+ * preserving craft IS the visible recipe for every tier above Canvas; there are no
+ * raw-material recipes that could sit beside it and confuse anyone into a craft that
+ * eats a pack. No recipe in this mod ever consumes a filled pack's contents.
+ *
+ * <p>{@code materials} is a list of sized ingredients, so a tier may demand any number
+ * of distinct reagents (the Dragonhide upgrade wants shulker shells AND dragon's
+ * breath) without the recipe shape growing a field per reagent.
  */
-public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient material, int count,
+public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient> materials,
                                 CraftingBookCategory category) implements CraftingRecipe {
 
     @Override
     public boolean matches(CraftingInput input, Level level) {
-        int packs = 0, mats = 0;
+        int packs = 0;
+        int[] found = new int[materials.size()];
         for (int i = 0; i < input.size(); i++) {
             ItemStack s = input.getItem(i);
             if (s.isEmpty()) continue;
             if (s.getItem() instanceof PackItem p && p.tier() == from) {
                 packs++;
-            } else if (material.test(s)) {
-                mats += s.getCount();
-            } else {
-                return false; // any unexpected item disqualifies the recipe
+                continue;
             }
+            int matched = -1;
+            for (int m = 0; m < materials.size(); m++) {
+                if (materials.get(m).ingredient().test(s)) {
+                    matched = m;
+                    break;
+                }
+            }
+            if (matched < 0) return false; // any unexpected item disqualifies the recipe
+            found[matched] += s.getCount();
         }
-        return packs == 1 && mats >= count;
+        if (packs != 1) return false;
+        for (int m = 0; m < materials.size(); m++) {
+            if (found[m] < materials.get(m).count()) return false;
+        }
+        return true;
     }
 
     @Override
@@ -62,6 +80,11 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient material,
         copy(pack, result, ModComponents.PACK_CONTENTS.get());
         copy(pack, result, ModComponents.PACK_LAYOUT.get());
         copy(pack, result, ModComponents.PACK_TRINKETS.get());
+        copy(pack, result, ModComponents.PACK_FLUID.get());
+        copy(pack, result, ModComponents.PACK_XP.get());
+        copy(pack, result, ModComponents.PACK_ENERGY.get());
+        copy(pack, result, ModComponents.PACK_EMBERS.get());
+        copy(pack, result, ModComponents.PACK_CHEMICAL.get());
         copy(pack, result, DataComponents.CUSTOM_NAME);
         return result;
     }
@@ -95,8 +118,7 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient material,
         private static final MapCodec<PackUpgradeRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("from").forGetter(PackUpgradeRecipe::from),
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("to").forGetter(PackUpgradeRecipe::to),
-                Ingredient.CODEC.fieldOf("material").forGetter(PackUpgradeRecipe::material),
-                Codec.INT.fieldOf("count").forGetter(PackUpgradeRecipe::count),
+                SizedIngredient.NESTED_CODEC.listOf().fieldOf("materials").forGetter(PackUpgradeRecipe::materials),
                 CraftingBookCategory.CODEC.optionalFieldOf("category", CraftingBookCategory.EQUIPMENT)
                         .forGetter(PackUpgradeRecipe::category)
         ).apply(inst, PackUpgradeRecipe::new));
@@ -105,8 +127,7 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient material,
                 StreamCodec.composite(
                         ByteBufCodecs.idMapper(i -> PackTier.values()[i], Enum::ordinal), PackUpgradeRecipe::from,
                         ByteBufCodecs.idMapper(i -> PackTier.values()[i], Enum::ordinal), PackUpgradeRecipe::to,
-                        Ingredient.CONTENTS_STREAM_CODEC, PackUpgradeRecipe::material,
-                        ByteBufCodecs.VAR_INT, PackUpgradeRecipe::count,
+                        SizedIngredient.STREAM_CODEC.apply(ByteBufCodecs.list()), PackUpgradeRecipe::materials,
                         CraftingBookCategory.STREAM_CODEC, PackUpgradeRecipe::category,
                         PackUpgradeRecipe::new);
 

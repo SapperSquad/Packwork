@@ -96,6 +96,10 @@ public final class PackClientActions {
         send(menu, PackAction.TOGGLE_ROLL, 0, "", "");
     }
 
+    public static void layOutGhost(PackMenu menu, String recipeId) {
+        send(menu, PackAction.LAY_OUT_GHOST, 0, recipeId, "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

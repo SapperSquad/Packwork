@@ -1,2 +1,3 @@
 { "type": "packwork:pack_upgrade", "from": "reinforced", "to": "runed",
-  "material": { "item": "minecraft:amethyst_shard" }, "count": 4 }
+  "materials": [ { "ingredient": { "item": "minecraft:amethyst_shard" }, "count": 4 },
+                 { "ingredient": { "item": "minecraft:echo_shard" }, "count": 2 } ] }

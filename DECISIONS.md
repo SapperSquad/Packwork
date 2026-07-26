@@ -81,9 +81,10 @@ one can be flipped later without unpicking the rest:
   datapack JSON** (`data/packwork/tags/item/sorting/*`) with optional modded includes
   (`#c:foods`, `#pantrywork:foods`, `required:false`) so packs retune without code and
   nothing breaks when a mod is absent.
-- **Tier recipes craft from raw materials only (no cross-tier consumption).** Upgrading a
-  filled pack to the next tier now goes through the `packwork:pack_upgrade` custom recipe,
-  which copies contents+trinkets+name onto the new tier, so no craft ever eats a full pack.
+- **Tier recipes craft from raw materials only (no cross-tier consumption).** *(SUPERSEDED
+  2026-07-25 by Alex's explicit call - see "the recipe chain" below. Every tier above Canvas
+  now REQUIRES the previous tier's pack, and the preserving `packwork:pack_upgrade` craft IS
+  the visible recipe; the raw-material recipes for tiers 2+ are deleted.)*
 
 ## Phase 2/3 architecture calls (reopen with evidence)
 
@@ -210,6 +211,93 @@ one can be flipped later without unpicking the rest:
   high-contrast; this was chosen over an unverified per-face model-emissive flag and over
   duplicating geometry for an overlay quad. Verified in-game (the Runed block is visibly brighter
   than its neighbours).
+
+## 2026-07-25 — per-slot DEPTH by tier (the deep-slot batch; reopen with evidence)
+
+- **Depth semantics: each slot holds the item's own max stack x the tier's multiplier**
+  (Canvas x1 ... Dragonhide x6 = 384 of a 64-stackable, 96 of a 16-stackable), matching
+  Sophisticated's stack-upgrade model and Alex's "64, 128, and so on". Unstackables never
+  stack - a pack is organized, not magic enough to bundle swords. Tiers own DEPTH;
+  the Bottomless Lining owns BREADTH (extra slots) - one axis each, no double-dipping,
+  documented in the Handbook.
+- **Persistence: a custom codec, verified against the sources, because vanilla WOULD corrupt.**
+  `ItemStack.CODEC` hard-caps count at `intRange(1, 99)` and `ItemContainerContents.Slot.CODEC`
+  routes through it, so saving a 384-deep slot through the vanilla codec fails at world save.
+  `DeepContentsCodec` persists `{slot, item:{id, components}, count}` with the count as its own
+  unbounded field, registered as `pack_contents`' persistent codec. The `count` field is
+  deliberately REQUIRED so pre-depth saves FAIL the deep shape and fall through
+  `Codec.withAlternative` to the vanilla codec - old packs load intact; if count were optional,
+  legacy data would "succeed" as count 1 and silently shrink every stack. The NETWORK codec is
+  untouched: the stream path writes counts as raw VarInts and never caps. A gametest round-trips
+  the relog path, the block-entity chunk-save path, and the legacy fallback.
+- **The escape hatches are closed at the choke points.** `PackInventory.insertItem` is
+  overridden because the parent clamps inserts to the item's own max stack (verified in the
+  NeoForge sources - `getSlotLimit` alone is ignored for merging); `extractItem` is overridden
+  because the parent does NOT clamp and vanilla's cursor pickup calls
+  `tryRemove(count, Integer.MAX_VALUE, ...)`. Rules: inserts fill to depth; EVERY pull out -
+  cursor, hopper, trinket - pays out at most one vanilla stack. `PackViewSlot` stopped
+  extending `StackCopySlot` (its `remove` is final) and inlines the copy-slot pattern with a
+  clamped `remove`, plus a swap-guard in `mayPlace`: swapping the cursor into an oversized slot
+  would hand the whole deep stack to the cursor via `setCarried` (a path that never touches
+  `remove`), so a different-item place is refused while the slot is deeper than one stack.
+- **Deep counts render exact, at 3/4 scale.** Vanilla anchors count text at the slot's right
+  edge and three digits spill into the neighbouring cell ("64" + "384" smear together -
+  seen in the autoshot). `PackScreen.renderSlotContents` draws >99 counts at 0.75 scale inside
+  their own cell; numbers stay exact (no "2.5K" rounding), max is 384 = 3 digits.
+- **Tidy Up merges INTO depth** via a `ToIntFunction<ItemStack>` depth argument on
+  `PackSorting.tidy`; the 3-arg overload keeps vanilla-depth semantics for callers without a
+  tiered pack.
+
+## 2026-07-25 — the recipe chain + the Dragonhide tier (Alex's calls; reopen with evidence)
+
+- **Every tier above Canvas is crafted FROM the previous tier's pack.** Alex explicitly
+  reversed the raw-materials-only decision (see the superseded entry above). Canvas stays
+  craftable from wool+string+chest; the preserving `packwork:pack_upgrade` recipe is now THE
+  recipe per tier - pack + materials in, everything carried over - and the raw recipes for
+  tiers 2+ are deleted, so there is no recipe anywhere that could eat a filled pack.
+- **The upgrade now carries the STORES too.** Found while extending it: `assemble` only copied
+  contents/layout/trinkets/name, so an upgrade silently dropped stored fluid/XP/energy/embers/
+  chemical - a pause-never-punish violation. All five store components are copied now, and the
+  chain gametest pins fluid+XP+energy+name+deep-contents across the Runed->Dragonhide step.
+- **`PackUpgradeRecipe` gained an optional second material** (`material2`/`count2`,
+  absent-safe for the existing JSONs) because one endgame gate wants two distinct reagents.
+  Its stream codec is hand-rolled - seven fields exceeds `StreamCodec.composite`'s arity.
+- **The 6th tier is DRAGONHIDE** (flag for Alex - veto welcome; alternatives considered:
+  Wyrmhide, Drakeskin). End-gated: Runed pack + 4 shulker shells + 4 dragon's breath. The
+  Runed upgrade also picked up 2 echo shards as material2, preserving the deleted raw recipe's
+  Deep Dark gate. Numbers: 256 slots (the component cap - the top tiers grow DEEP, not wide),
+  5 sockets, depth x6, stores at 6x (48-bucket waterskin, 30k XP, 600k FE, 96k mB), light 11
+  when placed (above Runed's 8).
+- **Dragonhide's look: near-black charcoal-plum hide + brick-laid scale scallops + pale BONE
+  claws + an ember-pink breath gem.** Deliberately darker and heavier than Runed's mid-indigo
+  so the step reads at a glance; the trim is drawn shapes (scales, claws, a gem with a halo)
+  per the de-noising rule. Blockstate variants went 20 -> 24; same `pack_shape` geometry.
+- **The gauge rail shrinks to fit.** Five sockets plus gauges outran the panel, so
+  `PackScreen.gaugeHeight()` compresses gauges (40px down to a 22px floor) to fit the panel
+  height; the rail's click-consumption region uses the same computation.
+
+## 2026-07-25 — the Recipe Ledger (craft-on-the-go browser; reopen with evidence)
+
+- **In-house parchment browser, NOT vanilla's `RecipeBookComponent`.** Alex asked for the
+  recipe book; the vanilla component was evaluated honestly and rejected for two structural
+  reasons: (1) its craftability + auto-place plumbing (`StackedContents` fill,
+  `ServerPlaceRecipe`) is hardwired to the PLAYER inventory, and the whole point here is
+  craftable-from-PACK-stock with items never moving until the player crafts; (2) it slides the
+  GUI right and occupies the left flank - where the compartment rail lives. Fighting both
+  means overriding nearly everything the component does, so the in-house sheet is less code
+  and honest about it.
+- **The Ledger is pure client-side paint; ONE server verb moves items.** The craftable list is
+  computed client-side over synced data (`StackedContents` filled from the pack at full depth
+  plus the roll, `canCraft` per 3x3-able crafting recipe - the same check vanilla's book runs,
+  pointed at the pack). Clicking a recipe CHALKS it: a translucent ghost on the roll's empty
+  cells (vanilla's own ghost-overlay render pattern), zero item movement. Clicking the result
+  well with a chalk active sends `LAY_OUT_GHOST` (server-authoritative): the server re-resolves
+  the recipe, SIMULATES a pack slot for every cell first, and only if the whole pattern is
+  covered pulls exactly one item per cell - all-or-nothing, gametested (an uncoverable cake
+  lays nothing and spends nothing). Special recipes (empty ingredient list, e.g. our own
+  upgrades) are refused on both sides.
+- **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
+  same order of work vanilla's book does per inventory change.
 
 ## 2026-07-25 — rail clicks, cursor conservation, and who's authoritative (reopen with evidence)
 

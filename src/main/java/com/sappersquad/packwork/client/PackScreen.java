@@ -50,6 +50,26 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private EditBox renameBox;
     private boolean renaming = false;
 
+    // ---- the Recipe Ledger: the Tinker's Kit browser (pure client; items move server-side only) ----
+    private static final int BR_W = 96;
+    private static final int BR_COLS = 4;
+
+    /** One ledger row: the recipe plus its result + name, resolved ONCE per recompute so
+     *  neither the per-frame draw nor the sort re-derives them. */
+    private record LedgerEntry(net.minecraft.world.item.crafting.RecipeHolder<?> holder,
+                               ItemStack result, String lowerName) {}
+
+    private boolean browserOpen = false;
+    private EditBox browserSearch;
+    private int browserScroll = 0;
+    private final List<LedgerEntry> allCraftable = new ArrayList<>(); // everything stock covers
+    private final List<LedgerEntry> craftable = new ArrayList<>();    // the searched view of it
+    private int browserRecomputeIn = 0;
+    private boolean hasKitCached = false; // trinket reads stream a component; refresh per tick, not per frame
+    private net.minecraft.world.item.crafting.RecipeHolder<?> ghost = null;
+    private net.minecraft.world.item.crafting.Ingredient[] ghostGrid =
+            new net.minecraft.world.item.crafting.Ingredient[9];
+
     // store gauges stacked under the sockets
     private static final int GAUGE_W = 16;
     private static final int GAUGE_H = 40;
@@ -85,6 +105,33 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         renameBox.setMaxLength(24);
         renameBox.setVisible(false);
         addWidget(renameBox);
+
+        browserSearch = new EditBox(this.font, browserX() + 5, browserY() + 16, BR_W - 10, 12,
+                Component.translatable("packwork.ui.search"));
+        browserSearch.setMaxLength(32);
+        browserSearch.setVisible(browserOpen);   // a window resize re-inits mid-ledger
+        browserSearch.setResponder(s -> {
+            browserScroll = 0;
+            applyLedgerFilter();   // typing filters the cached list; it never rescans recipes
+        });
+        addWidget(browserSearch);
+        repositionForBrowser();   // a resize re-inits; keep the ledger shift if it's open
+    }
+
+    /**
+     * The open ledger widens the whole ensemble past what a small window centres, so shift
+     * the GUI left to make room - the same move vanilla's recipe book makes. Everything
+     * derives from {@code leftPos} except the two absolutely-placed edit boxes, which follow.
+     */
+    private void repositionForBrowser() {
+        int total = ledgerVisible() ? imageWidth + 30 + BR_W : imageWidth;
+        this.leftPos = Math.max(TAB_W + 2, (this.width - total) / 2);
+        if (searchBox != null) searchBox.setX(leftPos + 11);
+        if (renameBox != null) renameBox.setX(leftPos + 8);
+        if (browserSearch != null) {   // the sheet's search rides the sheet, nowhere else
+            browserSearch.setX(browserX() + 4);
+            browserSearch.setY(browserY() + 16);
+        }
     }
 
     // ---------- background ----------
@@ -96,6 +143,23 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // the menu opens; recompute the tab view each tick so the grid reflects the
         // live contents (and re-sorts itself as items move).
         menu.rebuildView();
+
+        // The ledger lives and dies with the tool roll; refresh its list as stock shifts.
+        hasKitCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
+        if (!menu.rollActive() && (browserOpen || ghost != null)) {
+            closeBrowser();
+        }
+        if (browserOpen && --browserRecomputeIn <= 0) {
+            recomputeCraftable();
+        }
+    }
+
+    private void closeBrowser() {
+        browserOpen = false;
+        ghost = null;
+        java.util.Arrays.fill(ghostGrid, null);
+        if (browserSearch != null) browserSearch.setVisible(false);
+        repositionForBrowser();
     }
 
     @Override
@@ -157,6 +221,167 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         slotWell(g, leftPos + PackMenu.ROLL_RESULT_X, topPos + PackMenu.ROLL_RESULT_Y);
         g.renderOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
                 20, 20, 0xFFC9A24B);
+    }
+
+    // ---- the Recipe Ledger panel ----
+
+    private int browserX() { return leftPos + PackMenu.TRINKET_X + 26; }
+    private int browserY() { return topPos + 4; }
+    private int browserH() { return imageHeight - 8; }
+    private int browserGridY() { return browserY() + 32; }
+    private int browserRows() { return (browserH() - 40) / 18; }
+
+    /**
+     * Everything the pack could make RIGHT NOW: every 3x3-able crafting recipe checked
+     * against the pack's own stock (at full depth) plus what's already on the roll. Runs
+     * client-side over synced data - the same check vanilla's book runs against the player
+     * inventory, pointed at the pack instead. Recomputed on open and every couple of
+     * seconds while stock shifts; each entry caches its result + name once so the sort,
+     * the search, and the per-frame draw never re-derive them. A search keystroke only
+     * re-filters this list ({@link #applyLedgerFilter}) - it never rescans the recipes.
+     */
+    private void recomputeCraftable() {
+        browserRecomputeIn = 40;
+        allCraftable.clear();
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        var contents = new net.minecraft.world.entity.player.StackedContents();
+        menu.fillPackStacked(contents);
+        for (var holder : level.getRecipeManager().getAllRecipesFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
+            var r = holder.value();
+            if (!r.canCraftInDimensions(3, 3)) continue;
+            if (r.getIngredients().isEmpty()) continue;   // special recipes have no layable shape
+            ItemStack result = r.getResultItem(level.registryAccess());
+            if (result.isEmpty()) continue;
+            if (!contents.canCraft(r, null)) continue;
+            allCraftable.add(new LedgerEntry(holder, result,
+                    result.getHoverName().getString().toLowerCase(java.util.Locale.ROOT)));
+        }
+        allCraftable.sort(java.util.Comparator.comparing(LedgerEntry::lowerName));
+        applyLedgerFilter();
+    }
+
+    /** Narrow the cached list by the search text - cheap enough to run per keystroke. */
+    private void applyLedgerFilter() {
+        craftable.clear();
+        String q = browserSearch == null ? "" : browserSearch.getValue().toLowerCase(java.util.Locale.ROOT).trim();
+        for (LedgerEntry e : allCraftable) {
+            if (q.isEmpty() || e.lowerName().contains(q)) craftable.add(e);
+        }
+        browserScroll = Math.min(browserScroll, maxLedgerScroll());
+    }
+
+    /** The parchment ledger: a searchable sheet of everything craftable from pack stock. */
+    private void drawBrowser(GuiGraphics g, int mouseX, int mouseY) {
+        if (!ledgerVisible()) return;
+        int x = browserX(), y = browserY(), w = BR_W, h = browserH();
+
+        // parchment sheet with a leather spine toward the pack and brass tacks
+        g.fill(x - 2, y, x + w, y + h, 0xFF3E2A18);
+        g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
+        g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
+        g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
+        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
+            g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
+        }
+        g.drawString(this.font, Component.translatable("packwork.ui.recipe_ledger"),
+                x + 5, y + 5, 0xFF3A2A18, false);
+        browserSearch.render(g, mouseX, mouseY, 0);
+
+        if (craftable.isEmpty()) {
+            g.drawWordWrap(this.font, Component.translatable("packwork.ui.ledger_empty"),
+                    x + 5, browserGridY() + 4, w - 10, 0xFF6A5A40);
+            return;
+        }
+
+        int rows = browserRows();
+        for (int rIdx = 0; rIdx < rows * BR_COLS; rIdx++) {
+            int i = (browserScroll * BR_COLS) + rIdx;
+            if (i >= craftable.size()) break;
+            LedgerEntry entry = craftable.get(i);
+            int cx = cellX(rIdx), cy = cellY(rIdx);
+            boolean hovered = inRect(mouseX, mouseY, cx - 1, cy - 1, 18, 18);
+            boolean selected = ghost != null && ghost.id().equals(entry.holder().id());
+            if (selected) {
+                g.fill(cx - 1, cy - 1, cx + 17, cy + 17, 0xFF8A6A28);
+            } else if (hovered) {
+                g.fill(cx - 1, cy - 1, cx + 17, cy + 17, 0x40573B23);
+            }
+            g.renderItem(entry.result(), cx, cy);
+            g.renderItemDecorations(this.font, entry.result(), cx, cy);
+            if (hovered) {
+                List<Component> tip = new ArrayList<>();
+                tip.add(entry.result().getHoverName());
+                tip.add(Component.translatable(selected ? "packwork.ui.ledger_unchalk" : "packwork.ui.ledger_chalk")
+                        .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                if (selected) {
+                    tip.add(Component.translatable("packwork.ui.ghost_hint")
+                            .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+                }
+                g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
+            }
+        }
+        // scroll hint: a thin brass track when there's more than fits
+        int maxScroll = maxLedgerScroll();
+        if (maxScroll > 0) {
+            int trackY = browserGridY(), trackH = rows * 18 - 2;
+            g.fill(x + w - 4, trackY, x + w - 3, trackY + trackH, 0xFF8A6A28);
+            int nub = trackY + (int) ((trackH - 8) * (browserScroll / (double) maxScroll));
+            g.fill(x + w - 5, nub, x + w - 2, nub + 8, 0xFFC9A24B);
+        }
+    }
+
+    /** Ghost the chalked recipe into the roll's EMPTY cells - paint only, items never move here. */
+    private void drawGhost(GuiGraphics g) {
+        if (ghost == null || !menu.rollActive()) return;
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        long cycle = level.getGameTime() / 30;
+        for (int cell = 0; cell < 9; cell++) {
+            var ing = ghostGrid[cell];
+            if (ing == null || ing.isEmpty()) continue;
+            Slot slot = menu.slots.get(menu.craftStart() + cell);
+            if (slot.hasItem()) continue;                      // real items win over chalk
+            ItemStack[] options = ing.getItems();
+            if (options.length == 0) continue;
+            ItemStack show = options[(int) (cycle % options.length)];
+            ghostInto(g, show, leftPos + slot.x, topPos + slot.y);
+        }
+        // and the promised result, washed the same way, in the empty result well
+        Slot well = menu.slots.get(menu.resultIndex());
+        if (!well.hasItem()
+                && ghost.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe cr) {
+            ItemStack result = cr.getResultItem(level.registryAccess());
+            if (!result.isEmpty()) ghostInto(g, result, leftPos + well.x, topPos + well.y);
+        }
+    }
+
+    /** One chalked item: the fake render under a parchment wash (vanilla's own ghost pattern). */
+    private static void ghostInto(GuiGraphics g, ItemStack stack, int x, int y) {
+        g.renderFakeItem(stack, x, y);
+        g.fill(net.minecraft.client.renderer.RenderType.guiGhostRecipeOverlay(),
+                x, y, x + 16, y + 16, 0x80C8B892);
+    }
+
+    /** Chalk a recipe onto the roll (or wipe it). The 3x3 arrangement comes from the SAME
+     *  helper the server lays out with ({@link PackMenu#arrangeOn3x3}), so they cannot drift. */
+    private void setGhost(net.minecraft.world.item.crafting.RecipeHolder<?> holder) {
+        if (holder == null || ghost != null && holder.id().equals(ghost.id())
+                || !(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)) {
+            ghost = null;   // clicking the chalked recipe again wipes the chalk
+            java.util.Arrays.fill(ghostGrid, null);
+            return;
+        }
+        var arranged = PackMenu.arrangeOn3x3(recipe);
+        if (arranged == null) {
+            ghost = null;
+            java.util.Arrays.fill(ghostGrid, null);
+            return;
+        }
+        ghost = holder;
+        ghostGrid = arranged;
     }
 
     /** One recessed slot well in the leather, matching the ones baked into the panel. */
@@ -258,6 +483,28 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x + 2, y + 2, x + 3, y + 3, 0xFF8A6A28);  // shaded corner
     }
 
+    /**
+     * Deep-slot counts, legible: vanilla anchors the count text at the slot's right edge and
+     * lets three digits spill left into the NEIGHBOURING cell, where they mash into its count
+     * ("64" + "384" read as one smear). For a pack cell holding more than two digits, draw the
+     * EXACT number at 3/4 scale instead - "384" fits inside its own 16px cell with room to
+     * spare, and the numbers stay exact (no "2.5K" rounding) as preferred.
+     */
+    @Override
+    protected void renderSlotContents(GuiGraphics g, ItemStack stack, Slot slot, String countString) {
+        if (slot instanceof PackViewSlot && countString == null && stack.getCount() > 99) {
+            super.renderSlotContents(g, stack, slot, "");   // item + durability bar, no count
+            String txt = String.valueOf(stack.getCount());
+            g.pose().pushPose();
+            g.pose().translate(slot.x + 17f, slot.y + 16f, 200f);
+            g.pose().scale(0.75f, 0.75f, 1f);
+            g.drawString(this.font, txt, -this.font.width(txt), -9, 0xFFFFFF, true);
+            g.pose().popPose();
+            return;
+        }
+        super.renderSlotContents(g, stack, slot, countString);
+    }
+
     /** Append a "[P] Pin to this tab" line to a hovered grid item's tooltip, so it's discoverable. */
     @Override
     protected List<Component> getTooltipFromContainerItem(ItemStack stack) {
@@ -285,15 +532,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
         drawPinMarkers(g);
+        drawGhost(g);
         if (renaming) renameBox.render(g, mouseX, mouseY, partialTick);
         drawButtons(g, mouseX, mouseY);
         drawPageNav(g, mouseX, mouseY);
         drawStoreGauges(g);
+        drawBrowser(g, mouseX, mouseY);
         drawHoverTooltips(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
     }
 
-    // Title-strip buttons: tool roll (only with a kit fitted), flatten toggle, tidy up, new tab.
+    // Title-strip buttons: ledger + tool roll (only with a kit fitted), flatten, tidy up, new tab.
+    private int bookBtnX() { return leftPos + 102; }
     private int rollBtnX() { return leftPos + 116; }
     private int flatBtnX() { return leftPos + 130; }
     private int tidyBtnX() { return leftPos + 144; }
@@ -302,7 +552,26 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private static final int BTN = 12;
 
     private boolean hasKit() {
-        return menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
+        return hasKitCached;
+    }
+
+    /** The ledger is on screen (containerTick closes it the moment the roll goes away). */
+    private boolean ledgerVisible() {
+        return browserOpen && menu.rollActive();
+    }
+
+    /** The ledger sheet's hit-box, spine included - the ONE definition every consumer uses. */
+    private boolean overLedger(int mx, int my) {
+        return ledgerVisible()
+                && inRect(mx, my, browserX() - 2, browserY(), BR_W + 2, browserH());
+    }
+
+    /** Top-left of the {@code rIdx}-th visible ledger cell (cells are 18x18 with a 1px halo). */
+    private int cellX(int rIdx) { return browserX() + 5 + (rIdx % BR_COLS) * 22; }
+    private int cellY(int rIdx) { return browserGridY() + (rIdx / BR_COLS) * 18; }
+
+    private int maxLedgerScroll() {
+        return Math.max(0, (craftable.size() + BR_COLS - 1) / BR_COLS - browserRows());
     }
 
     private void drawButtons(GuiGraphics g, int mouseX, int mouseY) {
@@ -318,6 +587,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.fill(rollBtnX() + 2, btnY() + 7, rollBtnX() + 10, btnY() + 8, 0xFF8A6A28);
             g.fill(rollBtnX() + 4, btnY() + 2, rollBtnX() + 5, btnY() + 4, gl);    // two tools poking out
             g.fill(rollBtnX() + 7, btnY() + 2, rollBtnX() + 8, btnY() + 4, gl);
+        }
+        if (hasKit() && menu.rollActive()) {  // the ledger only means anything with the roll out
+            drawPlate(g, bookBtnX(), btnY(), inRect(mouseX, mouseY, bookBtnX(), btnY(), BTN, BTN), browserOpen);
+            // a little open ledger: two pages + the spine
+            g.fill(bookBtnX() + 2, btnY() + 3, bookBtnX() + 10, btnY() + 9, gl);
+            g.fill(bookBtnX() + 5, btnY() + 2, bookBtnX() + 7, btnY() + 10, 0xFF8A6A28);
+            g.fill(bookBtnX() + 3, btnY() + 5, bookBtnX() + 5, btnY() + 6, 0xFF8A6A28);
+            g.fill(bookBtnX() + 7, btnY() + 5, bookBtnX() + 9, btnY() + 6, 0xFF8A6A28);
         }
         // flatten: a 2x2 grid of dots
         g.fill(flatBtnX() + 3, btnY() + 3, flatBtnX() + 5, btnY() + 5, gl);
@@ -341,7 +618,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         flaskGaugeRect = null;
         int x = leftPos + PackMenu.TRINKET_X - 1;
         int y = topPos + gaugeTopY();
-        int w = GAUGE_W, h = GAUGE_H;
+        int w = GAUGE_W, h = gaugeHeight();
 
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN)) {
             gaugeRect = new int[]{x, y, w, h};
@@ -380,6 +657,17 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
                 && net.neoforged.fml.ModList.get().isLoaded("mekanism")) n++;
         return n;
+    }
+
+    /**
+     * Per-gauge height, shrunk when the rail is crowded: a Dragonhide pack's five sockets
+     * plus several store gauges must still fit beside the panel rather than hanging past
+     * its bottom edge. Full 40px whenever there's room.
+     */
+    private int gaugeHeight() {
+        int n = Math.max(1, gaugeCount());
+        int avail = imageHeight - gaugeTopY() - 4 - (n - 1) * GAUGE_GAP;
+        return Math.max(22, Math.min(GAUGE_H, avail / n));
     }
 
     private void drawFlaskGauge(GuiGraphics g, int x, int y, int w, int h) {
@@ -526,7 +814,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }
-        if (hasKit() && inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN)) {
+        if (hasKit() && menu.rollActive() && inRect(mouseX, mouseY, bookBtnX(), btnY(), BTN, BTN)) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.ledger_btn"));
+            lines.add(Component.translatable("packwork.ui.ledger_btn_hint")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+        } else if (hasKit() && inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable(menu.rollActive()
                     ? "packwork.ui.roll_up" : "packwork.ui.unroll"));
@@ -549,10 +843,33 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             if (renameBox.mouseClicked(mx, my, button)) return true;
             commitRename();
         }
+        // the Recipe Ledger swallows every click inside its sheet
+        if (ledgerVisible() && handleBrowserClick(mx, my, button)) {
+            return true;
+        }
         // title buttons
         if (button == 0) {
             if (hasKit() && inRect((int) mx, (int) my, rollBtnX(), btnY(), BTN, BTN)) {
                 PackClientActions.toggleRoll(menu);
+                return true;
+            }
+            if (hasKit() && menu.rollActive() && inRect((int) mx, (int) my, bookBtnX(), btnY(), BTN, BTN)) {
+                if (browserOpen) {
+                    closeBrowser();
+                } else {
+                    browserOpen = true;
+                    browserSearch.setVisible(true);
+                    repositionForBrowser();
+                    recomputeCraftable();
+                }
+                return true;
+            }
+            // a chalked recipe + a click on the empty result well = lay it out from stock
+            if (ghost != null && menu.rollActive()
+                    && inRect((int) mx, (int) my, leftPos + PackMenu.ROLL_RESULT_X - 2,
+                            topPos + PackMenu.ROLL_RESULT_Y - 2, 20, 20)
+                    && !menu.slots.get(menu.resultIndex()).hasItem()) {
+                PackClientActions.layOutGhost(menu, ghost.id().toString());
                 return true;
             }
             if (inRect((int) mx, (int) my, flatBtnX(), btnY(), BTN, BTN)) {
@@ -622,15 +939,47 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
     }
 
-    /** Everything the pack draws beyond the panel edges: the tab rail left, the fittings rail right. */
+    /** Everything the pack draws beyond the panel edges: the tab rail left, the fittings rail
+     *  right, and the Recipe Ledger sheet beyond it. All count as INSIDE the GUI. */
     private boolean isOverRail(int mx, int my) {
         // left: stamped leather tabs (they tuck under the frame, so start a touch further out)
         if (mx >= leftPos - TAB_W && mx < leftPos
                 && my >= topPos + RAIL_TOP && my < topPos + imageHeight) return true;
+        // the ledger sheet, when it's open
+        if (overLedger(mx, my)) return true;
         // right: brass sockets, then the stack of store gauges beneath them
-        int bottom = gaugeTopY() + gaugeCount() * (GAUGE_H + GAUGE_GAP);
+        int bottom = gaugeTopY() + gaugeCount() * (gaugeHeight() + GAUGE_GAP);
         return mx >= leftPos + PackMenu.TRINKET_X - 5 && mx < leftPos + PackMenu.TRINKET_X + 24
                 && my >= topPos + PackMenu.TRINKET_Y0 - 5 && my < topPos + bottom;
+    }
+
+    /** Clicks inside the ledger sheet: focus the search, chalk a recipe, or just be swallowed. */
+    private boolean handleBrowserClick(double mx, double my, int button) {
+        if (!overLedger((int) mx, (int) my)) return false;
+        if (browserSearch.mouseClicked(mx, my, button)) {
+            setFocused(browserSearch);
+            return true;
+        }
+        if (button == 0) {
+            for (int rIdx = 0; rIdx < browserRows() * BR_COLS; rIdx++) {
+                int i = (browserScroll * BR_COLS) + rIdx;
+                if (i >= craftable.size()) break;
+                if (inRect((int) mx, (int) my, cellX(rIdx) - 1, cellY(rIdx) - 1, 18, 18)) {
+                    setGhost(craftable.get(i).holder());
+                    return true;
+                }
+            }
+        }
+        return true; // anywhere else on the sheet: consumed, never vanilla's drop-outside
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double dx, double dy) {
+        if (overLedger((int) mx, (int) my)) {
+            browserScroll = Math.max(0, Math.min(maxLedgerScroll(), browserScroll - (int) Math.signum(dy)));
+            return true;
+        }
+        return super.mouseScrolled(mx, my, dx, dy);
     }
 
     private int tabAt(int mx, int my) {
@@ -698,6 +1047,30 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     /** Dev harness only: the tool-roll latch's centre in GUI space (null without a kit fitted). */
     public int[] devRollButtonCenter() {
         return hasKit() ? new int[]{rollBtnX() + BTN / 2, btnY() + BTN / 2} : null;
+    }
+
+    /** Dev harness only: the Recipe Ledger button's centre (null unless the roll is out). */
+    public int[] devLedgerButtonCenter() {
+        return hasKit() && menu.rollActive() ? new int[]{bookBtnX() + BTN / 2, btnY() + BTN / 2} : null;
+    }
+
+    /** Dev harness only: the centre of a recipe's cell on the open ledger, or null if not visible. */
+    public int[] devLedgerCellCenter(String recipeId) {
+        if (!browserOpen) return null;
+        for (int rIdx = 0; rIdx < browserRows() * BR_COLS; rIdx++) {
+            int i = (browserScroll * BR_COLS) + rIdx;
+            if (i >= craftable.size()) break;
+            if (craftable.get(i).holder().id().toString().equals(recipeId)) {
+                return new int[]{cellX(rIdx) + 8, cellY(rIdx) + 8};
+            }
+        }
+        return null;
+    }
+
+    /** Dev harness only: the tool roll's result well centre. */
+    public int[] devResultWellCenter() {
+        Slot well = menu.slots.get(menu.resultIndex());
+        return new int[]{leftPos + well.x + 8, topPos + well.y + 8};
     }
 
     /** Dev harness only: the waterskin gauge's centre in GUI space (null when there's no rack). */

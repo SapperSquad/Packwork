@@ -47,10 +47,26 @@ public final class HandbookContent {
 
     private static ItemStack pack(PackTier tier) { return new ItemStack(ModItems.pack(tier).get()); }
 
+    /** Every tier's pack, ladder order - a new tier appears in the book by existing. */
+    private static ItemStack[] allPacks() {
+        return java.util.Arrays.stream(PackTier.values()).map(HandbookContent::pack).toArray(ItemStack[]::new);
+    }
+
     private static ItemStack trinket(TrinketType type) { return new ItemStack(ModItems.trinket(type).get()); }
 
     private static String buckets(PackTier tier) {
         return (PackFluidHandler.capacityFor(pack(tier)) / 1000) + " buckets";
+    }
+
+    /** One tier's numbers, straight off the SSOT: "NAME slots/stacksPerSlot/sockets." */
+    private static String tierLine(PackTier t) {
+        return t.getSerializedName().toUpperCase(java.util.Locale.ROOT) + " " + t.capacity()
+                + " / x" + t.depthMultiplier() + " / " + t.trinketSlots() + ".";
+    }
+
+    /** The top tier's display name for "up to ..." sentences - never goes stale on a new tier. */
+    private static String topName() {
+        return PackTier.top().getSerializedName().toUpperCase(java.util.Locale.ROOT);
     }
 
     public static final List<Chapter> CHAPTERS = List.of(
@@ -60,9 +76,7 @@ public final class HandbookContent {
             text("A humble adventurer's pack that holds far more than it should - and quietly "
                 + "organizes itself. Right-click one in hand to open it, or press the Open Pack key "
                 + "(default B) to open the first pack you're carrying without digging it out."),
-            row("five packs, one ladder",
-                pack(PackTier.CANVAS), pack(PackTier.LEATHER), pack(PackTier.STUDDED),
-                pack(PackTier.REINFORCED), pack(PackTier.RUNED)),
+            row("one ladder, every pack", allPacks()),
             text("Drop an item in and the pack decides where it goes. Stamped leather tabs run down "
                 + "the left; a rules engine claims each item for the right tab the instant it lands. "
                 + "A Loose tab catches anything no rule wanted, so nothing you drop in ever vanishes."),
@@ -146,21 +160,29 @@ public final class HandbookContent {
 
         // =================================================================
         new Chapter("Tiers & Upgrades", List.of(
-            row("Canvas to Runed",
-                pack(PackTier.CANVAS), pack(PackTier.LEATHER), pack(PackTier.STUDDED),
-                pack(PackTier.REINFORCED), pack(PackTier.RUNED)),
-            text("The pack grows two ways: the material it's made of, and the fittings you craft for "
-                + "it. Each material step adds compartment slots and another trinket socket."),
-            text("Slots and sockets by tier: CANVAS " + PackTier.CANVAS.capacity() + " slots, "
-                + PackTier.CANVAS.trinketSlots() + " sockets. LEATHER " + PackTier.LEATHER.capacity()
-                + " / " + PackTier.LEATHER.trinketSlots() + ". STUDDED " + PackTier.STUDDED.capacity()
-                + " / " + PackTier.STUDDED.trinketSlots() + ". REINFORCED "
-                + PackTier.REINFORCED.capacity() + " / " + PackTier.REINFORCED.trinketSlots()
-                + ". RUNED " + PackTier.RUNED.capacity() + " slots, " + PackTier.RUNED.trinketSlots()
-                + " sockets - the impossibly organized top tier."),
-            text("Upgrading is safe. Craft a full pack together with the next tier's materials and "
-                + "the result carries its contents, its layout, and its fitted trinkets straight up. "
-                + "A craft never eats what's inside - pause, never punish."))),
+            row("Canvas to " + PackTier.top().getSerializedName(), allPacks()),
+            text("The pack grows three ways: WIDER (more slots), DEEPER (each slot holds more), and "
+                + "another trinket socket every step. Slots / stacks-per-slot / sockets by tier: "
+                + java.util.Arrays.stream(PackTier.values()).map(HandbookContent::tierLine)
+                    .collect(java.util.stream.Collectors.joining(" "))),
+            text("DEPTH is the top of the ladder's real gift: a "
+                + PackTier.top().getSerializedName().toUpperCase(java.util.Locale.ROOT) + " slot holds "
+                + PackTier.top().slotDepth(64) + " of a common item - "
+                + PackTier.top().step() + " whole stacks in one slot, sorted under one tab. Depth "
+                + "lives entirely inside the pack: anything that LEAVES - your cursor, a hopper, a "
+                + "fitting drawing from stock - always comes out one vanilla stack at a time, so the "
+                + "world outside never sees an impossible stack."),
+            text("Depth belongs to the TIER; extra slots belong to the BOTTOMLESS LINING. One axis "
+                + "each: craft the material to hold more of everything, fit the lining to hold more "
+                + "kinds of thing. They never overlap, so there's no double-dipping to puzzle over."),
+            text("The ladder itself: sew a CANVAS pack from wool and string, then every later tier "
+                + "is crafted FROM the pack before it plus that tier's materials - leather, then "
+                + "iron, then copper, then amethyst and echo shards for RUNED, and for DRAGONHIDE "
+                + "the spoils of the End itself: shulker shells and dragon's breath."),
+            text("Upgrading is safe, always. The upgrade craft IS the recipe - a full pack plus "
+                + "materials - and the result carries contents, layout, trinkets, name, and every "
+                + "store (water, XP, charge, embers, vapors) straight up. A craft never eats "
+                + "what's inside - pause, never punish."))),
 
         // =================================================================
         new Chapter("The Stores", List.of(
@@ -170,17 +192,17 @@ public final class HandbookContent {
                 trinket(TrinketType.WATERSKIN), trinket(TrinketType.SOUL_VIAL),
                 trinket(TrinketType.CHARGE_CRYSTAL)),
             text("WATERSKIN RACK fits a fluid tank, from " + buckets(PackTier.CANVAS) + " on Canvas up "
-                + "to " + buckets(PackTier.RUNED) + " on Runed. Click the glass gauge with a bucket or "
-                + "flask on the cursor to fill or empty it. It speaks NeoForge's own fluid capability, "
-                + "so any mod's pipes work against a placed pack."),
+                + "to " + buckets(PackTier.top()) + " on " + topName() + ". Click the glass gauge with "
+                + "a bucket or flask on the cursor to fill or empty it. It speaks NeoForge's own fluid "
+                + "capability, so any mod's pipes work against a placed pack."),
             text("SOUL VIAL stores experience - " + PackXpStore.capacityFor(pack(PackTier.CANVAS))
-                + " points on Canvas up to " + PackXpStore.capacityFor(pack(PackTier.RUNED))
-                + " on Runed. Click the green gauge to siphon your XP in, Shift-click to pour it back, "
-                + "and it quietly mends your Mending-enchanted gear from the reservoir."),
+                + " points on Canvas up to " + PackXpStore.capacityFor(pack(PackTier.top()))
+                + " on " + topName() + ". Click the green gauge to siphon your XP in, Shift-click to "
+                + "pour it back, and it quietly mends your Mending-enchanted gear from the reservoir."),
             text("CHARGE CRYSTAL holds an arcane charge - standard FE in a copper-wound crystal, never "
                 + "a battery - from " + PackEnergyStorage.capacityFor(pack(PackTier.CANVAS)) + " FE on "
-                + "Canvas up to " + PackEnergyStorage.capacityFor(pack(PackTier.RUNED)) + " on Runed. "
-                + "Any charger fills it, and it tops up the powered tools in your hands."),
+                + "Canvas up to " + PackEnergyStorage.capacityFor(pack(PackTier.top())) + " on "
+                + topName() + ". Any charger fills it, and it tops up the powered tools in your hands."),
             text("Running Forgework? The Charge Crystal also feeds any Forgework portable terminal "
                 + "you're carrying, 1 Flux = 1 FE - the same arcane charge, poured into your "
                 + "ender-gear. It does nothing without Forgework installed."),

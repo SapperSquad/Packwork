@@ -247,7 +247,7 @@ public class PackworkGameTests {
 
         var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
                 PackTier.LEATHER, PackTier.STUDDED,
-                net.minecraft.world.item.crafting.Ingredient.of(Items.IRON_INGOT), 4,
+                List.of(net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.IRON_INGOT, 4)),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
         // a 3x3 crafting input: the pack + 4 iron ingots
@@ -750,7 +750,7 @@ public class PackworkGameTests {
                 "the roll covers its rows of the grid, got " + menu.visibleSlots());
 
         // lay a 2x2 of planks on the roll (as a shift-click from the pack would)
-        int gridStart = menu.resultIndex() - 9;
+        int gridStart = menu.craftStart();
         for (int i : new int[]{0, 1, 3, 4}) {
             menu.slots.get(gridStart + i).set(new ItemStack(Items.OAK_PLANKS));
         }
@@ -788,7 +788,7 @@ public class PackworkGameTests {
 
         var menu = com.sappersquad.packwork.pack.PackMenu.server(12, player.getInventory(), 0);
         menu.applyToggleRoll();
-        int gridStart = menu.resultIndex() - 9;
+        int gridStart = menu.craftStart();
         menu.slots.get(gridStart).set(new ItemStack(Items.DIAMOND, 5));
         menu.slots.get(gridStart + 4).set(new ItemStack(Items.IRON_INGOT, 3));
 
@@ -979,6 +979,304 @@ public class PackworkGameTests {
             if (s.is(item)) n += s.getCount();
         }
         return n;
+    }
+
+    // =====================================================================
+    //  2026-07-25 batch 2: per-slot DEPTH, the preserving recipe chain, and
+    //  the Dragonhide tier. The depth tests are the ones that keep worlds safe.
+    // =====================================================================
+
+    /** Depth: each tier deepens every slot by x64; unstackables never stack; inserts cap at depth. */
+    @GameTest(template = "empty")
+    public static void depthDeepensByTier(GameTestHelper helper) {
+        // Canvas = vanilla depth: one stack per slot
+        ItemStack canvas = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
+        PackInventory canvasStore = new PackInventory(canvas, PackTier.CANVAS);
+        ItemStack left = canvasStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 100), false);
+        helper.assertTrue(canvasStore.getStackInSlot(0).getCount() == 64 && left.getCount() == 36,
+                "canvas holds one vanilla stack per slot, got " + canvasStore.getStackInSlot(0).getCount());
+
+        // Dragonhide = six stacks per slot
+        ItemStack dh = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
+        PackInventory dhStore = new PackInventory(dh, PackTier.DRAGONHIDE);
+        ItemStack l2 = dhStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        helper.assertTrue(l2.isEmpty(), "first stack in");
+        for (int i = 0; i < 5; i++) {
+            l2 = dhStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+            helper.assertTrue(l2.isEmpty(), "stack " + (i + 2) + " merges into depth");
+        }
+        helper.assertTrue(dhStore.getStackInSlot(0).getCount() == 384,
+                "dragonhide slot holds 384, got " + dhStore.getStackInSlot(0).getCount());
+        l2 = dhStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 10), false);
+        helper.assertTrue(l2.getCount() == 10, "the 385th cobblestone is refused, not eaten");
+
+        // 16-stackables scale by the same multiplier: pearl depth = 16 x 6 = 96
+        helper.assertTrue(dhStore.insertItem(1, new ItemStack(Items.ENDER_PEARL, 64), false).isEmpty(),
+                "64 pearls fit under the 96 depth");
+        ItemStack pearlLeft = dhStore.insertItem(1, new ItemStack(Items.ENDER_PEARL, 64), false);
+        helper.assertTrue(dhStore.getStackInSlot(1).getCount() == 96 && pearlLeft.getCount() == 32,
+                "pearls deepen to exactly 96 (16 x 6), got " + dhStore.getStackInSlot(1).getCount());
+        ItemStack sword = dhStore.insertItem(2, new ItemStack(Items.IRON_SWORD), false);
+        helper.assertTrue(sword.isEmpty(), "a sword goes in");
+        ItemStack sword2 = dhStore.insertItem(2, new ItemStack(Items.IRON_SWORD), false);
+        helper.assertTrue(sword2.getCount() == 1, "a second sword never stacks into the slot");
+        helper.succeed();
+    }
+
+    /**
+     * THE world-safety test for depth. Vanilla's persistent ItemStack codec hard-fails on any
+     * count over 99, so a deep slot must survive: (a) the item save/parse a relog performs,
+     * (b) the block entity NBT save/load a placed pack performs, and (c) a pack saved in the
+     * OLD pre-depth format must still load via the codec's legacy fallback.
+     */
+    @GameTest(template = "empty")
+    public static void deepContentsSurviveEveryRoundTrip(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+
+        // (a) relog: ItemStack.save -> parse with 384 cobble + 96 pearls + a sword aboard
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
+        PackInventory store = new PackInventory(pack, PackTier.DRAGONHIDE);
+        store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        for (int i = 0; i < 5; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        store.insertItem(1, new ItemStack(Items.ENDER_PEARL, 64), false);
+        store.insertItem(1, new ItemStack(Items.ENDER_PEARL, 64), false);
+        store.insertItem(2, new ItemStack(Items.IRON_SWORD), false);
+
+        Tag saved = pack.save(reg);
+        ItemStack reloaded = ItemStack.parse(reg, saved).orElseThrow();
+        PackInventory reStore = new PackInventory(reloaded, PackTier.DRAGONHIDE);
+        helper.assertTrue(reStore.getStackInSlot(0).getCount() == 384,
+                "384 cobble survive a relog, got " + reStore.getStackInSlot(0).getCount());
+        helper.assertTrue(reStore.getStackInSlot(1).getCount() == 96, "96 pearls survive a relog");
+        helper.assertTrue(reStore.getStackInSlot(2).is(Items.IRON_SWORD), "the sword survives");
+
+        // (b) placed: the block entity's own NBT save/load (the chunk-save path)
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        var be = (com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p);
+        be.setPackStack(pack.copy());
+        net.minecraft.nbt.CompoundTag beTag = be.saveWithFullMetadata(reg);
+        var be2 = new com.sappersquad.packwork.block.PackContainerBlockEntity(
+                helper.absolutePos(p), helper.getLevel().getBlockState(helper.absolutePos(p)));
+        be2.loadWithComponents(beTag, reg);
+        PackInventory beStore = new PackInventory(be2.getPackStack(), PackTier.DRAGONHIDE);
+        helper.assertTrue(beStore.getStackInSlot(0).getCount() == 384,
+                "384 cobble survive the placed-pack chunk save, got " + beStore.getStackInSlot(0).getCount());
+
+        // (c) migration: data written by the VANILLA codec still decodes (legacy fallback)
+        var legacy = net.minecraft.world.item.component.ItemContainerContents.fromItems(
+                java.util.List.of(new ItemStack(Items.BREAD, 40), new ItemStack(Items.IRON_PICKAXE)));
+        Tag legacyTag = net.minecraft.world.item.component.ItemContainerContents.CODEC
+                .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, legacy).getOrThrow();
+        var decoded = com.sappersquad.packwork.pack.DeepContentsCodec.CODEC
+                .parse(net.minecraft.nbt.NbtOps.INSTANCE, legacyTag).getOrThrow();
+        helper.assertTrue(decoded.getStackInSlot(0).getCount() == 40 && decoded.getStackInSlot(0).is(Items.BREAD),
+                "a pre-depth pack's contents load intact (40 bread), got " + decoded.getStackInSlot(0).getCount());
+        helper.assertTrue(decoded.getStackInSlot(1).is(Items.IRON_PICKAXE), "and the pickaxe with them");
+        helper.succeed();
+    }
+
+    /**
+     * Nothing oversized ever LEAVES the pack: every extract path - the capability a hopper
+     * pulls through, and the GUI slot a cursor lifts from - pays out one vanilla stack at
+     * a time, conserving exactly across the whole drain.
+     */
+    @GameTest(template = "empty")
+    public static void oversizedStacksNeverEscape(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
+        PackInventory store = new PackInventory(pack, PackTier.DRAGONHIDE);
+        for (int i = 0; i < 6; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+
+        // capability path (hoppers/pipes): a greedy pull still gets one legal stack
+        ItemStack pulled = store.extractItem(0, 999, false);
+        helper.assertTrue(pulled.getCount() == 64, "a greedy extract pays out 64, got " + pulled.getCount());
+        int total = pulled.getCount();
+        while (true) {
+            ItemStack next = store.extractItem(0, Integer.MAX_VALUE, false);
+            if (next.isEmpty()) break;
+            helper.assertTrue(next.getCount() <= 64, "every pull is a legal stack");
+            total += next.getCount();
+        }
+        helper.assertTrue(total == 384, "the whole depth drains out exactly, got " + total);
+
+        // GUI path: a view slot's remove() (the cursor pickup) is clamped the same way
+        for (int i = 0; i < 6; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(21, player.getInventory(), 0);
+        menu.applyFlatten(true);   // show every backing slot so the cobble is on the grid
+        com.sappersquad.packwork.pack.PackViewSlot cell = null;
+        for (var s : menu.slots) {
+            if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive() && s.hasItem()) {
+                cell = vs;
+                break;
+            }
+        }
+        helper.assertTrue(cell != null && cell.getItem().getCount() == 384, "the deep slot shows its true count");
+        ItemStack taken = cell.remove(Integer.MAX_VALUE);
+        helper.assertTrue(taken.getCount() == 64, "a cursor pickup lifts one stack, got " + taken.getCount());
+        helper.assertTrue(cell.getItem().getCount() == 320, "the rest stays safely in the pack");
+        helper.succeed();
+    }
+
+    /** Tidy Up merges loose stacks down INTO depth: fewer, deeper stacks, count conserved. */
+    @GameTest(template = "empty")
+    public static void tidyMergesIntoDepth(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get()); // depth x2 = 128
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        List<ItemStack> source = List.of(
+                new ItemStack(Items.COBBLESTONE, 64), new ItemStack(Items.COBBLESTONE, 64),
+                new ItemStack(Items.COBBLESTONE, 40), new ItemStack(Items.BREAD, 5));
+        List<ItemStack> tidied = PackSorting.tidy(source, SortEngine.tabsFor(PackLayout.EMPTY),
+                PackLayout.EMPTY, store::depthFor);
+        int cobble = 0;
+        int cobbleStacks = 0;
+        for (ItemStack s : tidied) {
+            if (s.is(Items.COBBLESTONE)) { cobble += s.getCount(); cobbleStacks++; }
+            helper.assertTrue(s.getCount() <= store.depthFor(s), "no stack over its depth");
+        }
+        helper.assertTrue(cobble == 168, "all 168 cobblestone conserved, got " + cobble);
+        helper.assertTrue(cobbleStacks == 2, "merged into depth: 128 + 40 = two stacks, got " + cobbleStacks);
+        helper.succeed();
+    }
+
+    /**
+     * The recipe chain (Alex's rework): every tier above Canvas is crafted FROM the pack
+     * before it, and that craft preserves EVERYTHING - deep contents, trinkets, layout,
+     * name, and all five stores. Proven on the endgame step: Runed + shulker shells +
+     * dragon's breath = Dragonhide.
+     */
+    @GameTest(template = "empty")
+    public static void upgradeChainPreservesEverythingIncludingDepth(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
+        PackInventory store = new PackInventory(pack, PackTier.RUNED);
+        for (int i = 0; i < 5; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false); // 320 deep
+        new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+        new com.sappersquad.packwork.pack.PackFluidHandler(pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
+                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 7000),
+                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        pack.set(ModComponents.PACK_XP.get(), 4321);
+        pack.set(ModComponents.PACK_ENERGY.get(), 98765);
+        pack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                net.minecraft.network.chat.Component.literal("Old Faithful"));
+
+        var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
+                PackTier.RUNED, PackTier.DRAGONHIDE,
+                List.of(net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.SHULKER_SHELL, 4),
+                        net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.DRAGON_BREATH, 4)),
+                net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
+
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
+                pack, new ItemStack(Items.SHULKER_SHELL, 4), new ItemStack(Items.DRAGON_BREATH, 4),
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "runed + shells + breath matches");
+
+        // missing the second material must NOT match - the End gate is real
+        var half = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
+                pack, new ItemStack(Items.SHULKER_SHELL, 4), ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
+        helper.assertTrue(!recipe.matches(half, helper.getLevel()), "shells alone are not enough");
+
+        ItemStack out = recipe.assemble(input, reg);
+        helper.assertTrue(out.getItem() == ModItems.pack(PackTier.DRAGONHIDE).get(), "result is Dragonhide");
+        PackInventory upStore = new PackInventory(out, PackTier.DRAGONHIDE);
+        helper.assertTrue(upStore.getStackInSlot(0).getCount() == 320,
+                "the deep stack rides up intact, got " + upStore.getStackInSlot(0).getCount());
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketAccess.has(out,
+                com.sappersquad.packwork.trinket.TrinketType.WATERSKIN), "trinkets carry");
+        helper.assertTrue(new com.sappersquad.packwork.pack.PackFluidHandler(out, 1).getFluidInTank(0).getAmount() == 7000,
+                "the waterskin's fill carries");
+        helper.assertTrue(out.getOrDefault(ModComponents.PACK_XP.get(), 0) == 4321, "stored XP carries");
+        helper.assertTrue(out.getOrDefault(ModComponents.PACK_ENERGY.get(), 0) == 98765, "stored charge carries");
+        helper.assertTrue("Old Faithful".equals(out.getHoverName().getString()), "the name carries");
+        helper.succeed();
+    }
+
+    /** Everything keyed off the tier enum scales to Dragonhide: sockets, stores, depth. */
+    @GameTest(template = "empty")
+    public static void dragonhideScalesEverything(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
+        helper.assertTrue(PackTier.DRAGONHIDE.trinketSlots() == 5, "five trinket sockets");
+        helper.assertTrue(PackTier.DRAGONHIDE.depthMultiplier() == 6, "depth x6 (384 of a 64-stackable)");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) == 48000,
+                "waterskin scales to 48 buckets");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack) == 30000,
+                "soul vial scales to 30k points");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pack) == 600_000,
+                "charge crystal scales to 600k FE");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackChemical.capacityFor(pack) == 96_000L,
+                "flask harness scales to 96,000 mB");
+        // the placed block renders it and lights it
+        net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
+        helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
+        ((com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p)).setPackStack(pack.copy());
+        var st = helper.getLevel().getBlockState(helper.absolutePos(p));
+        helper.assertTrue(st.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.DRAGONHIDE,
+                "the blockstate carries the dragonhide tier");
+        helper.assertTrue(st.getLightEmission() == 11, "the breath-gem glows brighter than runed");
+        helper.succeed();
+    }
+
+    /**
+     * The Recipe Ledger's one server verb: laying a chalked recipe onto the roll pulls each
+     * ingredient from PACK stock exactly once, all-or-nothing. A pattern the pack can't
+     * cover moves NOTHING, and the laid-out pattern crafts and refills as normal.
+     */
+    @GameTest(template = "empty")
+    public static void ghostLayOutPullsFromPackAllOrNothing(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT).get()), false);
+        new PackInventory(pack, PackTier.STUDDED).insertItem(0, new ItemStack(Items.WHEAT, 7), false);
+        player.getInventory().setItem(0, pack);
+
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(31, player.getInventory(), 0);
+        menu.applyToggleRoll();
+
+        // bread = 3 wheat in a row; the pack holds 7
+        menu.applyLayOutGhost("minecraft:bread");
+        int gridStart = menu.craftStart();
+        int onGrid = 0;
+        for (int i = 0; i < 9; i++) onGrid += menu.slots.get(gridStart + i).getItem().getCount();
+        helper.assertTrue(onGrid == 3, "exactly one set laid out, got " + onGrid);
+        helper.assertTrue(countPack(pack, Items.WHEAT) == 4,
+                "the wheat came out of the pack, " + countPack(pack, Items.WHEAT) + " left");
+        helper.assertTrue(menu.slots.get(menu.resultIndex()).getItem().is(Items.BREAD),
+                "the laid-out pattern makes its bread");
+
+        // laying it again on a FULL pattern must change nothing (cells already hold their makings)
+        menu.applyLayOutGhost("minecraft:bread");
+        onGrid = 0;
+        for (int i = 0; i < 9; i++) onGrid += menu.slots.get(gridStart + i).getItem().getCount();
+        helper.assertTrue(onGrid == 3 && countPack(pack, Items.WHEAT) == 4,
+                "re-laying a laid pattern moves nothing");
+
+        // craft it twice (vanilla's shift-click loop re-calls quickMoveStack while the result
+        // holds): first craft refills the bench from the pack's 4, the second leaves 1 spare
+        menu.quickMoveStack(player, menu.resultIndex());
+        menu.quickMoveStack(player, menu.resultIndex());
+        int loaves = countPack(pack, Items.BREAD);
+        for (int i = 1; i < player.getInventory().getContainerSize(); i++) {
+            if (player.getInventory().getItem(i).is(Items.BREAD)) loaves += player.getInventory().getItem(i).getCount();
+        }
+        helper.assertTrue(loaves == 2, "seven wheat = two loaves and one spare, got " + loaves + " loaves");
+
+        // a recipe the pack can't cover at all: NOTHING moves
+        menu.applyToggleRoll(); // clear the roll back into the pack
+        menu.applyToggleRoll();
+        int wheatBefore = countPack(pack, Items.WHEAT);
+        menu.applyLayOutGhost("minecraft:cake"); // needs milk, sugar, eggs - none aboard
+        onGrid = 0;
+        for (int i = 0; i < 9; i++) onGrid += menu.slots.get(gridStart + i).getItem().getCount();
+        helper.assertTrue(onGrid == 0, "an uncoverable pattern lays nothing out");
+        helper.assertTrue(countPack(pack, Items.WHEAT) == wheatBefore, "and spends nothing");
+        helper.succeed();
     }
 
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */

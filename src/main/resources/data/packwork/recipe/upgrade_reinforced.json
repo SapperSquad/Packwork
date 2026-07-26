@@ -1,2 +1,2 @@
 { "type": "packwork:pack_upgrade", "from": "studded", "to": "reinforced",
-  "material": { "item": "minecraft:copper_ingot" }, "count": 4 }
+  "materials": [ { "ingredient": { "item": "minecraft:copper_ingot" }, "count": 4 } ] }

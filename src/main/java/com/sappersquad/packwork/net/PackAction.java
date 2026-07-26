@@ -41,7 +41,9 @@ public enum PackAction {
     /** pour the Soul Vial back into the player. */
     XP_POUR,
     /** unroll / roll up the Tinker's Kit tool roll across the pack's lower rows. */
-    TOGGLE_ROLL;
+    TOGGLE_ROLL,
+    /** s1 = recipe id: lay one set of that recipe's makings from PACK stock onto the tool roll. */
+    LAY_OUT_GHOST;
 
     private static final PackAction[] VALUES = values();
 
@@ -56,6 +58,7 @@ public enum PackAction {
      * Layout verbs (tabs, search, pins) stay optimistic so the rail still feels instant.
      */
     public boolean serverAuthoritative() {
-        return this == FLUID_INTERACT || this == XP_SIPHON || this == XP_POUR;
+        return this == FLUID_INTERACT || this == XP_SIPHON || this == XP_POUR
+                || this == LAY_OUT_GHOST;
     }
 }

@@ -16,13 +16,21 @@ import java.util.Map;
  */
 public final class PackSorting {
 
+    /** Vanilla-depth form (one stack per slot); kept for callers without a tiered pack. */
+    public static List<ItemStack> tidy(List<ItemStack> source, List<TabView> tabs, PackLayout layout) {
+        return tidy(source, tabs, layout, ItemStack::getMaxStackSize);
+    }
+
     /**
      * @param source non-empty backing stacks (copies; not mutated)
      * @param tabs   the resolved tab list (for priority ordering)
      * @param layout the pack layout (for pin-aware routing)
+     * @param depth  how many items one slot may hold of a given stack - the pack tier's
+     *               per-slot DEPTH, so Tidy Up merges loose stacks down into deep ones
      * @return a compacted, merged, ordered list ready to write back to the front slots
      */
-    public static List<ItemStack> tidy(List<ItemStack> source, List<TabView> tabs, PackLayout layout) {
+    public static List<ItemStack> tidy(List<ItemStack> source, List<TabView> tabs, PackLayout layout,
+                                       java.util.function.ToIntFunction<ItemStack> depth) {
         List<ItemStack> merged = new ArrayList<>();
         for (ItemStack in : source) {
             if (in.isEmpty()) continue;
@@ -30,7 +38,7 @@ public final class PackSorting {
             for (ItemStack m : merged) {
                 if (s.isEmpty()) break;
                 if (ItemStack.isSameItemSameComponents(m, s)) {
-                    int space = m.getMaxStackSize() - m.getCount();
+                    int space = depth.applyAsInt(m) - m.getCount();
                     if (space > 0) {
                         int move = Math.min(space, s.getCount());
                         m.grow(move);
