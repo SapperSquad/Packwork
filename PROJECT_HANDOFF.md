@@ -44,8 +44,16 @@ keeping every fidelity gain from pass 3.
 
 **2026-07-26 playtest wave 4 — JEI real recipes, legible pinning, the rule editor, per-tab
 arrangement.** SapperSquad's live-client playtest called four things; ALL FOUR are landed. 44
-GameTests green; version stays **0.1.0**. (His client was running throughout this wave, so
-the new GUI work is logic-verified + gametested; a visual pass in his client is the followup.)
+GameTests green; version stays **0.1.0**. **Visuals pending:** his client ran through most of
+this wave and client launches were blocked after it closed, so the new GUI work is
+logic-verified + gametested but NOT yet seen as pixels. The harness is ready for it:
+`./gradlew.bat runClient -Pautoshot -Pjei` now walks the auto-pin drop (note + ribbon), the
+quill/rule sheet (write by name + a category chip), the arrangement switch (a real
+pick-up/put-down into a kept cell), and a JEI recipe view of the Studded upgrade —
+screenshots `packwork_autopin` / `packwork_rules_*` / `packwork_keep_layout` /
+`packwork_jei_upgrade`. Also new: the JEI plugin declares the tab rail, fittings rail, and
+open parchment sheets as GUI extra areas so JEI's ingredient list stays off them — check
+that as pixels too.
 
 4. **Per-tab arrangement switch (SapperSquad's call: Tidy / Keep-my-layout).** Every compartment
    gets a mode button under the grid (next to the quill): TIDY = today's auto-arranged view;
