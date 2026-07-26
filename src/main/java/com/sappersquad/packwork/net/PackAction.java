@@ -43,7 +43,12 @@ public enum PackAction {
     /** unroll / roll up the Tinker's Kit tool roll across the pack's lower rows. */
     TOGGLE_ROLL,
     /** s1 = recipe id: lay one set of that recipe's makings from PACK stock onto the tool roll. */
-    LAY_OUT_GHOST;
+    LAY_OUT_GHOST,
+    /** s1 = custom tab id, arg = {@code SortRule.Type} ordinal, s2 = the rule's value.
+     *  Requires a Quill &amp; Ledger fitted (the rule editor is its whole job). */
+    ADD_TAB_RULE,
+    /** s1 = custom tab id, arg = index into the tab's stored rule list. Ledger-gated too. */
+    REMOVE_TAB_RULE;
 
     private static final PackAction[] VALUES = values();
 

@@ -66,7 +66,7 @@ brass **trinkets** into it:
 | Bottomless Lining | more slots, never voided |
 | Compass Rose | the only way a pack throws anything out — and it's opt-in |
 | Quick-Draw Straps | when a tool breaks in your hand, the pack hands you another |
-| Quill & Ledger | custom compartments start filing by rule, not just pins |
+| Quill & Ledger | the rule editor — write your own filters (name, mod, category) on any custom compartment |
 | Tinker's Kit | a leather tool roll unrolls inside the pack — a 3×3 bench fed from your stores, with a parchment Recipe Ledger of everything craftable from pack stock |
 | Field Furnace | banked embers cook raw ore and raw food as you walk |
 | Provisioner's Pouch | feeds you before hunger bites, cheapest rations first |

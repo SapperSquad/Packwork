@@ -104,7 +104,11 @@ public final class HandbookContent {
                 + "grid when you just want to rummage."),
             text("Make your own compartments. The + button adds one; then hover an item and press I "
                 + "to stamp it as the tab's icon, R to rename, middle-click the tab to dye its "
-                + "leather, and [ or ] to slide it up or down the rail. Right-click removes it."))),
+                + "leather, and [ or ] to slide it up or down the rail. Right-click removes it."),
+            text("The STAMP is a live filter, not just a picture: stamp a tab with a pickaxe and "
+                + "it gathers tools, stamp it with bread and it gathers food - no fitting needed. "
+                + "Want sharper filters than that? That's the Quill & Ledger's desk - see "
+                + "Trinkets."))),
 
         // =================================================================
         new Chapter("Trinkets", List.of(
@@ -123,10 +127,12 @@ public final class HandbookContent {
                 trinket(TrinketType.QUICK_DRAW)),
             text("COMPASS ROSE is the only way a pack throws anything away, and it's opt-in: hover an "
                 + "item and press O to mark it, and only marked items are voided on the way in."),
-            text("QUILL & LEDGER upgrades your custom compartments from pin-only to rule-matching. "
-                + "With it fitted, a custom tab also gathers items that share the kind of the item "
-                + "it's stamped with - stamp a tab with a pickaxe and it collects your tools. Pins "
-                + "still win over rules, so you can always carve out exceptions."),
+            text("QUILL & LEDGER is the rule editor. Fit it, open a custom compartment, and click "
+                + "the quill under the grid: a parchment sheet where you write your own filters - "
+                + "by name ('ingot'), by mod, or by category chip - and strike them off again. "
+                + "Written rules sort only while the ledger is fitted; pull it and the tab falls "
+                + "back to its stamp and pins, with the rules kept safe in the leather for its "
+                + "return. Pins still win over everything."),
             text("QUICK-DRAW STRAPS keep you swinging: when a tool breaks in your hand, the pack "
                 + "passes you an identical one from stock without missing a beat. It only ever hands "
                 + "back what the pack actually holds, so it can't conjure a duplicate."),

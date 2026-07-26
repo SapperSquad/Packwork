@@ -42,8 +42,19 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
-**2026-07-26 playtest wave 4 (in progress) — JEI real recipes + legible pinning.** SapperSquad's
-live-client playtest called four things; the first two are landed. 42 GameTests green.
+**2026-07-26 playtest wave 4 (in progress) — JEI real recipes, legible pinning, the rule
+editor.** SapperSquad's live-client playtest called four things; three are landed. 43 GameTests green.
+
+3. **Quill & Ledger rework (SapperSquad's call: stamp = baseline, ledger = rule editor).** He
+   couldn't tell what the stamp-gate proxy did — that was the verdict on the DECISIONS flag.
+   Stamp-family matching (pickaxe stamp gathers tools) is now ALWAYS-ON for custom tabs, no
+   trinket; the ledger's new job is the per-tab rule editor: with it fitted and a custom tab
+   open, a quill button under the grid unfolds a parchment sheet — write filters by name / by
+   mod (text box) or by category chip (six kinds), strike them off per row. New layout verbs
+   ADD_TAB_RULE / REMOVE_TAB_RULE, hard server validation. Model picked & documented: written
+   rules edit AND match only while the ledger is fitted; pulling it benches them (never
+   deletes — pause, never punish) and tabs fall back to stamp+pins. Pins beat everything.
+   Trinket desc, JEI info, Handbook (Sorting + Trinkets) all rewritten to match.
 
 1. **JEI renders the pack ladder as REAL recipes (bug).** The compat plugin only registered
    info pages, so "how do I make each pack" showed lore. `PackworkJeiPlugin` now registers an

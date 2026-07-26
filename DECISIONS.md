@@ -126,7 +126,11 @@ one can be flipped later without unpicking the rest:
   refill, so it can't surprise you. It only hands back what the pack actually holds, so it
   can never dupe (a gametest pins the conservation core).
 
-- **Quill & Ledger v1 files custom tabs by their stamped icon.** Without a rule-editor UI
+- **Quill & Ledger v1 files custom tabs by their stamped icon.** *(SUPERSEDED 2026-07-26 —
+  SapperSquad played the stamp-gate proxy and couldn't tell what the fitting did, which was the
+  verdict on the flag this entry carried. New model in the 2026-07-26 section: the stamp is
+  the always-on baseline for every custom tab, and the ledger's legible job is the RULE
+  EDITOR.)* Original call: without a rule-editor UI
   (still future), the ledger's observable job is: gate whether custom tabs match by RULE at
   all. Without it, a custom tab is pin-only (its stored rules are ignored). With it fitted,
   a custom tab evaluates its stored rules PLUS a category rule derived from the item it's
@@ -298,6 +302,30 @@ one can be flipped later without unpicking the rest:
   upgrades) are refused on both sides.
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
+
+## 2026-07-26 — Quill & Ledger rework: stamp = baseline, ledger = rule editor (SapperSquad's call)
+
+- **Stamp-family matching is ALWAYS-ON for custom tabs — no trinket needed.** Stamp a tab
+  with a pickaxe and it gathers tools, out of the box. SapperSquad played the v1 stamp-gate proxy
+  and couldn't tell what the fitting did; that was the verdict on the flag the v1 entry
+  carried (see the superseded entry above). The stamp rule derives at routing time in
+  `SortEngine.toView` — storage-free, dupe-free, and now unconditional.
+- **The Quill & Ledger's legible job is the per-tab RULE EDITOR.** With it fitted, opening a
+  custom compartment shows a quill button under the grid; it unfolds a parchment sheet
+  (`PackScreen.drawRulesSheet`, same chrome as the Recipe Ledger) where the player writes
+  filters — a text box filed **by name** or **by mod**, and six **category chips** (Food /
+  Tools / Weapons / Armor / Blocks / Potions) that toggle predicate rules — and strikes them
+  off again. Two new layout verbs (`ADD_TAB_RULE` / `REMOVE_TAB_RULE`), server-validated
+  hard (custom tabs only, known types, trimmed value ≤64, real predicate names, no dupes,
+  16-rule cap, and the ledger must actually be fitted).
+- **Written rules EDIT and MATCH only while the ledger is fitted; they are never deleted by
+  pulling it.** Chosen as the most legible model: the fitting's presence answers both "can I
+  write?" and "do my writings sort?" with one yes. Pull the ledger and tabs fall back to
+  stamp + pins — pause, never punish: the authored rules stay in the component and wake when
+  it returns, and items merely re-route (a tab is a filter, nothing is stored per-tab).
+  Pins still beat rules everywhere.
+- Gametests: `stampFilesAlwaysLedgerGatesWrittenRules`, `ruleEditorWritesAndStrikesLedgerGated`
+  (gating, benching, striking, dupe/junk refusal), plus the updated pin-priority test.
 
 ## 2026-07-26 — JEI real recipes, per-cell materials, and the pinning gesture (reopen with evidence)
 

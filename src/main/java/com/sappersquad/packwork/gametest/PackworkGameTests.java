@@ -96,14 +96,15 @@ public class PackworkGameTests {
     }
 
     /**
-     * A manual pin beats every rule (with or without a ledger); a custom tab's own rules
-     * only claim items when a Quill &amp; Ledger is fitted - pin-only otherwise.
+     * A manual pin beats every rule (with or without a ledger); a custom tab's WRITTEN
+     * rules only claim items while a Quill &amp; Ledger is fitted - benched otherwise.
      */
     @GameTest(template = "empty")
     public static void pinsAlwaysWinLedgerGatesRules(GameTestHelper helper) {
         ResourceLocation breadId = BuiltInRegistries.ITEM.getKey(Items.BREAD);
 
-        // Custom tab that claims sticks by a name rule, plus a pin sending bread to it.
+        // Custom tab that claims sticks by a written name rule, plus a pin sending bread
+        // to it. Its stamp (a stick icon) has no category, so only the written rule counts.
         TabDef custom = new TabDef("custom:0", "Bits",
                 ResourceLocation.withDefaultNamespace("stick"), 0,
                 List.of(SortRule.name("stick")));
@@ -114,14 +115,13 @@ public class PackworkGameTests {
                 List.of(new PackLayout.Pin(breadId, "custom:0")),
                 List.of());
 
-        // Without a Quill & Ledger: custom tab is pin-only. The stick rule is ignored
-        // (stick falls to Loose), but the pin still overrides the Food auto-tab.
+        // Without a Quill & Ledger the written rule is benched (stick falls to Loose),
+        // but the pin still overrides the Food auto-tab.
         List<TabView> noLedger = SortEngine.tabsFor(layout, false);
         assertRoute(helper, noLedger, layout, Items.STICK, AutoTabs.LOOSE_ID);
         assertRoute(helper, noLedger, layout, Items.BREAD, "custom:0");
 
-        // With a Quill & Ledger: the custom tab's own rule now claims sticks; the pin
-        // still wins for bread.
+        // With a Quill & Ledger the written rule claims sticks; the pin still wins for bread.
         List<TabView> ledger = SortEngine.tabsFor(layout, true);
         assertRoute(helper, ledger, layout, Items.STICK, "custom:0");
         assertRoute(helper, ledger, layout, Items.BREAD, "custom:0");
@@ -129,25 +129,85 @@ public class PackworkGameTests {
     }
 
     /**
-     * Quill &amp; Ledger files a custom tab by the item it's stamped with: a tab stamped
-     * with a pickaxe (a tool) gathers tools once the ledger is fitted, and is pin-only
-     * without it.
+     * The stamp is the always-on baseline (2026-07-26 rework): a tab stamped with a
+     * pickaxe gathers tools with NO trinket fitted. The Quill &amp; Ledger gates only the
+     * written rules.
      */
     @GameTest(template = "empty")
-    public static void quillLedgerFilesByStamp(GameTestHelper helper) {
+    public static void stampFilesAlwaysLedgerGatesWrittenRules(GameTestHelper helper) {
         TabDef custom = new TabDef("custom:0", "Kit",
-                BuiltInRegistries.ITEM.getKey(Items.IRON_PICKAXE), 0, List.of());
-        // put the custom tab FIRST so, when its derived rule is active, it out-prioritises
-        // the Tools auto-tab.
+                BuiltInRegistries.ITEM.getKey(Items.IRON_PICKAXE), 0,
+                List.of(SortRule.name("stick")));
+        // put the custom tab FIRST so its stamp rule out-prioritises the Tools auto-tab
         List<String> order = new ArrayList<>();
         order.add("custom:0");
         order.addAll(AutoTabs.defaultOrder());
         PackLayout layout = new PackLayout(order, List.of(custom), List.of(), List.of());
 
-        // no ledger: pin-only, so the pickaxe routes to the Tools auto-tab
-        assertRoute(helper, SortEngine.tabsFor(layout, false), layout, Items.DIAMOND_PICKAXE, "auto:tools");
-        // ledger: the stamp's kind (a tool) is derived and the custom tab claims it first
-        assertRoute(helper, SortEngine.tabsFor(layout, true), layout, Items.DIAMOND_PICKAXE, "custom:0");
+        // stamp matching needs no ledger: the pickaxe-stamped tab claims tools outright
+        assertRoute(helper, SortEngine.tabsFor(layout, false), layout, Items.DIAMOND_PICKAXE, "custom:0");
+        // the written name rule stays the ledger's: benched without it, live with it
+        assertRoute(helper, SortEngine.tabsFor(layout, false), layout, Items.STICK, AutoTabs.LOOSE_ID);
+        assertRoute(helper, SortEngine.tabsFor(layout, true), layout, Items.STICK, "custom:0");
+        helper.succeed();
+    }
+
+    /**
+     * The Quill &amp; Ledger's rule editor: writing a rule requires the ledger fitted
+     * (refused otherwise), a written rule routes matching items, pulling the ledger
+     * benches the rules without deleting them, and striking one off really removes it.
+     * Junk input (bad type, blank value, bogus predicate) is refused server-side.
+     */
+    @GameTest(template = "empty")
+    public static void ruleEditorWritesAndStrikesLedgerGated(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(43, player.getInventory(), 0);
+
+        menu.applyCreateTab();
+        String tabId = menu.activeTab();
+        helper.assertTrue(tabId.startsWith("custom:"), "the created tab is active");
+
+        // without a ledger, the editor refuses to write
+        menu.applyAddTabRule(tabId, SortRule.Type.NAME.ordinal(), "stick");
+        PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().isEmpty(), "no ledger, no writing");
+
+        // fit the ledger and write: sticks now file themselves to the custom tab
+        var sockets = new PackTrinketInventory(() -> pack, PackTier.LEATHER);
+        sockets.insertItem(0, new ItemStack(
+                ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER).get()), false);
+        menu.applyAddTabRule(tabId, SortRule.Type.NAME.ordinal(), "stick");
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().size() == 1, "the rule is written");
+        assertRoute(helper, SortEngine.tabsFor(layout, true), layout, Items.STICK, tabId);
+
+        // duplicates are refused
+        menu.applyAddTabRule(tabId, SortRule.Type.NAME.ordinal(), "stick");
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().size() == 1, "no duplicate rules");
+
+        // pull the ledger: the rule is benched (stops matching), NOT deleted
+        sockets.extractItem(0, 1, false);
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().size() == 1, "the written rule survives");
+        assertRoute(helper, SortEngine.tabsFor(layout, false), layout, Items.STICK, AutoTabs.LOOSE_ID);
+
+        // refit and strike it off: really gone now
+        sockets.insertItem(0, new ItemStack(
+                ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER).get()), false);
+        menu.applyRemoveTabRule(tabId, 0);
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().isEmpty(), "struck off");
+        assertRoute(helper, SortEngine.tabsFor(layout, true), layout, Items.STICK, AutoTabs.LOOSE_ID);
+
+        // junk in, nothing out
+        menu.applyAddTabRule(tabId, 99, "stick");
+        menu.applyAddTabRule(tabId, SortRule.Type.PREDICATE.ordinal(), "NOT_A_KIND");
+        menu.applyAddTabRule(tabId, SortRule.Type.NAME.ordinal(), "   ");
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.customTab(tabId).rules().isEmpty(), "junk input is refused");
         helper.succeed();
     }
 
