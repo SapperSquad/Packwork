@@ -36,7 +36,9 @@ public final class DevAutoShot {
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
-        SHOOT_GRID, HOVER, HW, PIN1, PW1, SHOOT_PINNED, PIN2, PW2, SHOOT_UNPINNED,
+        SHOOT_GRID,
+        BUCKET_GIVE, BUCKET_W1, BUCKET_CLICK, BUCKET_W2, BUCKET_REPORT,
+        HOVER, HW, PIN1, PW1, SHOOT_PINNED, PIN2, PW2, SHOOT_UNPINNED,
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
         OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
@@ -101,8 +103,30 @@ public final class DevAutoShot {
                 if (++wait > 8) {
                     grab(mc, "packwork_grid");   // BUG 3: every item type centred in its cell @ scale 3
                     withMenu(mc, PackClientActions::toggleFlatten); // back to tabbed for the pin demo
-                    phase = Phase.HOVER; wait = 0;
+                    phase = Phase.BUCKET_GIVE; wait = 0;
                 }
+            }
+            // ---- the reported bug: clicking the waterskin gauge with a bucket threw it on the floor ----
+            case BUCKET_GIVE -> {
+                giveCarried(mc, BUCKET_ROUNDS[bucketRound]);
+                phase = Phase.BUCKET_W1; wait = 0;
+            }
+            case BUCKET_W1 -> { if (++wait > 10) { phase = Phase.BUCKET_CLICK; wait = 0; } }
+            case BUCKET_CLICK -> {
+                clickFluidGauge(mc);   // a REAL press AND release at the gauge - the release is where it dropped
+                phase = Phase.BUCKET_W2; wait = 0;
+            }
+            case BUCKET_W2 -> { if (++wait > 14) { phase = Phase.BUCKET_REPORT; wait = 0; } }
+            case BUCKET_REPORT -> {
+                reportBucketRound(mc);
+                grab(mc, "packwork_bucket_" + bucketRound);
+                if (++bucketRound < BUCKET_ROUNDS.length) {
+                    phase = Phase.BUCKET_GIVE;
+                } else {
+                    giveCarried(mc, ItemStack.EMPTY); // clear the cursor before the pin demo
+                    phase = Phase.HOVER;
+                }
+                wait = 0;
             }
             case HOVER -> {
                 if (++wait > 6) {
@@ -236,6 +260,83 @@ public final class DevAutoShot {
             }
             default -> {}
         }
+    }
+
+    // ---- waterskin-gauge bucket check (the bug Alex hit: the bucket landed on the ground) ----
+
+    /** One bucket, then a STACK of three, then an empty one to fill back out of the tank. */
+    private static final ItemStack[] BUCKET_ROUNDS = {
+            new ItemStack(Items.WATER_BUCKET),
+            new ItemStack(Items.WATER_BUCKET, 3),
+            new ItemStack(Items.BUCKET)
+    };
+    private static int bucketRound = 0;
+
+    /** Put a stack on the player's cursor server-side; it syncs down to the open screen. */
+    private static void giveCarried(Minecraft mc, ItemStack stack) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        ItemStack copy = stack.copy();
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            // clear stray buckets so each round's count is unambiguous
+            for (int i = 0; i < sp.getInventory().getContainerSize(); i++) {
+                ItemStack s = sp.getInventory().getItem(i);
+                if (s.is(Items.BUCKET) || s.is(Items.WATER_BUCKET)) sp.getInventory().setItem(i, ItemStack.EMPTY);
+            }
+            sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                    sp.getBoundingBox().inflate(12)).forEach(net.minecraft.world.entity.Entity::discard);
+            sp.containerMenu.setCarried(copy);
+            Packwork.LOGGER.info("[autoshot][bucket] round {} - cursor set to {} x{}",
+                    bucketRound, net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(copy.getItem()), copy.getCount());
+        });
+    }
+
+    /** Dispatch a genuine press + release at the waterskin gauge - the same pair MouseHandler sends. */
+    private static void clickFluidGauge(Minecraft mc) {
+        if (!(mc.screen instanceof PackScreen ps)) {
+            Packwork.LOGGER.warn("[autoshot][bucket] pack screen not open");
+            return;
+        }
+        int[] c = ps.devFluidGaugeCenter();
+        if (c == null) {
+            Packwork.LOGGER.warn("[autoshot][bucket] no waterskin gauge on the rail");
+            return;
+        }
+        boolean pressed = ps.mouseClicked(c[0], c[1], 0);
+        boolean released = ps.mouseReleased(c[0], c[1], 0);
+        Packwork.LOGGER.info("[autoshot][bucket] clicked gauge at ({},{}) press={} release={}",
+                c[0], c[1], pressed, released);
+    }
+
+    /** Log what the click actually did: cursor, pockets, ground, tank. This is the proof. */
+    private static void reportBucketRound(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        int round = bucketRound;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            ItemStack cursor = sp.containerMenu.getCarried();
+            int inPockets = 0, waterInPockets = 0;
+            for (int i = 0; i < sp.getInventory().getContainerSize(); i++) {
+                ItemStack s = sp.getInventory().getItem(i);
+                if (s.is(Items.BUCKET)) inPockets += s.getCount();
+                if (s.is(Items.WATER_BUCKET)) waterInPockets += s.getCount();
+            }
+            var ground = sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                    sp.getBoundingBox().inflate(12));
+            StringBuilder onFloor = new StringBuilder();
+            for (var e : ground) onFloor.append(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                    .getKey(e.getItem().getItem())).append(" x").append(e.getItem().getCount()).append(" ");
+            ItemStack pack = sp.getInventory().getItem(0);
+            int tank = new com.sappersquad.packwork.pack.PackFluidHandler(pack,
+                    com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack)).getFluidInTank(0).getAmount();
+            Packwork.LOGGER.info("[autoshot][bucket] round {} RESULT: cursor={} x{} | pockets: {} empty, {} water"
+                            + " | ON GROUND: {} | tank={} mB",
+                    round, net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(cursor.getItem()),
+                    cursor.getCount(), inPockets, waterInPockets,
+                    ground.isEmpty() ? "NOTHING" : onFloor.toString().trim(), tank);
+        });
     }
 
     private static void setupAndOpen(Minecraft mc) {

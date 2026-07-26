@@ -292,6 +292,108 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * Clicking the waterskin gauge with a STACK of buckets spends exactly one and hands back
+     * exactly one - the rest of the stack is untouched. (The old code handed the whole stack
+     * to {@code FluidUtil}'s single-container result and quietly ate the remainder.)
+     */
+    @GameTest(template = "empty")
+    public static void fluidInteractConservesACarriedStack(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = waterskinPack();
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(9, player.getInventory(), 0);
+
+        // 3 water buckets on the cursor -> exactly one empties into the tank
+        menu.setCarried(new ItemStack(Items.WATER_BUCKET, 3));
+        menu.applyFluidInteract();
+
+        ItemStack cursor = menu.getCarried();
+        helper.assertTrue(cursor.is(Items.WATER_BUCKET) && cursor.getCount() == 2,
+                "two water buckets stay on the cursor, got " + cursor.getCount() + " x " + cursor.getItem());
+        helper.assertTrue(countIn(player, Items.BUCKET) == 1,
+                "the one emptied bucket comes back, got " + countIn(player, Items.BUCKET));
+        helper.assertTrue(countIn(player, Items.WATER_BUCKET) == 0, "no extra water bucket minted");
+        var tank = new com.sappersquad.packwork.pack.PackFluidHandler(
+                player.getInventory().getItem(0), com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
+        helper.assertTrue(tank.getFluidInTank(0).getAmount() == 1000,
+                "one bucket landed in the tank, got " + tank.getFluidInTank(0).getAmount());
+
+        // total bucket-shaped items in play must still be 3: 2 on the cursor + 1 in the pockets
+        int total = cursor.getCount() + countIn(player, Items.BUCKET) + countIn(player, Items.WATER_BUCKET);
+        helper.assertTrue(total == 3, "three containers in, three containers out, got " + total);
+        helper.succeed();
+    }
+
+    /** A single bucket empties into the tank and the EMPTY bucket stays on the cursor - never the floor. */
+    @GameTest(template = "empty")
+    public static void fluidInteractKeepsSingleBucketOnCursor(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = waterskinPack();
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(9, player.getInventory(), 0);
+
+        menu.setCarried(new ItemStack(Items.WATER_BUCKET));
+        menu.applyFluidInteract();
+        helper.assertTrue(menu.getCarried().is(Items.BUCKET) && menu.getCarried().getCount() == 1,
+                "the emptied bucket stays on the cursor, got " + menu.getCarried());
+        helper.assertTrue(countIn(player, Items.BUCKET) == 0 && countIn(player, Items.WATER_BUCKET) == 0,
+                "nothing was stowed or duplicated");
+
+        // and it fills straight back out of the tank, same one bucket
+        menu.applyFluidInteract();
+        helper.assertTrue(menu.getCarried().is(Items.WATER_BUCKET) && menu.getCarried().getCount() == 1,
+                "the same bucket fills back from the tank, got " + menu.getCarried());
+        var tank = new com.sappersquad.packwork.pack.PackFluidHandler(
+                player.getInventory().getItem(0), com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
+        helper.assertTrue(tank.getFluidInTank(0).isEmpty(), "the tank gave back everything it took");
+        helper.succeed();
+    }
+
+    /** Filling FROM the tank with a stack of empties spends one and stows one filled - no loss, no dupe. */
+    @GameTest(template = "empty")
+    public static void fluidInteractFillsOneOfAStack(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = waterskinPack();
+        new com.sappersquad.packwork.pack.PackFluidHandler(pack,
+                com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
+                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 5000),
+                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(9, player.getInventory(), 0);
+
+        menu.setCarried(new ItemStack(Items.BUCKET, 3));
+        menu.applyFluidInteract();
+
+        helper.assertTrue(menu.getCarried().is(Items.BUCKET) && menu.getCarried().getCount() == 2,
+                "two empty buckets stay on the cursor, got " + menu.getCarried());
+        helper.assertTrue(countIn(player, Items.WATER_BUCKET) == 1,
+                "exactly one filled bucket comes back, got " + countIn(player, Items.WATER_BUCKET));
+        var tank = new com.sappersquad.packwork.pack.PackFluidHandler(
+                player.getInventory().getItem(0), com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
+        helper.assertTrue(tank.getFluidInTank(0).getAmount() == 4000,
+                "exactly one bucket left the tank, got " + tank.getFluidInTank(0).getAmount());
+        int total = menu.getCarried().getCount() + countIn(player, Items.BUCKET) + countIn(player, Items.WATER_BUCKET);
+        helper.assertTrue(total == 3, "three containers in, three containers out, got " + total);
+        helper.succeed();
+    }
+
+    private static ItemStack waterskinPack() {
+        ItemStack pack = new ItemStack(ModItems.leatherPack().get());
+        new PackTrinketInventory(() -> pack, PackTier.LEATHER).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+        return pack;
+    }
+
+    private static int countIn(net.minecraft.world.entity.player.Player player, net.minecraft.world.item.Item item) {
+        int n = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack s = player.getInventory().getItem(i);
+            if (s.is(item)) n += s.getCount();
+        }
+        return n;
+    }
+
     /** The Soul Vial siphons and pours XP without losing a point, and stops at capacity. */
     @GameTest(template = "empty")
     public static void soulVialConservesXp(GameTestHelper helper) {

@@ -211,6 +211,33 @@ one can be flipped later without unpicking the rest:
   duplicating geometry for an overlay quad. Verified in-game (the Runed block is visibly brighter
   than its neighbours).
 
+## 2026-07-25 — rail clicks, cursor conservation, and who's authoritative (reopen with evidence)
+
+- **The rails count as INSIDE the GUI.** `PackScreen` overrides `hasClickedOutside(...)` to return
+  false over the left tab rail and the right fittings rail (sockets + the gauge stack). Both rails
+  are drawn beyond `imageWidth`, which is precisely the region vanilla reads as "drop what you're
+  carrying". Consuming the press in `mouseClicked` was never enough: the drop fires on **release**
+  (`AbstractContainerScreen.mouseReleased` → `slotClicked(null, -999, PICKUP)` →
+  `AbstractContainerMenu.doClick` → `player.drop(getCarried(), true)`), and `PackScreen` doesn't
+  override `mouseReleased`. Teaching `hasClickedOutside` about the rails kills it once, at the
+  source, for every rail widget — gauges, tabs, and anything added to the rails later. (The
+  trinket *sockets* were already safe: NeoForge patches `flag = false` whenever a real slot is
+  under the cursor.) Chosen over overriding `mouseReleased`, which would have to re-derive the
+  same region anyway and would fight vanilla's drag/quick-craft bookkeeping.
+- **The fluid gauge spends exactly one container per click.** `FluidUtil.tryEmptyContainer` /
+  `tryFillContainer` act on `container.copyWithCount(1)` and return ONE resulting item, so the old
+  `setCarried(result.getResult())` replaced an entire carried stack with a single item. The menu
+  now shrinks the cursor by one and hands the result back in priority order: merge onto the cursor
+  → the player's pockets → the pack → (last resort) the floor. Written out rather than delegating
+  to `FluidUtil.tryEmptyContainerAndStow`, because that helper drops at the player's feet the
+  moment the inventory is full, and the pack should catch it first — pause, never punish.
+- **Cursor/XP actions are server-authoritative; layout verbs stay optimistic.** `PackAction`
+  now answers `serverAuthoritative()` (FLUID_INTERACT, XP_SIPHON, XP_POUR) and
+  `PackClientActions.send` skips the local apply for those, with a second guard inside `PackMenu`
+  (`isClient()`) so nothing can slip through another caller. Applying an item/XP move on both
+  sides either double-applies or desyncs until the next sync; tabs, search, pins and paging are
+  pure view state, so they keep their instant local apply.
+
 ## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
 
 - **Item icons are hand-authored pixel art; big tiled surfaces stay procedural.** After the
