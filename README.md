@@ -30,6 +30,9 @@ grid that keeps itself in order:
 - **Tidy Up** merges partial stacks and re-sorts the whole pack; **search** finds
   anything across every tab; **flatten** drops it all into one grid when you just want
   to rummage.
+- **Every compartment picks its arrangement** — Tidy (the pack arranges it) or **Keep my
+  layout** (items stay in the exact cells you drop them; new arrivals fill the gaps;
+  Tidy Up still re-sorts once). One small switch under the grid.
 
 ## Tiers & trinkets
 

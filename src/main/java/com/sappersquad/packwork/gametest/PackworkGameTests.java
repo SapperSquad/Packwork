@@ -1385,6 +1385,71 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * Keep-my-layout: a compartment flipped to manual keeps items in the exact cells the
+     * player drops them, new arrivals fill the gaps, the arrangement survives the same
+     * save/load a relog performs, and flipping back to Tidy re-sorts cleanly. All of it
+     * is view-only over the one flat store, so conservation holds at every step.
+     */
+    @GameTest(template = "empty")
+    public static void keepMyLayoutHoldsCellsAndConserves(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(44, player.getInventory(), 0);
+
+        // flip Blocks to keep-my-layout, then drop cobble into cell 5 of the empty grid
+        menu.applySelectTab("auto:blocks");
+        menu.applyToggleTabMode("auto:blocks");
+        menu.setCarried(new ItemStack(Items.COBBLESTONE, 10));
+        menu.clicked(5, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+
+        PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        var kept = layout.manualFor("auto:blocks");
+        helper.assertTrue(kept != null && kept.cells().size() == 1
+                        && kept.cells().get(0).cell() == 5,
+                "the drop is remembered at cell 5, got " + (kept == null ? "null" : kept.cells()));
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 10 && menu.getCarried().isEmpty(),
+                "all ten cobble landed in the pack");
+        helper.assertTrue(menu.slots.get(5).getItem().is(Items.COBBLESTONE),
+                "and the grid shows it at cell 5");
+
+        // an automated arrival (hopper-style insert) fills a gap instead of moving the cobble
+        new PackInventory(pack, PackTier.LEATHER).insertItem(0, new ItemStack(Items.STONE), false);
+        menu.rebuildView();
+        helper.assertTrue(menu.slots.get(0).getItem().is(Items.STONE),
+                "the arrival fills the first gap");
+        helper.assertTrue(menu.slots.get(5).getItem().is(Items.COBBLESTONE),
+                "and the cobble has not moved");
+
+        // the arrangement survives the exact save/load a relog performs
+        Tag saved = pack.save(reg);
+        ItemStack reloaded = ItemStack.parse(reg, saved).orElseThrow();
+        player.getInventory().setItem(1, reloaded);
+        var menu2 = com.sappersquad.packwork.pack.PackMenu.server(45, player.getInventory(), 1);
+        menu2.applySelectTab("auto:blocks");
+        helper.assertTrue(menu2.slots.get(5).getItem().is(Items.COBBLESTONE),
+                "the kept cell survives a relog");
+
+        // Tidy Up is still the one-shot re-sort: the mode stays, the arrangement resets
+        menu.applyTidyUp();
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        kept = layout.manualFor("auto:blocks");
+        helper.assertTrue(kept != null && kept.cells().isEmpty(),
+                "Tidy Up resets the arrangement but keeps the mode");
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 10
+                && countPack(pack, Items.STONE) == 1, "conservation holds through Tidy Up");
+
+        // flip back to Tidy: the compartment re-sorts cleanly (compact, ascending)
+        menu.applyToggleTabMode("auto:blocks");
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.manualFor("auto:blocks") == null, "back to Tidy");
+        helper.assertTrue(menu.slots.get(0).hasItem() && menu.slots.get(1).hasItem(),
+                "the tidy view compacts to the front");
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

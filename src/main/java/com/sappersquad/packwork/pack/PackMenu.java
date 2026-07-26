@@ -249,7 +249,7 @@ public class PackMenu extends AbstractContainerMenu {
         return AutoTabs.LOOSE_ID;
     }
 
-    // ---- watching the player's own hand on the grid (auto-pin) ----
+    // ---- watching the player's own hand on the grid (auto-pin + kept layouts) ----
 
     /** Client-side listener the screen registers so pin changes can show a note. */
     public interface PinToast {
@@ -258,23 +258,33 @@ public class PackMenu extends AbstractContainerMenu {
 
     private PinToast pinToast; // only ever set on the client
     private ItemStack pendingPlaced = ItemStack.EMPTY;
+    private int pendingCell = -1;         // absolute grid cell of the placement
+    private int pendingBacking = -1;      // backing slot it landed in
+    private int pendingPickupBacking = -1; // backing slot the player emptied, or -1
 
     public void setPinToast(PinToast t) {
         this.pinToast = t;
     }
 
     /**
-     * Called by {@link PackViewSlot#setByPlayer} whenever the PLAYER's own hand puts a
-     * stack in a grid cell - cursor place, merge, swap, number-key swap. Programmatic
-     * moves (shift-click routing, hoppers, refills) never come through here, so this is
-     * exactly the "I put it HERE" gesture. Only recorded during the click; the decision
-     * runs after the click fully resolves (see {@link #clicked}), because re-routing the
-     * view mid-click would rebind slots under vanilla's own bookkeeping.
+     * Called by {@link PackViewSlot#setByPlayer} whenever the PLAYER's own hand touches a
+     * grid cell - cursor place, merge, swap, number-key swap, and the pickup that empties
+     * a cell. Programmatic moves (shift-click routing, hoppers, refills) never come
+     * through here, so this is exactly the "I put it HERE" / "I took it away" gesture.
+     * Only recorded during the click; the decisions run after the click fully resolves
+     * (see {@link #clicked}), because re-routing the view mid-click would rebind slots
+     * under vanilla's own bookkeeping.
      */
     void onPlayerSetViewSlot(PackViewSlot slot, ItemStack now) {
-        if (now.isEmpty()) return; // a pickup-to-empty, not a placement
-        if (!viewSlots.contains(slot)) return;
+        int p = viewSlots.indexOf(slot);
+        if (p < 0) return;
+        if (now.isEmpty()) {
+            pendingPickupBacking = slot.backingIndex();
+            return;
+        }
         pendingPlaced = now.copy();
+        pendingCell = page * visibleSlots() + p;
+        pendingBacking = slot.backingIndex();
     }
 
     @Override
@@ -284,21 +294,111 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     /**
-     * The natural pinning gesture: dropping an item into a tab its rules would NOT route
-     * it to pins it there, so it stays where you put it instead of jumping back to its
-     * routed tab on the next sort. Dropping it where it already belongs changes nothing.
-     * Runs identically on both sides (active tab and layout are mirrored), so the pin
-     * lands without an extra packet; the client side also raises the on-screen note.
+     * Two gestures, decided once the click has fully resolved, identically on both sides
+     * (active tab, page and layout are mirrored - no extra packet):
+     * <ul>
+     * <li><b>Auto-pin:</b> dropping an item into a tab its rules would NOT route it to
+     * pins it there, so it stays where you put it instead of jumping back on the next
+     * sort. Dropping it where it already belongs changes nothing. The client side also
+     * raises the on-screen note.</li>
+     * <li><b>Kept layouts:</b> in a keep-my-layout compartment, the cell you placed into
+     * is remembered (and a pickup lets its cell go), so the arrangement is yours.</li>
+     * </ul>
      */
     private void flushPendingPlacement() {
         ItemStack placed = pendingPlaced;
+        int cell = pendingCell, backing = pendingBacking, took = pendingPickupBacking;
         pendingPlaced = ItemStack.EMPTY;
-        if (placed.isEmpty() || flatten) return;
+        pendingCell = -1;
+        pendingBacking = -1;
+        pendingPickupBacking = -1;
+        if (flatten) return;
+
+        if (took >= 0) rememberManualPickup(took);
+        if (placed.isEmpty()) return;
+        if (search.isEmpty()) rememberManualPlacement(cell, backing);
+
         String route = SortEngine.route(placed, tabs, layout);
         if (route.equals(activeTab)) return; // it belongs here already (or is pinned here)
         applyPin(activeTab, net.minecraft.core.registries.BuiltInRegistries.ITEM
                 .getKey(placed.getItem()).toString());
         if (pinToast != null && isClient()) pinToast.pinned(placed, tabName(activeTab));
+    }
+
+    /** In a kept compartment, remember "this cell shows that backing slot". */
+    private void rememberManualPlacement(int cell, int backing) {
+        PackLayout cur = currentLayout();
+        PackLayout.ManualTab kept = cur.manualFor(activeTab);
+        if (kept == null || cell < 0 || backing < 0 || cell >= PackLayout.ManualTab.MAX_CELL) return;
+        List<PackLayout.ManualTab.Cell> cells = new ArrayList<>();
+        for (PackLayout.ManualTab.Cell c : kept.cells()) {
+            if (c.cell() != cell && c.slot() != backing) cells.add(c); // one owner per cell & slot
+        }
+        cells.add(new PackLayout.ManualTab.Cell(cell, backing));
+        saveManual(cur, kept.tabId(), cells);
+    }
+
+    /** A player pickup emptied a backing slot: its remembered cell lets go (gaps refill). */
+    private void rememberManualPickup(int backing) {
+        if (!search.isEmpty()) return;
+        PackLayout cur = currentLayout();
+        PackLayout.ManualTab kept = cur.manualFor(activeTab);
+        if (kept == null) return;
+        List<PackLayout.ManualTab.Cell> cells = new ArrayList<>();
+        boolean changed = false;
+        for (PackLayout.ManualTab.Cell c : kept.cells()) {
+            if (c.slot() == backing) {
+                changed = true;
+                continue;
+            }
+            cells.add(c);
+        }
+        if (changed) saveManual(cur, kept.tabId(), cells);
+    }
+
+    private void saveManual(PackLayout cur, String tabId, List<PackLayout.ManualTab.Cell> cells) {
+        List<PackLayout.ManualTab> manual = new ArrayList<>();
+        for (PackLayout.ManualTab m : cur.manual()) {
+            manual.add(m.tabId().equals(tabId) ? new PackLayout.ManualTab(tabId, cells) : m);
+        }
+        saveLayout(cur.withManual(manual));
+    }
+
+    /**
+     * Flip a compartment between Tidy (the pack arranges it) and Keep-my-layout (the
+     * player does). Flipping to Keep captures exactly what is showing right now, so
+     * nothing moves on screen; flipping back to Tidy drops the remembered arrangement
+     * and the compartment re-sorts. Items never move either way - this is pure view.
+     */
+    public void applyToggleTabMode(String tabId) {
+        if (tabId == null || tabId.isEmpty()) return;
+        PackLayout cur = currentLayout();
+        PackLayout.ManualTab existing = cur.manualFor(tabId);
+        List<PackLayout.ManualTab> manual = new ArrayList<>(cur.manual());
+        if (existing != null) {
+            manual.remove(existing);
+        } else {
+            boolean known = false;
+            for (TabView t : tabs) known |= t.id().equals(tabId);
+            if (!known) return;
+            List<PackLayout.ManualTab.Cell> cells = new ArrayList<>();
+            List<Integer> routed = routedIndicesFor(tabId);
+            for (int i = 0; i < routed.size(); i++) {
+                cells.add(new PackLayout.ManualTab.Cell(i, routed.get(i)));
+            }
+            manual.add(new PackLayout.ManualTab(tabId, cells));
+        }
+        saveLayout(cur.withManual(manual));
+    }
+
+    /** Backing indices whose stacks route to this tab, ascending - the tidy view's order. */
+    private List<Integer> routedIndicesFor(String tabId) {
+        List<Integer> routed = new ArrayList<>();
+        for (int i = 0; i < packInv.getSlots(); i++) {
+            ItemStack s = packInv.getStackInSlot(i);
+            if (!s.isEmpty() && SortEngine.route(s, tabs, layout).equals(tabId)) routed.add(i);
+        }
+        return routed;
     }
 
     /** The display name of a tab on this pack's rail (falls back to the raw id). */
@@ -362,7 +462,11 @@ public class PackMenu extends AbstractContainerMenu {
                 // (already added all indices above only when not searching)
             }
         } else {
-            // tab view: matching non-empty first, then empties to drop into
+            // tab view: matching non-empty first, then empties to drop into - unless this
+            // compartment is in keep-my-layout mode, in which case the player's own
+            // arrangement decides which cell shows which backing slot.
+            PackLayout.ManualTab kept = searching ? null : layout.manualFor(activeTab);
+            List<Integer> routed = new ArrayList<>();
             List<Integer> empties = new ArrayList<>();
             for (int i = 0; i < packInv.getSlots(); i++) {
                 ItemStack s = packInv.getStackInSlot(i);
@@ -372,10 +476,13 @@ public class PackMenu extends AbstractContainerMenu {
                 }
                 if (searching && !matchesSearch(s, q)) continue;
                 String route = SortEngine.route(s, tabs, layout);
-                if (route.equals(activeTab)) order.add(i);
+                if (route.equals(activeTab)) routed.add(i);
             }
-            if (!searching) {
-                order.addAll(empties);
+            if (kept != null) {
+                buildKeptOrder(kept, routed, empties, order);
+            } else {
+                order.addAll(routed);
+                if (!searching) order.addAll(empties);
             }
         }
 
@@ -386,10 +493,53 @@ public class PackMenu extends AbstractContainerMenu {
         int start = page * visible;
         for (int p = 0; p < VIEW_SLOTS; p++) {
             int gi = start + p;
-            if (p < visible && gi < order.size()) {
+            if (p < visible && gi < order.size() && order.get(gi) >= 0) {
                 viewSlots.get(p).bind(order.get(gi), true);
             } else {
                 viewSlots.get(p).bind(-1, false); // rows the unrolled tool roll covers
+            }
+        }
+    }
+
+    /**
+     * The keep-my-layout view, as a cell-indexed order list: remembered cells show their
+     * backing slot, new arrivals fill the gaps lowest-cell-first, and every remaining cell
+     * binds to a free empty backing slot so dropping things in still works. Deterministic
+     * over synced state, so client and server always draw the same arrangement - and it is
+     * strictly view-side: nothing here ever moves an item.
+     *
+     * <p>Remembered entries whose backing slot has emptied or re-routed (a hopper pulled
+     * the stack, a rule changed) are simply skipped - the cell frees up. The stored list
+     * is pruned as the player works, not here: rebuild runs every tick and must not write
+     * the component.
+     */
+    private void buildKeptOrder(PackLayout.ManualTab kept, List<Integer> routed,
+                                List<Integer> empties, List<Integer> order) {
+        java.util.TreeMap<Integer, Integer> byCell = new java.util.TreeMap<>();
+        java.util.Set<Integer> shown = new java.util.HashSet<>();
+        for (PackLayout.ManualTab.Cell c : kept.cells()) {
+            if (c.cell() < 0 || c.cell() >= PackLayout.ManualTab.MAX_CELL) continue;
+            if (byCell.containsKey(c.cell()) || shown.contains(c.slot())) continue;
+            if (!routed.contains(c.slot())) continue; // stale: emptied or re-routed
+            byCell.put(c.cell(), c.slot());
+            shown.add(c.slot());
+        }
+        int nextFree = 0;
+        for (int b : routed) {                        // arrivals fill gaps, lowest cell first
+            if (shown.contains(b)) continue;
+            while (byCell.containsKey(nextFree)) nextFree++;
+            byCell.put(nextFree, b);
+            shown.add(b);
+        }
+        // as many cells as the tidy view would offer, or the arrangement needs - whichever is more
+        int len = Math.max(byCell.isEmpty() ? 0 : byCell.lastKey() + 1, routed.size() + empties.size());
+        int e = 0;
+        for (int cell = 0; cell < len; cell++) {
+            Integer b = byCell.get(cell);
+            if (b != null) {
+                order.add(b);
+            } else {
+                order.add(e < empties.size() ? empties.get(e++) : -1);
             }
         }
     }
@@ -581,6 +731,11 @@ public class PackMenu extends AbstractContainerMenu {
         return activeTab;
     }
 
+    /** Is the showing compartment in keep-my-layout mode? */
+    public boolean activeTabManual() {
+        return layout.manualFor(activeTab) != null;
+    }
+
     public String search() {
         return search;
     }
@@ -632,6 +787,7 @@ public class PackMenu extends AbstractContainerMenu {
             case LAY_OUT_GHOST -> applyLayOutGhost(s1);
             case ADD_TAB_RULE -> applyAddTabRule(s1, arg, s2);
             case REMOVE_TAB_RULE -> applyRemoveTabRule(s1, arg);
+            case TOGGLE_TAB_MODE -> applyToggleTabMode(s1);
         }
     }
 
@@ -1036,6 +1192,17 @@ public class PackMenu extends AbstractContainerMenu {
         for (int i = 0; i < packInv.getSlots(); i++) {
             packInv.setStackInSlot(i, i < merged.size() ? merged.get(i) : ItemStack.EMPTY);
         }
+        // Tidy Up is the one-shot re-sort even for kept compartments: the sort just moved
+        // every stack to a new backing slot, so the remembered arrangements are reset (the
+        // sorted order becomes the new starting layout) while keep-my-layout MODE stays.
+        PackLayout cur = currentLayout();
+        boolean anyKept = false;
+        List<PackLayout.ManualTab> cleared = new ArrayList<>();
+        for (PackLayout.ManualTab m : cur.manual()) {
+            anyKept |= !m.cells().isEmpty();
+            cleared.add(new PackLayout.ManualTab(m.tabId(), List.of()));
+        }
+        if (anyKept) saveLayout(cur.withManual(cleared));
         rebuildView();
     }
 
@@ -1049,7 +1216,7 @@ public class PackMenu extends AbstractContainerMenu {
         customs.add(def);
         List<String> order = ensureOrder(cur);
         order.add(id);
-        saveLayout(new PackLayout(order, customs, cur.pins(), cur.voidList()));
+        saveLayout(new PackLayout(order, customs, cur.pins(), cur.voidList(), cur.manual()));
         this.activeTab = id;
         this.flatten = false;
         rebuildView();
@@ -1064,7 +1231,9 @@ public class PackMenu extends AbstractContainerMenu {
         order.remove(id);
         List<PackLayout.Pin> pins = new ArrayList<>();
         for (var p : cur.pins()) if (!p.tabId().equals(id)) pins.add(p);
-        saveLayout(new PackLayout(order, customs, pins, cur.voidList()));
+        List<PackLayout.ManualTab> manual = new ArrayList<>();
+        for (var m : cur.manual()) if (!m.tabId().equals(id)) manual.add(m);
+        saveLayout(new PackLayout(order, customs, pins, cur.voidList(), manual));
         if (activeTab.equals(id)) activeTab = firstRealTab();
         rebuildView();
     }

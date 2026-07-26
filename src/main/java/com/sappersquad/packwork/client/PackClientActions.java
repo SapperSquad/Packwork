@@ -108,6 +108,10 @@ public final class PackClientActions {
         send(menu, PackAction.REMOVE_TAB_RULE, index, tabId, "");
     }
 
+    public static void toggleTabMode(PackMenu menu, String tabId) {
+        send(menu, PackAction.TOGGLE_TAB_MODE, 0, tabId, "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

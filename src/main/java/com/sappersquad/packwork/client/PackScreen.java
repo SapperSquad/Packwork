@@ -924,6 +924,28 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(newBtnX() + 5, btnY() + 3, newBtnX() + 7, btnY() + 9, gl);
         g.fill(newBtnX() + 3, btnY() + 5, newBtnX() + 9, btnY() + 7, gl);
 
+        // per-compartment controls sit under the grid, by the page nav. First: the
+        // arrangement switch - does the pack tidy this compartment, or do you keep your
+        // own layout? Shown for every tab (hidden only while the tool roll covers the row).
+        if (!menu.flatten() && !menu.rollActive()) {
+            int mx2 = modeBtnX(), my2 = perTabBtnY();
+            boolean kept = menu.activeTabManual();
+            drawPlate(g, mx2, my2, inRect(mouseX, mouseY, mx2, my2, BTN, BTN), kept);
+            if (kept) {
+                // your own grid: four laid-out dots and a brass tack holding them
+                g.fill(mx2 + 3, my2 + 3, mx2 + 5, my2 + 5, gl);
+                g.fill(mx2 + 7, my2 + 3, mx2 + 9, my2 + 5, gl);
+                g.fill(mx2 + 3, my2 + 7, mx2 + 5, my2 + 9, gl);
+                g.fill(mx2 + 7, my2 + 7, mx2 + 9, my2 + 9, gl);
+                g.fill(mx2 + 8, my2 + 2, mx2 + 10, my2 + 4, 0xFFE7CC82); // the tack
+            } else {
+                // the pack tidies: three bars falling into line
+                g.fill(mx2 + 2, my2 + 3, mx2 + 10, my2 + 4, gl);
+                g.fill(mx2 + 3, my2 + 6, mx2 + 9, my2 + 7, gl);
+                g.fill(mx2 + 4, my2 + 9, mx2 + 8, my2 + 10, gl);
+            }
+        }
+
         // the quill (edit this compartment's rules) sits under the grid, by the page nav -
         // it appears exactly when it means something: ledger fitted, custom tab showing
         if (canEditRules() && !menu.rollActive()) {
@@ -938,6 +960,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
     }
 
+    private int modeBtnX() { return leftPos + 124; }
     private int quillBtnX() { return leftPos + 138; }
     private int perTabBtnY() { return topPos + 142; }
 
@@ -1158,6 +1181,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.translatable("packwork.ui.roll_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+        } else if (!menu.flatten() && !menu.rollActive()
+                && inRect(mouseX, mouseY, modeBtnX(), perTabBtnY(), BTN, BTN)) {
+            boolean kept = menu.activeTabManual();
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable(kept ? "packwork.ui.mode_btn_keep" : "packwork.ui.mode_btn_tidy"));
+            lines.add(Component.translatable(kept ? "packwork.ui.mode_btn_keep_hint" : "packwork.ui.mode_btn_tidy_hint")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
         } else if (canEditRules() && !menu.rollActive()
                 && inRect(mouseX, mouseY, quillBtnX(), perTabBtnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
@@ -1190,6 +1221,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         // title buttons
         if (button == 0) {
+            if (!menu.flatten() && !menu.rollActive()
+                    && inRect((int) mx, (int) my, modeBtnX(), perTabBtnY(), BTN, BTN)) {
+                PackClientActions.toggleTabMode(menu, menu.activeTab());
+                return true;
+            }
             if (canEditRules() && !menu.rollActive()
                     && inRect((int) mx, (int) my, quillBtnX(), perTabBtnY(), BTN, BTN)) {
                 if (rulesOpen) closeRules();

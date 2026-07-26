@@ -42,8 +42,24 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
-**2026-07-26 playtest wave 4 (in progress) — JEI real recipes, legible pinning, the rule
-editor.** Alex's live-client playtest called four things; three are landed. 43 GameTests green.
+**2026-07-26 playtest wave 4 — JEI real recipes, legible pinning, the rule editor, per-tab
+arrangement.** Alex's live-client playtest called four things; ALL FOUR are landed. 44
+GameTests green; version stays **0.1.0**. (His client was running throughout this wave, so
+the new GUI work is logic-verified + gametested; a visual pass in his client is the followup.)
+
+4. **Per-tab arrangement switch (Alex's call: Tidy / Keep-my-layout).** Every compartment
+   gets a mode button under the grid (next to the quill): TIDY = today's auto-arranged view;
+   KEEP = items stay in the exact cells the player drops them, new arrivals fill gaps,
+   Tidy Up still re-sorts once (the sorted order becomes the new starting layout; MODE
+   stays). Architecture: `PackLayout.ManualTab` persists per-tab `cell → backing-slot`
+   pairs — strictly VIEW-ONLY over the one flat store (a stale entry can mis-draw at
+   worst, never dupe/lose). `PackMenu.buildKeptOrder` renders it deterministically on both
+   sides (remembered cells → arrival gap-fill → empties bind to free backing slots);
+   player placements/pickups persist through the same `setByPlayer`→`clicked` flush as
+   auto-pin; stale entries prune as the player works, never in the per-tick rebuild.
+   Codec is `optionalFieldOf` so old packs load untouched. Gametest
+   `keepMyLayoutHoldsCellsAndConserves`: cell held, gap-fill, relog round-trip, Tidy Up
+   reset, toggle-back re-sort, conservation at every step.
 
 3. **Quill & Ledger rework (Alex's call: stamp = baseline, ledger = rule editor).** He
    couldn't tell what the stamp-gate proxy did — that was the verdict on the DECISIONS flag.

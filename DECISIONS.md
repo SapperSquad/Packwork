@@ -303,6 +303,28 @@ one can be flipped later without unpicking the rest:
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
 
+## 2026-07-26 — per-tab arrangement: Tidy vs Keep-my-layout (Alex's call)
+
+- **The kept arrangement is a per-tab {@code cell → backing-slot} map on `PackLayout`, and it
+  is strictly VIEW-ONLY.** Items always live exactly once in the flat store; `ManualTab` only
+  says which grid cell SHOWS which backing slot. A stale or hostile entry can mis-draw at
+  worst — it can never dupe or lose an item, because nothing in the arrangement path moves
+  one. This is the same invariant that makes tabs safe, extended to cells.
+- **Display is recomputed deterministically every rebuild; the component is written only on
+  player action.** `buildKeptOrder` prunes stale entries in memory (emptied or re-routed
+  backing slots free their cells), fills gaps with arrivals lowest-cell-first, and binds the
+  remaining cells to free empty backing slots so dropping in still works. The stored list is
+  pruned/extended only through the `setByPlayer` → post-`clicked` flush (a placement remembers
+  its cell, a pickup releases it) — rebuild runs every tick and must never write the component.
+  Both sides run the same code over mirrored state, so no new sync beyond the layout itself.
+- **Flipping to Keep captures what's on screen; Tidy Up stays the one-shot re-sort.** Toggling
+  Keep on snapshots the current tidy order as the starting arrangement (nothing moves on
+  screen); Tidy Up rewrites backing slots, so it RESETS every kept arrangement to the fresh
+  sorted order while keeping the mode — exactly Alex's "Tidy Up still works as a one-shot
+  re-sort". Toggling back to Tidy just drops the map.
+- **Cells are capped at `ManualTab.MAX_CELL` (512)** on both persist and display, so a wild
+  component can't balloon the view. Old packs load untouched (`optionalFieldOf`).
+
 ## 2026-07-26 — Quill & Ledger rework: stamp = baseline, ledger = rule editor (Alex's call)
 
 - **Stamp-family matching is ALWAYS-ON for custom tabs — no trinket needed.** Stamp a tab

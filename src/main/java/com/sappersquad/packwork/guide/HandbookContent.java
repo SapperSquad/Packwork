@@ -99,6 +99,11 @@ public final class HandbookContent {
                 + "to and the pack pins it there on the spot - watch for the stitched note - or "
                 + "hover it and press P. A pinned item wears a red ribbon, beats every rule, and "
                 + "never gets moved by the sort. Press P over a pinned item to release it."),
+            text("Every compartment has an ARRANGEMENT switch, under the grid by the page count. "
+                + "TIDY (the default) lets the pack arrange the compartment; flip it to KEEP MY "
+                + "LAYOUT and items stay in the exact cells you drop them, with new arrivals "
+                + "filling the gaps. Tidy Up still works as a one-shot re-sort - the sorted order "
+                + "just becomes your new starting layout. Flip back and the pack takes over again."),
             text("Three tools across the title bar: TIDY UP merges partial stacks and re-sorts the "
                 + "whole pack; SEARCH finds anything across every tab; FLATTEN drops it all into one "
                 + "grid when you just want to rummage."),
