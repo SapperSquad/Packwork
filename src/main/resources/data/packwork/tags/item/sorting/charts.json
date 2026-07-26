@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "minecraft:map", "required": false },
+    { "id": "minecraft:filled_map", "required": false },
+    { "id": "minecraft:compass", "required": false },
+    { "id": "minecraft:recovery_compass", "required": false },
+    { "id": "minecraft:clock", "required": false },
+    { "id": "minecraft:spyglass", "required": false },
+    { "id": "minecraft:lodestone", "required": false },
+    { "id": "minecraft:written_book", "required": false },
+    { "id": "minecraft:writable_book", "required": false },
+    { "id": "packwork:outfitters_handbook", "required": false },
+    { "id": "#c:tools/spyglass", "required": false }
+  ]
+}

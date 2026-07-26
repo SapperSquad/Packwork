@@ -42,6 +42,63 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
+**2026-07-25 playtest wave 2 — bug fix, art de-noise, 7 new fittings, craft-on-the-go.** Alex
+playtested and called four things. All four landed.
+
+1. **BUG: the waterskin gauge threw your bucket on the floor. FIXED, verified in a live client.**
+   Three real bugs on one path. (a) The gauges and the tab rail are drawn OUTSIDE the panel rect,
+   which is exactly the region vanilla treats as "clicked outside the GUI"; consuming the press
+   was never enough because the drop fires on **release**
+   (`AbstractContainerScreen.mouseReleased` → `slotClicked(null, -999, PICKUP)` →
+   `AbstractContainerMenu.doClick` → `player.drop`), and `PackScreen` doesn't override
+   `mouseReleased`. `PackScreen.hasClickedOutside` now returns false over both rails, killing it
+   for every rail widget at once. (b) `FluidUtil.tryEmptyContainer/tryFillContainer` act on ONE
+   container and return one item, so `setCarried(result)` was replacing a whole carried stack with
+   a single bucket — the menu now spends exactly one and hands the result back (cursor → pockets →
+   pack → floor). (c) FLUID_INTERACT / XP_SIPHON / XP_POUR are **server-authoritative** now
+   (`PackAction.serverAuthoritative()` + an `isClient()` guard in `PackMenu`); layout verbs keep
+   their optimistic apply. **Live proof** (`runClient -Pautoshot` dispatches a real press+release
+   at the gauge): 1 bucket → empty bucket ON THE CURSOR, nothing on the ground; 3 water buckets →
+   2 stay on the cursor + 1 empty bucket in the pockets; an empty bucket fills back. 3 new
+   conservation gametests.
+
+2. **ART: the packs read busy, not detailed. DE-NOISED.** Diagnosis confirmed at the pixel level:
+   `leatherGrain` added **per-pixel random ±3** on top of a 5-row crease, the canvas tier ran a
+   1px-pitch crosshatch at ±8 over the whole sprite, the hem stitch was every-other-pixel at
+   near-white, and the trim was 1px sprinkles. All of it is high-frequency detail that turns to
+   mush the moment a 32px sprite lands in a 16px slot. Fixes, all in `tools/GenTextures.java`:
+   a new `smoothNoise` (coarse lattice + smoothstep) replaces every per-pixel `valueNoise` call;
+   grain is now a soft 7-row crease plus one large mottle; the canvas weave is a 2-on/2-off rib at
+   ±5; the hem is a 3-on/1-off dashed thread on an unbroken groove; studs became **2×2 shapes with
+   a contact shadow** (6, not 9), plates became **bevelled 4×4 with a brass rivet**, runes became
+   drawn strokes with a 1px bloom. Also: the closure strap was bottoming out on the ramp's darkest
+   stop and reading as a black slot punched through the pack — it's darker leather with a tapered
+   tip now, and the buckle got a hard outer edge. Same treatment applied to the placed-block faces
+   so a set-down pack still matches. Re-checked at 16px and 12px via `tools/pack_small_preview.png`.
+
+3. **SEVEN new fittings** (SSOT entries in `TrinketType`, effects in `TrinketEffects`, recipes,
+   sprites, Handbook entries, lang, gametests): **Tinker's Kit** (below), **Field Furnace**
+   (cooks raw ore + raw food on pack fuel, at furnace rates, via a `pack_embers` component),
+   **Provisioner's Pouch** (eats the plainest thing in the pack when you're down to 3 haunches —
+   effects-bearing foods and the datapack `packwork:never_auto_eat` tag are left alone),
+   **Cartographer's Sleeve** and **Angler's Creel** (each opens a **fitting-gated compartment** —
+   `AutoTabs.Auto` gained a `gate` field, so a trinket adds a compartment with ONE table entry),
+   **Torchbearer's Loop** (sets a torch from pack stock when you're in the dark), **Herbalist's
+   Bundle** (replants a grown crop from your own seed stock).
+
+4. **CRAFT ON THE GO — the Tinker's Kit.** A leather **tool roll** unrolls across the pack's
+   bottom three grid rows (a latch appears in the title strip only when the kit is fitted): a 3×3
+   bench plus a brass-ringed result well, drawn as leather and canvas, never a workbench UI. The
+   pack keeps its top three rows so you can still see and reach your stock. **Shift-click from the
+   pack lays ONE item on the bench** (you're setting a pattern, not tipping a stack in), and after
+   every craft each emptied cell **tops itself back up from pack stock** — so one shift-click on
+   the result runs the batch until the pack is out of makings. Shift-clicking the result puts the
+   output in the pack first, your pockets second. Rolling up — or closing the pack — returns
+   everything laid out. **Conservation is gametested end to end**: 12 planks' worth in play, 12 at
+   every step, and no free craft once the pack is dry.
+
+**34 GameTests green**; `compileJava` + `runData` clean; version stays **0.1.0**.
+
 **2026-07-24 art pass 5 (per-tier placed-block trim) — DONE & verified in-game.** The deferred
 follow-up: a set-down pack now shows its tier's detailing in the world, not just a tinted base.
 - **A `tier` `EnumProperty<PackTier>` blockstate** (5 values) drives per-tier models + textures
@@ -239,14 +296,22 @@ world, fills a pack across every tab, opens it, switches tabs, and writes screen
 
 ### Where things live (source map)
 - `pack/` — `PackItem`, `PackTier` (SSOT ladder), `PackInventory` (live component store),
-  `PackMenu` (virtual-tab menu + all action handlers), `PackViewSlot` (rebinding grid cell).
+  `PackMenu` (virtual-tab menu + all action handlers + the Tinker's Kit tool roll: a
+  `TransientCraftingContainer` + `ResultContainer`, its `RollResultSlot` refilling from pack
+  stock after each craft, and `emptyRollIntoPack` on roll-up/close), `PackViewSlot`
+  (rebinding grid cell).
 - `sort/` — `SortRule`, `PredicateKind`, `TabDef`, `PackLayout` (component), `AutoTabs`
-  (SSOT category table), `TabView`, `SortEngine` (routing), `PackSorting` (Tidy Up).
+  (SSOT category table; `Auto.gate` makes a compartment trinket-gated), `TabView`,
+  `SortEngine` (routing; `tabsFor(layout, Set<TrinketType>)` is the real entry point),
+  `PackSorting` (Tidy Up).
 - `block/` — `PackContainerBlock` (placeable, facing, opens the GUI, drops the pack stack),
   `PackContainerBlockEntity` (holds the pack as one `ItemStack`; tier-only client sync).
   Registered in `reg/ModBlocks` + `reg/ModBlockEntities`; block caps in `PackworkCapabilities`.
-- `trinket/` — `TrinketType` (SSOT table), `TrinketItem`, `TrinketAccess`, `TrinketEffects`
-  (per-tick effects + the Quick-Draw break handler + its dupe-safe `pullReplacement`).
+- `trinket/` — `TrinketType` (SSOT table, 18 fittings), `TrinketItem`, `TrinketAccess`,
+  `TrinketEffects` (per-tick effects + the event handlers: Quick-Draw's break refill, the
+  Angler's `ItemFishedEvent` stow, the Herbalist's `BlockEvent.BreakEvent` replant). The
+  conservation-critical helpers — `smeltOnce`, `feedFrom`, `stowCatch`, `takeSeedFor`,
+  `pullReplacement` — are public and gametested.
 - `compat/` — one gated class per mod, the ONLY class importing that mod: `forgework/`
   (`ForgeworkFluxBridge`), `mekanism/` (`MekanismChemicalStore`), `curios/` (`CuriosCompat`),
   `jei/` (`PackworkJeiPlugin`, self-gated by `@JeiPlugin`). Each reached only behind
@@ -353,18 +418,24 @@ pack tier × trinket tier.
 
 Adventurer-flavored fittings installed into tiered trinket slots:
 
-- **Lodestone Charm** — magnet, pulls nearby items/xp into the pack.
-- **Quill & Ledger** — custom tabs match by rule, not just pins (files by the stamped icon's
-  kind). LIVE.
-- **Compass Rose** — void filter (opt-in trash for chosen items).
-- **Tinker's Kit** — a crafting grid inside the pack.
-- **Field Furnace** — smelts from pack contents over time (campfire flavor).
-- **Repair Kit** — mends stored/equipped gear.
+All 18 are LIVE. One `TrinketType` entry + assets each; nothing else to edit.
+
+- **Lodestone Charm** — magnet, pulls nearby items into the pack.
+- **Quill & Ledger** — custom tabs match by rule, not just pins (files by the stamped icon's kind).
+- **Compass Rose** — void filter (opt-in trash for chosen items). The only void path.
+- **Tinker's Kit** — a leather tool roll unrolls across the pack's lower rows: a 3×3 bench that
+  refills itself from pack stock after each craft.
+- **Field Furnace** — cooks raw ore + raw food from pack contents, on pack fuel, at furnace rates.
+- **Provisioner's Pouch** — eats the plainest thing in the pack before hunger bites.
+- **Cartographer's Sleeve** — opens a gated **Charts & Bearings** compartment.
+- **Angler's Creel** — opens a gated **The Catch** compartment; your catch lands in the pack.
+- **Torchbearer's Loop** — sets a torch from pack stock when you're standing in the dark.
+- **Herbalist's Bundle** — replants a grown crop from your own seed stock.
+- **Repair Kit** — mends equipped gear.
 - **Restock Strap** — auto-refills the hotbar from pack stock.
-- **Bottomless Lining** — extra capacity per compartment.
-- **Quick-Draw Straps** — a broken held tool is replaced from pack stock. LIVE.
-- Plus the store trinkets (Waterskin Rack, Charge Crystal, Soul Vial live; Flask Harness
-  deferred with the Gas store).
+- **Bottomless Lining** — extra capacity, never truncating.
+- **Quick-Draw Straps** — a broken held tool is replaced from pack stock.
+- Plus the four store trinkets: Waterskin Rack, Soul Vial, Charge Crystal, Flask Harness.
 
 ## Technical architecture (NeoForge 1.21.1)
 

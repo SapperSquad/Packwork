@@ -39,7 +39,9 @@ public enum PackAction {
     /** siphon the player's XP into the Soul Vial. */
     XP_SIPHON,
     /** pour the Soul Vial back into the player. */
-    XP_POUR;
+    XP_POUR,
+    /** unroll / roll up the Tinker's Kit tool roll across the pack's lower rows. */
+    TOGGLE_ROLL;
 
     private static final PackAction[] VALUES = values();
 

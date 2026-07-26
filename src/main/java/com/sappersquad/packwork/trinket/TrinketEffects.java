@@ -73,6 +73,271 @@ public final class TrinketEffects {
         if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
         if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
         if (installed.contains(TrinketType.CHARGE_CRYSTAL) && time % 10 == 0) charge(sp, packStack);
+        if (installed.contains(TrinketType.FIELD_FURNACE) && time % SMELT_EVERY == 0) fieldFurnace(sp, packStack, pack);
+        if (installed.contains(TrinketType.PROVISIONER) && time % 20 == 0) provision(sp, pack);
+        if (installed.contains(TrinketType.TORCHBEARER) && time % 20 == 0) torchbearer(sp, pack);
+    }
+
+    // ---- Field Furnace: banked campfire embers that cook raw ore and raw food ----
+
+    /** How often the embers turn out a finished piece. */
+    private static final int SMELT_EVERY = 60;
+    /** Ticks of burn one item costs - the same as a furnace, so a lump of coal is still 8 things. */
+    private static final int BURN_PER_ITEM = 200;
+
+    /**
+     * Cook one thing from the pack, on embers fed by the pack's own fuel.
+     *
+     * <p>Deliberately narrow: only <em>raw ore</em> and <em>raw food</em> are cooked. A furnace
+     * would happily turn your cobblestone into stone and your logs into charcoal, which is not a
+     * favour when it happens behind your back. If the finished piece won't fit, the raw one goes
+     * straight back and no embers are spent - the pack pauses, it never punishes.
+     */
+    private static void fieldFurnace(ServerPlayer sp, ItemStack packStack, PackInventory pack) {
+        smeltOnce(sp.serverLevel(), packStack, pack);
+    }
+
+    /**
+     * Cook one item, and only if the finished piece definitely fits: the room is checked BEFORE
+     * the raw one comes out, so the swap is atomic and nothing can be stranded or lost. Returns
+     * true if something was cooked.
+     */
+    public static boolean smeltOnce(net.minecraft.server.level.ServerLevel level,
+                             ItemStack packStack, PackInventory pack) {
+        var embersKey = com.sappersquad.packwork.reg.ModComponents.PACK_EMBERS.get();
+        int embers = packStack.getOrDefault(embersKey, 0);
+        if (embers < BURN_PER_ITEM) {
+            embers += stokeEmbers(pack);
+            if (embers < BURN_PER_ITEM) {
+                packStack.set(embersKey, embers);
+                return false;
+            }
+        }
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack raw = pack.getStackInSlot(i);
+            if (raw.isEmpty() || !worthCooking(raw)) continue;
+            var input = new net.minecraft.world.item.crafting.SingleRecipeInput(raw);
+            var recipe = level.getServer().getRecipeManager().getRecipeFor(
+                    net.minecraft.world.item.crafting.RecipeType.SMELTING, input, level);
+            if (recipe.isEmpty()) continue;
+            ItemStack out = recipe.get().value().assemble(input, level.registryAccess());
+            if (out.isEmpty()) continue;
+            // no room for what it would make? leave the raw one exactly where it is
+            if (!insertAll(pack, out.copy(), true).isEmpty()) continue;
+
+            ItemStack taken = pack.extractItem(i, 1, false);
+            if (taken.isEmpty()) continue;
+            insertAll(pack, out.copy(), false);
+            packStack.set(embersKey, embers - BURN_PER_ITEM);
+            return true;
+        }
+        packStack.set(embersKey, embers);
+        return false;
+    }
+
+    /**
+     * What the Field Furnace is allowed to burn. Deliberately NOT "anything with a burn time" -
+     * a live playtest had it quietly eating oak planks off the top of the pack, which is exactly
+     * the behind-your-back behaviour the cooking list already avoids. Datapack-tunable.
+     */
+    public static final net.minecraft.tags.TagKey<Item> FURNACE_FUEL =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "furnace_fuel"));
+
+    /** Burn one piece of proper fuel out of the pack; its container (a bucket, say) goes back in. */
+    private static int stokeEmbers(PackInventory pack) {
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            if (s.isEmpty() || !s.is(FURNACE_FUEL)) continue;
+            int burn = s.getBurnTime(net.minecraft.world.item.crafting.RecipeType.SMELTING);
+            if (burn <= 0) continue;
+            ItemStack fuel = pack.extractItem(i, 1, false);
+            if (fuel.isEmpty()) continue;
+            ItemStack remainder = fuel.getCraftingRemainingItem();
+            if (!remainder.isEmpty()) insertAll(pack, remainder);
+            return burn;
+        }
+        return 0;
+    }
+
+    /** Raw ore and raw food only - see {@link #fieldFurnace}. */
+    private static boolean worthCooking(ItemStack stack) {
+        if (stack.getFoodProperties(null) != null) return true;
+        return stack.is(net.neoforged.neoforge.common.Tags.Items.RAW_MATERIALS)
+                || stack.is(net.neoforged.neoforge.common.Tags.Items.ORES);
+    }
+
+    // ---- Provisioner's Pouch: eats from pack stock before you start starving ----
+
+    /**
+     * When you're down to three haunches, the pouch feeds you the CHEAPEST safe thing in the
+     * pack - your golden apples stay yours. Anything with a harmful effect (rotten flesh,
+     * pufferfish, spider eyes) is left well alone, and the bowl or bottle goes back in the pack.
+     */
+    private static void provision(ServerPlayer sp, PackInventory pack) {
+        if (!feedFrom(sp, pack)) return;
+        sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(),
+                net.minecraft.sounds.SoundEvents.PLAYER_BURP, net.minecraft.sounds.SoundSource.PLAYERS, 0.5f, 1f);
+    }
+
+    /**
+     * Eat the plainest thing in the pack. Returns true if the player actually ate.
+     *
+     * <p>"Plainest" means: no effects attached at all, and not on the never-auto-eat list.
+     * That rules out rotten flesh and pufferfish for the obvious reason, and golden apples and
+     * suspicious stew for a better one - a food you went to trouble for is not rations, and the
+     * pouch has no business spending it. Among what's left it takes the least filling first.
+     */
+    public static boolean feedFrom(Player player, PackInventory pack) {
+        if (player.getFoodData().getFoodLevel() > 6) return false;
+        int best = -1, bestNutrition = Integer.MAX_VALUE;
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            if (s.isEmpty()) continue;
+            var food = s.getFoodProperties(player);
+            if (food == null || !isRations(s, food)) continue;
+            if (food.nutrition() < bestNutrition) {
+                bestNutrition = food.nutrition();
+                best = i;
+            }
+        }
+        if (best < 0) return false;
+        ItemStack meal = pack.extractItem(best, 1, false);
+        if (meal.isEmpty()) return false;
+        ItemStack remainder = meal.finishUsingItem(player.level(), player); // vanilla eating, effects and all
+        if (!remainder.isEmpty()) {
+            ItemStack left = insertAll(pack, remainder);          // the bowl goes back in the pack
+            if (!left.isEmpty() && !player.getInventory().add(left)) player.drop(left, false);
+        }
+        return true;
+    }
+
+    /**
+     * Items a Provisioner's Pouch will never eat on your behalf, whatever their nutrition.
+     * Datapack-tunable, so a pack can add its own delicacies (or hand back the chorus fruit).
+     */
+    public static final net.minecraft.tags.TagKey<Item> NEVER_AUTO_EAT =
+            net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "never_auto_eat"));
+
+    private static boolean isRations(ItemStack stack, net.minecraft.world.food.FoodProperties food) {
+        if (!food.effects().isEmpty()) return false;   // anything with an effect on it stays yours
+        return !stack.is(NEVER_AUTO_EAT);
+    }
+
+    // ---- Torchbearer's Loop: lights the dark from pack stock ----
+
+    /**
+     * Standing somewhere genuinely dark, the loop sets one torch down from pack stock. It is
+     * self-limiting - the moment the light comes up it stops - and if the torch can't stand
+     * there, it goes straight back in the pack.
+     */
+    private static void torchbearer(ServerPlayer sp, PackInventory pack) {
+        var level = sp.serverLevel();
+        net.minecraft.core.BlockPos pos = sp.blockPosition();
+        if (level.getMaxLocalRawBrightness(pos) > 3) return;
+        if (!level.getBlockState(pos).canBeReplaced()) return;
+        var torchState = net.minecraft.world.level.block.Blocks.TORCH.defaultBlockState();
+        if (!torchState.canSurvive(level, pos)) return;
+
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            if (!s.is(net.minecraft.world.item.Items.TORCH)) continue;
+            ItemStack torch = pack.extractItem(i, 1, false);
+            if (torch.isEmpty()) continue;
+            if (level.setBlockAndUpdate(pos, torchState)) {
+                level.playSound(null, pos, net.minecraft.sounds.SoundEvents.WOOD_PLACE,
+                        net.minecraft.sounds.SoundSource.BLOCKS, 0.6f, 1f);
+            } else {
+                ItemStack back = insertAll(pack, torch);   // couldn't set it down - keep it
+                if (!back.isEmpty() && !sp.getInventory().add(back)) sp.drop(back, false);
+            }
+            return;
+        }
+    }
+
+    // ---- Angler's Creel: the catch goes in the pack ----
+
+    /**
+     * Reel something in with a creel fitted and it lands in the pack instead of bouncing off your
+     * chest - and the Catch compartment already has a place for it. Anything the pack can't take
+     * is left in the drop list so vanilla still hands it over; nothing is ever swallowed.
+     */
+    @SubscribeEvent
+    public static void onItemFished(net.neoforged.neoforge.event.entity.player.ItemFishedEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+        Inventory inv = sp.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack packStack = inv.getItem(i);
+            if (!(packStack.getItem() instanceof PackItem)) continue;
+            if (!TrinketAccess.has(packStack, TrinketType.ANGLERS_CREEL)) continue;
+
+            stowCatch(new PackInventory(packStack, PackItem.tierOf(packStack)), event.getDrops());
+            return;
+        }
+    }
+
+    /**
+     * Move the day's catch into the pack, leaving behind only what wouldn't fit - vanilla then
+     * spawns whatever is left, so a full pack costs you nothing.
+     */
+    public static void stowCatch(PackInventory pack, java.util.List<ItemStack> drops) {
+        for (int d = 0; d < drops.size(); d++) {
+            ItemStack caught = drops.get(d);
+            if (caught.isEmpty() || caught.getItem() instanceof PackItem) continue;
+            drops.set(d, insertAll(pack, caught));
+        }
+        drops.removeIf(ItemStack::isEmpty);
+    }
+
+    // ---- Herbalist's Bundle: replants what you harvest, from your own seed stock ----
+
+    /**
+     * Break a grown crop with the bundle fitted and it goes straight back in the ground, using a
+     * seed out of the pack. It only spends a seed the pack actually holds, and if the ground is
+     * taken by the time it gets there the seed goes back - so it can neither dupe nor lose one.
+     */
+    @SubscribeEvent
+    public static void onCropHarvested(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer sp)) return;
+        if (!(event.getLevel() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        var state = event.getState();
+        if (!(state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop)) return;
+        if (!crop.isMaxAge(state)) return;
+
+        Inventory inv = sp.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            ItemStack packStack = inv.getItem(i);
+            if (!(packStack.getItem() instanceof PackItem)) continue;
+            if (!TrinketAccess.has(packStack, TrinketType.HERBALIST)) continue;
+
+            PackInventory pack = new PackInventory(packStack, PackItem.tierOf(packStack));
+            ItemStack seed = takeSeedFor(pack, crop);
+            if (seed.isEmpty()) return;
+
+            net.minecraft.core.BlockPos pos = event.getPos().immutable();
+            var young = crop.defaultBlockState();
+            level.getServer().tell(new net.minecraft.server.TickTask(level.getServer().getTickCount() + 1, () -> {
+                if (level.getBlockState(pos).canBeReplaced() && young.canSurvive(level, pos)) {
+                    level.setBlockAndUpdate(pos, young);
+                } else {
+                    ItemStack back = insertAll(pack, seed);   // ground taken - the seed comes home
+                    if (!back.isEmpty() && !sp.getInventory().add(back)) sp.drop(back, false);
+                }
+            }));
+            return;
+        }
+    }
+
+    /** One seed out of the pack that plants this crop, or EMPTY if the pack has none. */
+    public static ItemStack takeSeedFor(PackInventory pack, net.minecraft.world.level.block.CropBlock crop) {
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            if (s.isEmpty() || !(s.getItem() instanceof net.minecraft.world.item.BlockItem bi)) continue;
+            if (bi.getBlock() != crop) continue;
+            return pack.extractItem(i, 1, false);
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Charge Crystal: pour stored charge into the tools you're holding that accept it. */
@@ -219,13 +484,18 @@ public final class TrinketEffects {
         return ItemStack.EMPTY;
     }
 
-    private static ItemStack insertAll(PackInventory pack, ItemStack stack) {
+    static ItemStack insertAll(PackInventory pack, ItemStack stack) {
+        return insertAll(pack, stack, false);
+    }
+
+    /** Merge into part-filled stacks first, then fill empties. {@code simulate} touches nothing. */
+    static ItemStack insertAll(PackInventory pack, ItemStack stack, boolean simulate) {
         ItemStack remaining = stack;
         for (int i = 0; i < pack.getSlots() && !remaining.isEmpty(); i++) {
-            if (!pack.getStackInSlot(i).isEmpty()) remaining = pack.insertItem(i, remaining, false);
+            if (!pack.getStackInSlot(i).isEmpty()) remaining = pack.insertItem(i, remaining, simulate);
         }
         for (int i = 0; i < pack.getSlots() && !remaining.isEmpty(); i++) {
-            if (pack.getStackInSlot(i).isEmpty()) remaining = pack.insertItem(i, remaining, false);
+            if (pack.getStackInSlot(i).isEmpty()) remaining = pack.insertItem(i, remaining, simulate);
         }
         return remaining;
     }

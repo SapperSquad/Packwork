@@ -92,6 +92,10 @@ public final class PackClientActions {
         send(menu, PackAction.XP_POUR, 0, "", "");
     }
 
+    public static void toggleRoll(PackMenu menu) {
+        send(menu, PackAction.TOGGLE_ROLL, 0, "", "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

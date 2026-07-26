@@ -42,7 +42,8 @@ no rule wanted, so nothing ever disappears.
 
 - **Auto-tabs out of the box** — Food, Combat, Tools, Ores & Valuables, Brewing, Nature,
   Blocks, and Loose. They sort by what an item *is*, so a modded pickaxe is a Tool for
-  free — no config, no per-mod support.
+  free — no config, no per-mod support. Two more (Charts & Bearings, The Catch) open up
+  when you fit the trinket that earns them.
 - **Make your own** — name a compartment, stamp it with any item icon, dye it, drag to
   reorder. **Pin** an item and it always lands there.
 - **Tidy Up, search, flatten** — merge and re-sort with one button, find anything across
@@ -62,6 +63,13 @@ full pack carries everything inside straight up. Then slot brass **trinkets** in
 | Compass Rose | the only way a pack throws anything out — and it's opt-in |
 | Quick-Draw Straps | when a tool breaks in your hand, the pack hands you another |
 | Quill & Ledger | custom compartments start filing by rule, not just pins |
+| Tinker's Kit | a leather tool roll unrolls inside the pack — a 3×3 bench fed from your stores |
+| Field Furnace | banked embers cook raw ore and raw food as you walk |
+| Provisioner's Pouch | feeds you before hunger bites, cheapest rations first |
+| Cartographer's Sleeve | opens a Charts & Bearings compartment for maps and compasses |
+| Angler's Creel | opens The Catch, and your catch goes straight in the pack |
+| Torchbearer's Loop | sets a torch down when you're standing in the dark |
+| Herbalist's Bundle | replants a grown crop from your own seed stock |
 | Waterskin Rack | a real fluid tank, shown as a glass gauge |
 | Soul Vial | stores your XP and auto-mends your gear from it |
 | Charge Crystal | an arcane charge in copper-wound glass, topping up your powered tools |

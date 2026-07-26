@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "minecraft:coal", "required": false },
+    { "id": "minecraft:charcoal", "required": false },
+    { "id": "minecraft:coal_block", "required": false },
+    { "id": "minecraft:blaze_rod", "required": false },
+    { "id": "minecraft:lava_bucket", "required": false },
+    { "id": "minecraft:dried_kelp_block", "required": false },
+    { "id": "#c:coal_blocks", "required": false },
+    { "id": "#minecraft:coals", "required": false }
+  ]
+}

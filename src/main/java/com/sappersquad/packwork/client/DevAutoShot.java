@@ -43,7 +43,9 @@ public final class DevAutoShot {
         OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
         WBREAK, SHOOT_BROKEN, WREPLACE, SHOOT_REPLACED,
-        WLINEUP, SHOOT_LINEUP, SHOOT_INHAND, DONE
+        WLINEUP, SHOOT_LINEUP, SHOOT_INHAND,
+        KIT_GIVE, KIT_W1, KIT_UNROLL, KIT_W2, SHOOT_ROLL, KIT_LOAD, KIT_W3, SHOOT_LOADED,
+        KIT_CRAFT, KIT_W4, KIT_REPORT, DONE
     }
 
     private static Phase phase = Phase.BOOT;
@@ -254,9 +256,45 @@ public final class DevAutoShot {
             case SHOOT_INHAND -> {
                 if (++wait > 12) {
                     grab(mc, "packwork_inhand");  // the revamped pack sprite in hand
-                    phase = Phase.DONE;
-                    Packwork.LOGGER.info("[autoshot] done - screenshots written");
+                    phase = Phase.KIT_GIVE; wait = 0;
                 }
+            }
+            // ---- the Tinker's Kit: unroll the bench and craft from pack stock, for real ----
+            case KIT_GIVE -> {
+                giveKitPack(mc);
+                phase = Phase.KIT_W1; wait = 0;
+            }
+            case KIT_W1 -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.KIT_UNROLL; wait = 0; } }
+            case KIT_UNROLL -> {
+                switchTab(mc, "auto:nature");     // the wheat lives in Nature & Farming
+                clickRollLatch(mc);               // a real press + release on the latch
+                phase = Phase.KIT_W2; wait = 0;
+            }
+            case KIT_W2 -> { if (++wait > 14) phase = Phase.SHOOT_ROLL; }
+            case SHOOT_ROLL -> {
+                grab(mc, "packwork_roll_open");   // the tool roll unrolled across the lower rows
+                phase = Phase.KIT_LOAD; wait = 0;
+            }
+            case KIT_LOAD -> {
+                loadRollFromPack(mc, 3);          // three real shift-clicks off the pack grid = a row of wheat
+                phase = Phase.KIT_W3; wait = 0;
+            }
+            case KIT_W3 -> { if (++wait > 16) phase = Phase.SHOOT_LOADED; }
+            case SHOOT_LOADED -> {
+                grab(mc, "packwork_roll_loaded"); // a 2x2 of planks laid out, result showing
+                logKitState(mc, "before crafting");
+                phase = Phase.KIT_CRAFT; wait = 0;
+            }
+            case KIT_CRAFT -> {
+                craftFromRoll(mc);                // a real shift-click on the result
+                phase = Phase.KIT_W4; wait = 0;
+            }
+            case KIT_W4 -> { if (++wait > 20) phase = Phase.KIT_REPORT; }
+            case KIT_REPORT -> {
+                logKitState(mc, "after crafting");
+                grab(mc, "packwork_roll_crafted");
+                phase = Phase.DONE;
+                Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
             default -> {}
         }
@@ -336,6 +374,112 @@ public final class DevAutoShot {
                     round, net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(cursor.getItem()),
                     cursor.getCount(), inPockets, waterInPockets,
                     ground.isEmpty() ? "NOTHING" : onFloor.toString().trim(), tank);
+        });
+    }
+
+    // ---- Tinker's Kit live check ----
+
+    /** Hand over a Runed pack with the Kit, the Sleeve and the Creel fitted, stocked to craft with. */
+    private static void giveKitPack(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.getInventory().clearContent();
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.RUNED).get());
+            var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.RUNED);
+            sockets.insertItem(0, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT).get()), false);
+            sockets.insertItem(1, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.CARTOGRAPHER).get()), false);
+            sockets.insertItem(2, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.ANGLERS_CREEL).get()), false);
+            sockets.insertItem(3, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.FIELD_FURNACE).get()), false);
+            var store = new com.sappersquad.packwork.pack.PackInventory(
+                    pack, com.sappersquad.packwork.pack.PackTier.RUNED);
+            store.insertItem(0, new ItemStack(Items.WHEAT, 9), false);   // 3 in a row = bread
+            store.insertItem(1, new ItemStack(Items.COD, 8), false);
+            store.insertItem(2, new ItemStack(Items.COMPASS, 1), false);
+            store.insertItem(3, new ItemStack(Items.FILLED_MAP, 2), false);
+            store.insertItem(4, new ItemStack(Items.RAW_IRON, 12), false);
+            store.insertItem(5, new ItemStack(Items.COAL, 4), false);
+            sp.getInventory().items.set(0, pack);
+            sp.getInventory().selected = 0;
+            PackItem.openPack(sp, 0);
+            Packwork.LOGGER.info("[autoshot][kit] Runed pack with Tinker's Kit + Sleeve + Creel + Furnace opened");
+        });
+    }
+
+    /** A genuine press + release on the tool-roll latch in the title strip. */
+    private static void clickRollLatch(Minecraft mc) {
+        if (!(mc.screen instanceof PackScreen ps)) {
+            Packwork.LOGGER.warn("[autoshot][kit] pack screen not open");
+            return;
+        }
+        int[] c = ps.devRollButtonCenter();
+        if (c == null) {
+            Packwork.LOGGER.warn("[autoshot][kit] no roll latch - is the kit fitted?");
+            return;
+        }
+        ps.mouseClicked(c[0], c[1], 0);
+        ps.mouseReleased(c[0], c[1], 0);
+        Packwork.LOGGER.info("[autoshot][kit] clicked the roll latch at ({},{})", c[0], c[1]);
+    }
+
+    /** Shift-click a plank out of the pack grid onto the bench, {@code times} over - the real path. */
+    private static void loadRollFromPack(Minecraft mc, int times) {
+        if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
+        PackMenu menu = ps.getMenu();
+        for (int n = 0; n < times; n++) {
+            int slot = -1;
+            for (int i = 0; i < menu.slots.size(); i++) {
+                var s = menu.slots.get(i);
+                if (s instanceof com.sappersquad.packwork.pack.PackViewSlot && s.isActive()
+                        && s.getItem().is(Items.WHEAT)) { slot = i; break; }
+            }
+            if (slot < 0) { Packwork.LOGGER.warn("[autoshot][kit] no wheat in the grid to lay out"); return; }
+            mc.gameMode.handleInventoryMouseClick(menu.containerId, slot, 0,
+                    net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+        }
+        Packwork.LOGGER.info("[autoshot][kit] shift-clicked {} wheat onto the bench", times);
+    }
+
+    /** A real shift-click on the roll's result slot. */
+    private static void craftFromRoll(Minecraft mc) {
+        if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
+        PackMenu menu = ps.getMenu();
+        mc.gameMode.handleInventoryMouseClick(menu.containerId, menu.resultIndex(), 0,
+                net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+        Packwork.LOGGER.info("[autoshot][kit] shift-clicked the result slot");
+    }
+
+    /** Count what the SERVER's pack actually holds, so the craft can be checked, not assumed. */
+    private static void logKitState(Minecraft mc, String when) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            ItemStack pack = sp.getInventory().getItem(0);
+            var store = new com.sappersquad.packwork.pack.PackInventory(
+                    pack, com.sappersquad.packwork.pack.PackItem.tierOf(pack));
+            int wheat = 0, bread = 0;
+            for (int i = 0; i < store.getSlots(); i++) {
+                ItemStack s = store.getStackInSlot(i);
+                if (s.is(Items.WHEAT)) wheat += s.getCount();
+                if (s.is(Items.BREAD)) bread += s.getCount();
+            }
+            StringBuilder bench = new StringBuilder();
+            if (sp.containerMenu instanceof PackMenu m) {
+                for (int i = m.resultIndex() - 9; i <= m.resultIndex(); i++) {
+                    ItemStack s = m.slots.get(i).getItem();
+                    bench.append(s.isEmpty() ? "-" : (net.minecraft.core.registries.BuiltInRegistries.ITEM
+                            .getKey(s.getItem()).getPath() + "x" + s.getCount())).append(' ');
+                }
+            }
+            Packwork.LOGGER.info("[autoshot][kit] {}: pack holds {} wheat, {} bread | bench+result: {}",
+                    when, wheat, bread, bench.toString().trim());
         });
     }
 

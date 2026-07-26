@@ -103,6 +103,69 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.blit(BG, leftPos, topPos, 0f, 0f, imageWidth, imageHeight, imageWidth, imageHeight);
         drawTabRail(g, mouseX, mouseY);
         drawTrinketRail(g);
+        drawToolRoll(g);
+    }
+
+    /**
+     * The Tinker's Kit, unrolled: a leather tool roll laid across the pack's lower rows, with
+     * three canvas pockets of workspace and a brass-ringed well for what comes out. Draws over
+     * the grid rows the menu has deactivated, so the pack above stays usable.
+     */
+    private void drawToolRoll(GuiGraphics g) {
+        if (!menu.rollActive()) return;
+        int x = leftPos + 5, y = topPos + PackMenu.ROLL_Y - 6;
+        int w = imageWidth - 10, h = 3 * 18 + 10;
+
+        g.fill(x, y - 1, x + w, y, 0xFF241708);                    // the roll casts a shadow on the pack
+        g.fill(x, y, x + w, y + h, 0xFF3D2A16);                    // dark oiled leather, distinct from the panel
+        g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF6A4A2A);        // lit top roll
+        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF241708);
+        g.renderOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
+
+        // a canvas working field behind the 3x3 - the tool pockets are sewn onto it
+        int cx = leftPos + PackMenu.ROLL_GRID_X - 4, cy = topPos + PackMenu.ROLL_Y - 3;
+        int cw = 3 * 18 + 7, ch = 3 * 18 + 5;
+        g.fill(cx, cy, cx + cw, cy + ch, 0xFF8A7A56);
+        g.fill(cx, cy, cx + cw, cy + 1, 0xFFA89A74);
+        g.fill(cx, cy + ch - 1, cx + cw, cy + ch, 0xFF6A5C3C);
+        for (int sx = cx + 2; sx < cx + cw - 2; sx += 4) {          // stitched to the leather
+            g.fill(sx, cy + 2, sx + 2, cy + 3, 0xFF4A3A1E);
+            g.fill(sx, cy + ch - 4, sx + 2, cy + ch - 3, 0xFF4A3A1E);
+        }
+
+        // brass tacks at the roll's corners, and the two ties that hold it open
+        for (int[] t : new int[][]{{x + 3, y + 3}, {x + w - 5, y + 3},
+                {x + 3, y + h - 5}, {x + w - 5, y + h - 5}}) {
+            g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
+            g.fill(t[0], t[1], t[0] + 1, t[1] + 1, 0xFFE7CC82);
+        }
+        for (int ty : new int[]{y + 16, y + h - 22}) {
+            g.fill(x + 1, ty, x + 4, ty + 3, 0xFF6B4A2F);
+            g.fill(x + w - 4, ty, x + w - 1, ty + 3, 0xFF6B4A2F);
+        }
+
+        for (int row = 0; row < 3; row++)
+            for (int col = 0; col < 3; col++)
+                slotWell(g, leftPos + PackMenu.ROLL_GRID_X + col * 18,
+                        topPos + PackMenu.ROLL_Y + row * 18);
+
+        // a brass awl pointing from the workspace to the finished piece
+        int ax = leftPos + 96, ay = topPos + PackMenu.ROLL_RESULT_Y + 7;
+        g.fill(ax, ay, ax + 12, ay + 2, 0xFFC9A24B);
+        for (int i = 0; i < 4; i++) g.fill(ax + 8 + i, ay - 3 + i, ax + 9 + i, ay + 5 - i, 0xFFE7CC82);
+
+        slotWell(g, leftPos + PackMenu.ROLL_RESULT_X, topPos + PackMenu.ROLL_RESULT_Y);
+        g.renderOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
+                20, 20, 0xFFC9A24B);
+    }
+
+    /** One recessed slot well in the leather, matching the ones baked into the panel. */
+    private void slotWell(GuiGraphics g, int x, int y) {
+        g.fill(x - 1, y - 1, x + 17, y + 17, 0xFF3C2A19);
+        g.fill(x - 1, y - 1, x + 16, y, 0xFF2A1C10);
+        g.fill(x - 1, y - 1, x, y + 16, 0xFF2A1C10);
+        g.fill(x - 1, y + 16, x + 17, y + 17, 0xFF8A6540);
+        g.fill(x + 16, y - 1, x + 17, y + 17, 0xFF8A6540);
     }
 
     /** Brass sockets on the right rail; the socket items render themselves as normal slots. */
@@ -230,12 +293,17 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         this.renderTooltip(g, mouseX, mouseY);
     }
 
-    // Title-strip buttons: flatten toggle, tidy up, new tab.
+    // Title-strip buttons: tool roll (only with a kit fitted), flatten toggle, tidy up, new tab.
+    private int rollBtnX() { return leftPos + 116; }
     private int flatBtnX() { return leftPos + 130; }
     private int tidyBtnX() { return leftPos + 144; }
     private int newBtnX()  { return leftPos + 158; }
     private int btnY()     { return topPos + 4; }
     private static final int BTN = 12;
+
+    private boolean hasKit() {
+        return menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
+    }
 
     private void drawButtons(GuiGraphics g, int mouseX, int mouseY) {
         drawPlate(g, flatBtnX(), btnY(), inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN), menu.flatten());
@@ -244,6 +312,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
         // glyphs (brass on the plate)
         int gl = 0xFFEAD9A6;
+        if (hasKit()) {   // the tool-roll latch appears only once a Tinker's Kit is fitted
+            drawPlate(g, rollBtnX(), btnY(), inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN), menu.rollActive());
+            g.fill(rollBtnX() + 2, btnY() + 4, rollBtnX() + 10, btnY() + 6, gl);   // the rolled leather
+            g.fill(rollBtnX() + 2, btnY() + 7, rollBtnX() + 10, btnY() + 8, 0xFF8A6A28);
+            g.fill(rollBtnX() + 4, btnY() + 2, rollBtnX() + 5, btnY() + 4, gl);    // two tools poking out
+            g.fill(rollBtnX() + 7, btnY() + 2, rollBtnX() + 8, btnY() + 4, gl);
+        }
         // flatten: a 2x2 grid of dots
         g.fill(flatBtnX() + 3, btnY() + 3, flatBtnX() + 5, btnY() + 5, gl);
         g.fill(flatBtnX() + 7, btnY() + 3, flatBtnX() + 9, btnY() + 5, gl);
@@ -451,7 +526,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }
-        if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
+        if (hasKit() && inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN)) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable(menu.rollActive()
+                    ? "packwork.ui.roll_up" : "packwork.ui.unroll"));
+            lines.add(Component.translatable("packwork.ui.roll_hint")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+        } else if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
             g.renderTooltip(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN))
             g.renderTooltip(this.font, Component.translatable("packwork.ui.tidy"), mouseX, mouseY);
@@ -469,6 +551,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         // title buttons
         if (button == 0) {
+            if (hasKit() && inRect((int) mx, (int) my, rollBtnX(), btnY(), BTN, BTN)) {
+                PackClientActions.toggleRoll(menu);
+                return true;
+            }
             if (inRect((int) mx, (int) my, flatBtnX(), btnY(), BTN, BTN)) {
                 PackClientActions.toggleFlatten(menu);
                 return true;
@@ -607,6 +693,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             default -> {}
         }
         return super.keyPressed(key, scan, mods);
+    }
+
+    /** Dev harness only: the tool-roll latch's centre in GUI space (null without a kit fitted). */
+    public int[] devRollButtonCenter() {
+        return hasKit() ? new int[]{rollBtnX() + BTN / 2, btnY() + BTN / 2} : null;
     }
 
     /** Dev harness only: the waterskin gauge's centre in GUI space (null when there's no rack). */

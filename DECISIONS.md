@@ -238,6 +238,79 @@ one can be flipped later without unpicking the rest:
   sides either double-applies or desyncs until the next sync; tabs, search, pins and paging are
   pure view state, so they keep their instant local apply.
 
+## 2026-07-25 — the Tinker's Kit and the second trinket batch (reopen with evidence)
+
+- **The tool roll unrolls OVER the pack's lower rows, it is not a separate screen or tab.** The
+  compartment rail is for compartments; a bench is not one, so it does not get a tab. Instead a
+  latch in the title strip (visible only with a kit fitted) unrolls a leather tool roll across the
+  bottom three grid rows — the pack keeps its top three rows, so you can still see and shift-click
+  the stock you're crafting from. Rejected: a separate crafting screen (breaks "one object"), a
+  rail panel (the rail is already four gauges tall on a Runed pack), and permanently reserving
+  grid space (the GUI must stay uncluttered for the ~everyone who hasn't crafted a kit).
+- **The 3x3 + result slots exist on EVERY pack menu, always.** They're added unconditionally and
+  simply go inactive without the kit. The alternative — adding slots when the trinket is present —
+  reintroduces exactly the client/server slot-count mismatch that overran the container packet and
+  dropped the player twice during Phase 2. `isActive`/`mayPlace`/`mayPickup` all gate on
+  `rollActive()`, so an inactive bench refuses every interaction even from a hostile client.
+- **Shift-click lays ONE item in the next EMPTY cell**, rather than vanilla's "tip the stack into
+  the first slot that takes it". You're setting out a shape, so three shift-clicks of wheat should
+  be a row of three, not a pile of three in one corner. It deliberately returns EMPTY from
+  `quickMoveStack` afterwards so vanilla's quick-move loop stops at one per click. *(Found in a
+  live playtest: with the vanilla ordering, four shift-clicks of planks stacked into cell 0 and
+  the bench offered to make a button.)*
+- **The bench refills each emptied cell from pack stock after every craft.** This is what makes it
+  "craft on the go" rather than "a crafting table you have to hand-feed": set the pattern once and
+  one shift-click on the result runs the batch until the pack is out of makings. It can only ever
+  put back what it takes out of the store (`pullOneFromPack` extracts, never mints), so the batch
+  stops dead when stock runs out — a gametest pins 12 planks' worth in play at every step, and
+  proves a fourth click on a dry pack is a no-op rather than a free craft.
+- **Nothing is ever stranded on the bench.** Rolling up and closing the pack both empty the 3x3
+  back into the pack (then pockets, then floor), via the same `emptyRollIntoPack`. The return path
+  passes `allowVoid=false` to `insertIntoPack`: a Compass Rose can bin what you deliberately marked
+  on the way IN, but a hand-back must hand back.
+- **Two trinkets pay for themselves in SORTING, not just in effects.** `AutoTabs.Auto` gained a
+  `gate` field, so the Cartographer's Sleeve and the Angler's Creel each add a whole compartment
+  with one entry in the table plus a tag JSON — the single-source-of-truth rule holding. Both are
+  slotted at their proper PRIORITY, not appended: The Catch has to out-rank Food or every cod files
+  itself as rations. `SortEngine` also inserts a newly-unlocked compartment at its default priority
+  inside an OLD pack's saved tab order, so fitting a creel to a long-used pack still works.
+- **The Field Furnace is deliberately narrow, twice over.** It cooks only raw ore and raw food (a
+  furnace would happily turn your cobblestone into stone and your logs into charcoal, which is no
+  favour when it happens behind your back), and it burns only what a datapack tag
+  (`packwork:furnace_fuel`) calls fuel. *The fuel restriction came out of a live playtest: with
+  "anything with a burn time" it quietly ate an oak plank off the top of the pack.* It also checks
+  there is room for the output BEFORE the raw item leaves its slot, so the swap is atomic.
+- **The Provisioner's Pouch eats the PLAINEST thing, not the cheapest.** Nutrition alone picked the
+  golden apple (4) over bread (5). The rule is now: no effects attached at all, and not on the
+  datapack `packwork:never_auto_eat` list. That keeps golden apples, suspicious stew and chorus
+  fruit out of its reach for the right reason — a food you went to trouble for is not rations.
+- **Cut from the candidate list: Prospector's Pan.** Every honest version of it either duplicated
+  the Lodestone Charm (pull ore into the pack) or needed a HUD readout of what's underground, which
+  is the futuristic register the whole mod is avoiding. No pillar, no entry. Flagged rather than
+  shipped as filler.
+
+## 2026-07-25 — art: the packs were BUSY, not detailed (reopen with evidence)
+
+- **Alex's read was right and the cause was measurable.** Four separate high-frequency sources were
+  stacked on a 32px sprite that lands in a 16px slot: `leatherGrain` added **per-pixel random ±3**
+  on top of its crease pattern; the canvas tier ran a **1px-pitch crosshatch at ±8 over the entire
+  sprite**; the hem stitch was **every other pixel at near-white**; and the studs/plates/runes were
+  1px sprinkles. Individually defensible, together they read as speckle and dissolved the form.
+- **The rule now: big forms read first, and every piece of detail is a deliberate SHAPE.** A new
+  `smoothNoise` (coarse lattice + smoothstep interpolation) replaced every per-pixel `valueNoise`
+  call across the item sprites AND the block faces; grain is a soft 7-row crease plus one large
+  mottle; the canvas weave is a 2-on/2-off rib at ±5; the hem is a 3-on/1-off thread on an unbroken
+  groove. Studs are 2×2 with a contact shadow (six of them, not nine), plates are bevelled 4×4 with
+  a brass rivet, runes are drawn strokes with a 1px bloom. **Detail was sharpened, not removed** —
+  which is what Alex asked for ("I don't mind the detail").
+- **The closure strap was reading as a hole.** Its ramp started at the tier's darkest stop shaded
+  down again, so the edges bottomed out near-black and punched a dark slot down the middle of every
+  pack, stealing the buckle's contrast. It's darker LEATHER now with a tapered tip, and the buckle
+  gained a hard outer edge so it reads as one crisp object.
+- Verified at 16px and 12px via `tools/pack_small_preview.png` before touching the client, then in
+  the client. Re-run `java tools/GenTextures.java` + `java tools/AnalyzeSprites.java` after any
+  sprite change.
+
 ## 2026-07-23 — art: hand-authored item sprites, procedural surfaces (reopen with evidence)
 
 - **Item icons are hand-authored pixel art; big tiled surfaces stay procedural.** After the

@@ -24,6 +24,20 @@ public enum TrinketType {
     REPAIR("repair_kit", Kind.TICK),
     QUICK_DRAW("quick_draw_straps", Kind.PASSIVE),
     QUILL_LEDGER("quill_and_ledger", Kind.PASSIVE),
+    /** A leather tool roll that unrolls across the open pack: a 3x3 grid fed from pack stock. */
+    TINKERS_KIT("tinkers_kit", Kind.PASSIVE),
+    /** Banked campfire embers: slowly cooks raw ore and raw food in the pack, burning pack fuel. */
+    FIELD_FURNACE("field_furnace", Kind.TICK),
+    /** Eats from pack stock when you're going hungry - the cheapest thing first. */
+    PROVISIONER("provisioners_pouch", Kind.TICK),
+    /** A waxed sleeve of charts: adds a Charts compartment for maps, compasses and clocks. */
+    CARTOGRAPHER("cartographers_sleeve", Kind.PASSIVE),
+    /** A wicker creel: your catch lands in the pack, in its own Catch compartment. */
+    ANGLERS_CREEL("anglers_creel", Kind.PASSIVE),
+    /** A loop of torches: lights the dark around you from pack stock. */
+    TORCHBEARER("torchbearers_loop", Kind.TICK),
+    /** A bundle of seed pouches: replants what you harvest, from your own stock. */
+    HERBALIST("herbalists_bundle", Kind.PASSIVE),
     // resource-store fittings (Phase 3)
     WATERSKIN("waterskin_rack", Kind.STORE),
     SOUL_VIAL("soul_vial", Kind.STORE),
