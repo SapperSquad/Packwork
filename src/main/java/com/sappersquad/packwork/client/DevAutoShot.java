@@ -47,7 +47,14 @@ public final class DevAutoShot {
         KIT_GIVE, KIT_W1, KIT_UNROLL, KIT_W2, SHOOT_ROLL,
         LEDGER_OPEN, LEDGER_W1, SHOOT_LEDGER, LEDGER_CHALK, LEDGER_W2, SHOOT_GHOST,
         LEDGER_LAY, LEDGER_W3, SHOOT_LAID,
-        KIT_CRAFT, KIT_W4, KIT_REPORT, DONE
+        KIT_CRAFT, KIT_W4, KIT_REPORT,
+        // ---- wave 4: auto-pin gesture, the rule editor, keep-my-layout, JEI ----
+        W4_GIVE, W4_OPEN,
+        AUTOPIN_GIVE, AUTOPIN_W1, AUTOPIN_CLICK, AUTOPIN_W2, SHOOT_AUTOPIN,
+        RULES_TAB, RULES_W0, RULES_OPEN, RULES_W1, SHOOT_RULES,
+        RULES_WRITE, RULES_W2, SHOOT_RULES2,
+        MODE_PREP, MODE_W0, MODE_ON, MODE_MOVE1, MODE_MW, MODE_MOVE2, MODE_W2, SHOOT_MODE,
+        JEI_SHOW, JEI_W, SHOOT_JEI, DONE
     }
 
     private static Phase phase = Phase.BOOT;
@@ -314,6 +321,105 @@ public final class DevAutoShot {
             case KIT_REPORT -> {
                 logKitState(mc, "after crafting");
                 grab(mc, "packwork_roll_crafted");
+                phase = Phase.W4_GIVE;
+                wait = 0;
+            }
+            // ---- wave 4: a fresh full pack, then the four new behaviours as pixels ----
+            case W4_GIVE -> {
+                setupAndOpen(mc);   // the Dragonhide spread again (now with a Quill & Ledger fitted)
+                phase = Phase.W4_OPEN; wait = 0;
+            }
+            case W4_OPEN -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.AUTOPIN_GIVE; wait = 0; } }
+            case AUTOPIN_GIVE -> {
+                switchTab(mc, "auto:ores");
+                giveCarried(mc, new ItemStack(Items.BREAD, 5));  // bread does NOT belong in Ores
+                phase = Phase.AUTOPIN_W1; wait = 0;
+            }
+            case AUTOPIN_W1 -> { if (++wait > 10) { phase = Phase.AUTOPIN_CLICK; wait = 0; } }
+            case AUTOPIN_CLICK -> {
+                clickViewSlot(mc, false, 0, "drop bread into an empty Ores cell (auto-pin)");
+                phase = Phase.AUTOPIN_W2; wait = 0;
+            }
+            case AUTOPIN_W2 -> { if (++wait > 12) phase = Phase.SHOOT_AUTOPIN; }
+            case SHOOT_AUTOPIN -> {
+                withMenu(mc, m -> Packwork.LOGGER.info("[autoshot][autopin] bread pinnedTab={} (want auto:ores)",
+                        m.layout().pinnedTab(net.minecraft.resources.ResourceLocation.withDefaultNamespace("bread"))));
+                grab(mc, "packwork_autopin");     // bread in Ores + red ribbon + the parchment note
+                phase = Phase.RULES_TAB; wait = 0;
+            }
+            case RULES_TAB -> {
+                newTab(mc);                        // a custom tab, selected
+                phase = Phase.RULES_W0; wait = 0;
+            }
+            case RULES_W0 -> { if (++wait > 8) { phase = Phase.RULES_OPEN; wait = 0; } }
+            case RULES_OPEN -> {
+                clickAt(mc, PackScreen::devQuillButtonCenter, "the quill (rule editor)");
+                phase = Phase.RULES_W1; wait = 0;
+            }
+            case RULES_W1 -> { if (++wait > 10) phase = Phase.SHOOT_RULES; }
+            case SHOOT_RULES -> {
+                grab(mc, "packwork_rules_empty"); // the parchment sheet: stamp line, chips, no rules yet
+                phase = Phase.RULES_WRITE; wait = 0;
+            }
+            case RULES_WRITE -> {
+                if (mc.screen instanceof PackScreen ps) ps.devSetRuleValue("ingot");
+                clickAt(mc, PackScreen::devRuleAddNameCenter, "file 'ingot' by name");
+                clickAt(mc, ps -> ps.devRuleChipCenter(0), "the Food category chip");
+                phase = Phase.RULES_W2; wait = 0;
+            }
+            case RULES_W2 -> { if (++wait > 12) phase = Phase.SHOOT_RULES2; }
+            case SHOOT_RULES2 -> {
+                withMenu(mc, m -> {
+                    var def = m.layout().customTab(m.activeTab());
+                    Packwork.LOGGER.info("[autoshot][rules] tab {} rules={}", m.activeTab(),
+                            def == null ? "null" : def.rules());
+                });
+                grab(mc, "packwork_rules_written"); // two written rules on the sheet
+                phase = Phase.MODE_PREP; wait = 0;
+            }
+            case MODE_PREP -> {
+                switchTab(mc, "auto:ores");        // the sheet folds away (not a custom tab)
+                phase = Phase.MODE_W0; wait = 0;
+            }
+            case MODE_W0 -> { if (++wait > 8) { phase = Phase.MODE_ON; wait = 0; } }
+            case MODE_ON -> {
+                clickAt(mc, PackScreen::devModeButtonCenter, "the arrangement switch (keep my layout)");
+                phase = Phase.MODE_MOVE1; wait = 0;
+            }
+            case MODE_MOVE1 -> {
+                if (++wait > 8) {
+                    clickViewSlot(mc, true, 0, "pick up the first Ores stack");
+                    phase = Phase.MODE_MW; wait = 0;
+                }
+            }
+            case MODE_MW -> { if (++wait > 6) { phase = Phase.MODE_MOVE2; wait = 0; } }
+            case MODE_MOVE2 -> {
+                clickViewSlot(mc, false, 12, "set it down two rows lower (kept cell)");
+                phase = Phase.MODE_W2; wait = 0;
+            }
+            case MODE_W2 -> { if (++wait > 12) phase = Phase.SHOOT_MODE; }
+            case SHOOT_MODE -> {
+                withMenu(mc, m -> {
+                    var kept = m.layout().manualFor(m.activeTab());
+                    Packwork.LOGGER.info("[autoshot][mode] tab {} kept={}", m.activeTab(),
+                            kept == null ? "TIDY (bad!)" : kept.cells());
+                });
+                grab(mc, "packwork_keep_layout"); // the moved stack holds its far cell, switch lit
+                phase = Phase.JEI_SHOW; wait = 0;
+            }
+            case JEI_SHOW -> {
+                if (!net.neoforged.fml.ModList.get().isLoaded("jei")) {
+                    Packwork.LOGGER.info("[autoshot][jei] JEI absent - skipping the recipe shot");
+                    phase = Phase.DONE;
+                    Packwork.LOGGER.info("[autoshot] done - screenshots written");
+                } else {
+                    showJeiUpgrade(mc);
+                    phase = Phase.JEI_W; wait = 0;
+                }
+            }
+            case JEI_W -> { if (++wait > 25) phase = Phase.SHOOT_JEI; }
+            case SHOOT_JEI -> {
+                grab(mc, "packwork_jei_upgrade"); // the Studded pack's REAL recipe in JEI's own category
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
@@ -443,6 +549,42 @@ public final class DevAutoShot {
         clickAt(mc, PackScreen::devRollButtonCenter, "the roll latch");
     }
 
+    /**
+     * A REAL container click (local apply + the server packet, exactly what a mouse does)
+     * on the first active grid cell at/after {@code minIndex} that is {@code wantItem}-ful.
+     * This is the path that exercises setByPlayer -&gt; the post-click flush on both sides.
+     */
+    private static void clickViewSlot(Minecraft mc, boolean wantItem, int minIndex, String what) {
+        if (!(mc.screen instanceof PackScreen ps) || mc.player == null || mc.gameMode == null) {
+            Packwork.LOGGER.warn("[autoshot] pack screen not open for {}", what);
+            return;
+        }
+        PackMenu menu = ps.getMenu();
+        for (int i = minIndex; i < menu.slots.size(); i++) {
+            net.minecraft.world.inventory.Slot s = menu.slots.get(i);
+            if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive()
+                    && s.hasItem() == wantItem) {
+                mc.gameMode.handleInventoryMouseClick(menu.containerId, i, 0,
+                        net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+                Packwork.LOGGER.info("[autoshot] {} -> menu slot {}", what, i);
+                return;
+            }
+        }
+        Packwork.LOGGER.warn("[autoshot] no grid cell found for {}", what);
+    }
+
+    /** JEI's recipe view on the pack ladder - reached by reflection so this class never
+     *  references a JEI type (the compat rule: one class imports each mod). */
+    private static void showJeiUpgrade(Minecraft mc) {
+        try {
+            Class.forName("com.sappersquad.packwork.compat.jei.PackworkJeiPlugin")
+                    .getMethod("devShowUpgradeRecipes").invoke(null);
+            Packwork.LOGGER.info("[autoshot][jei] asked JEI for the Studded pack's recipes");
+        } catch (Throwable t) {
+            Packwork.LOGGER.warn("[autoshot][jei] failed: {}", t.toString());
+        }
+    }
+
     /** A real shift-click on the roll's result slot. */
     private static void craftFromRoll(Minecraft mc) {
         if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
@@ -526,6 +668,8 @@ public final class DevAutoShot {
                     com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
             sockets.insertItem(3, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false);
+            sockets.insertItem(4, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER).get()), false);
             // half-fill the chemical tank (dist-neutral component) so the flask gauge shows a
             // level when run with Mekanism present (-Pmekanism); harmless without it.
             pack.set(com.sappersquad.packwork.reg.ModComponents.PACK_CHEMICAL.get(),

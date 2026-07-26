@@ -1442,6 +1442,61 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         return super.keyPressed(key, scan, mods);
     }
 
+    /**
+     * Where the pack GUI really extends past its panel, for JEI: the tab rail, the
+     * fittings rail + gauges, and whichever parchment sheet is open. JEI keeps its
+     * ingredient list out of these (see the gui handler in the JEI compat plugin).
+     */
+    public List<net.minecraft.client.renderer.Rect2i> jeiExtraAreas() {
+        List<net.minecraft.client.renderer.Rect2i> areas = new ArrayList<>();
+        areas.add(new net.minecraft.client.renderer.Rect2i(
+                leftPos - TAB_W, topPos + RAIL_TOP, TAB_W, imageHeight - RAIL_TOP));
+        int railBottom = gaugeTopY() + gaugeCount() * (gaugeHeight() + GAUGE_GAP);
+        areas.add(new net.minecraft.client.renderer.Rect2i(
+                leftPos + PackMenu.TRINKET_X - 5, topPos + PackMenu.TRINKET_Y0 - 5,
+                29, railBottom - (PackMenu.TRINKET_Y0 - 5) + 5));
+        if (ledgerVisible()) {
+            areas.add(new net.minecraft.client.renderer.Rect2i(
+                    browserX() - 2, browserY(), BR_W + 2, browserH()));
+        }
+        if (rulesVisible()) {
+            areas.add(new net.minecraft.client.renderer.Rect2i(
+                    rulesX() - 2, rulesY(), RU_W + 2, rulesH()));
+        }
+        return areas;
+    }
+
+    /** Dev harness only: the quill (rule editor) button's centre, or null while it's hidden. */
+    public int[] devQuillButtonCenter() {
+        return canEditRules() && !menu.rollActive()
+                ? new int[]{quillBtnX() + BTN / 2, perTabBtnY() + BTN / 2} : null;
+    }
+
+    /** Dev harness only: the arrangement-mode switch's centre, or null while it's hidden. */
+    public int[] devModeButtonCenter() {
+        return !menu.flatten() && !menu.rollActive()
+                ? new int[]{modeBtnX() + BTN / 2, perTabBtnY() + BTN / 2} : null;
+    }
+
+    /** Dev harness only: type into the rule editor's value box. */
+    public void devSetRuleValue(String value) {
+        if (ruleValueBox != null) ruleValueBox.setValue(value);
+    }
+
+    /** Dev harness only: the rule editor's "By name" button centre (null unless the sheet is open). */
+    public int[] devRuleAddNameCenter() {
+        if (!rulesVisible()) return null;
+        int bw = (RU_W - 14) / 2;
+        return new int[]{rulesX() + 4 + bw / 2, rulesAddTop() + 26 + 6};
+    }
+
+    /** Dev harness only: a category chip's centre (null unless the sheet is open). */
+    public int[] devRuleChipCenter(int chip) {
+        if (!rulesVisible() || chip < 0 || chip >= CHIP_KINDS.length) return null;
+        int[] r = chipRect(chip);
+        return new int[]{r[0] + r[2] / 2, r[1] + r[3] / 2};
+    }
+
     /** Dev harness only: the tool-roll latch's centre in GUI space (null without a kit fitted). */
     public int[] devRollButtonCenter() {
         return hasKit() ? new int[]{rollBtnX() + BTN / 2, btnY() + BTN / 2} : null;
