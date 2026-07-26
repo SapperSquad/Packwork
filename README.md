@@ -21,8 +21,9 @@ grid that keeps itself in order:
   datapack — no code.
 - **A Loose tab catches anything no rule claims**, so nothing you drop in ever vanishes.
 - **Make your own compartments** — name a tab, stamp it with any item's icon, dye the
-  leather, drag to reorder. Priority is top-to-bottom; the first tab that wants an item
-  gets it.
+  leather, drag to reorder. The stamp is a live filter: a pickaxe stamp gathers tools,
+  a bread stamp gathers food. Priority is top-to-bottom; the first tab that wants an
+  item gets it.
 - **Pin an item by putting it where you want it** — drop it into any compartment it
   wouldn't sort to and the pack pins it there on the spot (a stitched note tells you so).
   Hover + **P** toggles a pin too. Pinned items wear a red ribbon and beat every rule.
@@ -58,7 +59,7 @@ and every store. There is no recipe anywhere that can eat a filled pack.
 | **Bottomless Lining** | Adds another run of slots (and never voids them if you pull it). |
 | **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
 | **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
-| **Quill & Ledger** | Custom compartments start filing by rule, not just pins — each gathers items that share the kind of the item it's stamped with. |
+| **Quill & Ledger** | The rule editor: write your own filters on any custom compartment — by name, by mod, or by category chip — on a parchment sheet beside the pack. Written rules sort while it's fitted; stamps and pins work without it. |
 | **Tinker's Kit** | Unrolls a leather tool roll across the pack's lower rows: a 3×3 bench fed straight from your stores. Shift-click from the pack to lay out a pattern; each cell tops itself back up after every craft, so one shift-click on the result runs the batch until the pack is out of makings. Its **Recipe Ledger** is a parchment sheet of everything craftable *from pack stock* — click a recipe to chalk it onto the roll as a ghost, click the result well to lay it out (all-or-nothing, straight from your stores). |
 | **Field Furnace** | Banked campfire embers cook as you walk — raw ore and raw food only, never your building blocks. Burns fuel out of the pack at furnace rates. |
 | **Provisioner's Pouch** | Feeds you before hunger bites, eating the plainest thing in the pack first. Anything with an effect on it — your golden apples — stays yours. |

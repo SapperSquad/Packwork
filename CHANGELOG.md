@@ -28,6 +28,18 @@ All notable changes, newest first. Dates are the suite's working dates.
   note both ways, and the tooltip says what pinning *means* in plain words: "Keep in this
   tab — auto-sort won't move it."
 
+### Changed — the Quill & Ledger got a real job
+- **Stamps just work now.** Stamp a custom compartment with a pickaxe and it gathers your
+  tools; stamp it with bread and it gathers food — no fitting required. The stamp was
+  always meant to be a live filter; now it's the baseline every pack gets.
+- **The Quill & Ledger is the rule editor.** Fit it, open a custom compartment, and click
+  the quill under the grid: a parchment sheet where you write your own filters — type a
+  word and file it **by name** or **by mod**, or press a **category chip** (Food, Tools,
+  Weapons, Armor, Blocks, Potions) — and strike any of them off again. Written rules sort
+  while the ledger is fitted; pull it and the compartment falls back to its stamp and
+  pins, with your writings kept safe in the leather for its return. Pins still beat
+  everything, so exceptions stay yours.
+
 ### Added — deep slots (the headline)
 - **Every tier now deepens every slot.** A slot holds one vanilla stack per tier step: Canvas
   64 of a common item, Leather 128, Studded 192, Reinforced 256, Runed 320, Dragonhide 384 —

@@ -630,6 +630,8 @@ public class PackMenu extends AbstractContainerMenu {
             case XP_POUR -> applyXpPour();
             case TOGGLE_ROLL -> applyToggleRoll();
             case LAY_OUT_GHOST -> applyLayOutGhost(s1);
+            case ADD_TAB_RULE -> applyAddTabRule(s1, arg, s2);
+            case REMOVE_TAB_RULE -> applyRemoveTabRule(s1, arg);
         }
     }
 
@@ -1109,6 +1111,47 @@ public class PackMenu extends AbstractContainerMenu {
         List<PackLayout.Pin> pins = new ArrayList<>();
         for (var p : cur.pins()) if (!p.item().equals(r)) pins.add(p);
         saveLayout(cur.withPins(pins));
+    }
+
+    /** The most rules one compartment may hold - plenty for a player, a lid for a hostile client. */
+    private static final int MAX_RULES_PER_TAB = 16;
+
+    /**
+     * Add one authored rule to a custom tab - the Quill &amp; Ledger's whole job, so the
+     * fitting must be present (checked on both sides; the editor UI is gated the same way).
+     * Validated hard: only custom tabs, known rule types, a trimmed non-empty value with a
+     * sane length, real predicate names, no duplicates, and a per-tab cap.
+     */
+    public void applyAddTabRule(String tabId, int typeOrdinal, String value) {
+        if (!tabId.startsWith("custom:")) return;
+        if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER)) return;
+        var types = com.sappersquad.packwork.sort.SortRule.Type.values();
+        if (typeOrdinal < 0 || typeOrdinal >= types.length) return;
+        String v = value == null ? "" : value.trim();
+        if (v.isEmpty() || v.length() > 64) return;
+        var rule = new com.sappersquad.packwork.sort.SortRule(types[typeOrdinal], v);
+        if (rule.type() == com.sappersquad.packwork.sort.SortRule.Type.PREDICATE
+                && com.sappersquad.packwork.sort.PredicateKind.byNameOrNull(v) == null) {
+            return;
+        }
+        mutateCustom(tabId, td -> {
+            if (td.rules().contains(rule) || td.rules().size() >= MAX_RULES_PER_TAB) return td;
+            List<com.sappersquad.packwork.sort.SortRule> rules = new ArrayList<>(td.rules());
+            rules.add(rule);
+            return td.withRules(rules);
+        });
+    }
+
+    /** Strike one authored rule off a custom tab (by index in its stored list). Ledger-gated. */
+    public void applyRemoveTabRule(String tabId, int index) {
+        if (!tabId.startsWith("custom:")) return;
+        if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER)) return;
+        mutateCustom(tabId, td -> {
+            if (index < 0 || index >= td.rules().size()) return td;
+            List<com.sappersquad.packwork.sort.SortRule> rules = new ArrayList<>(td.rules());
+            rules.remove(index);
+            return td.withRules(rules);
+        });
     }
 
     private void mutateCustom(String id, java.util.function.UnaryOperator<com.sappersquad.packwork.sort.TabDef> op) {

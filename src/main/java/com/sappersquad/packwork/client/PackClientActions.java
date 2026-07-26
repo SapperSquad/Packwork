@@ -100,6 +100,14 @@ public final class PackClientActions {
         send(menu, PackAction.LAY_OUT_GHOST, 0, recipeId, "");
     }
 
+    public static void addTabRule(PackMenu menu, String tabId, int ruleTypeOrdinal, String value) {
+        send(menu, PackAction.ADD_TAB_RULE, ruleTypeOrdinal, tabId, value);
+    }
+
+    public static void removeTabRule(PackMenu menu, String tabId, int index) {
+        send(menu, PackAction.REMOVE_TAB_RULE, index, tabId, "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

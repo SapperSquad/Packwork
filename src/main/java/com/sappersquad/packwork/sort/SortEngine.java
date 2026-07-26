@@ -9,12 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /*
- * Quill &amp; Ledger note: custom tabs only claim items by RULE when a Quill &amp; Ledger
- * is fitted (the {@code ledger} flag). Without it a custom tab is pin-only - its stored
- * rules are ignored, so a fresh custom compartment holds exactly what you pin to it.
- * With the ledger fitted, a custom tab evaluates its stored rules AND a rule derived from
- * the item it's stamped with, so "stamp a tab with a pickaxe and it gathers your tools".
- * Manual pins always win either way.
+ * Quill &amp; Ledger note (reworked 2026-07-26, Alex's call): the STAMP is the baseline and
+ * needs no trinket - every custom tab always evaluates a rule derived from the item it's
+ * stamped with, so "stamp a tab with a pickaxe and it gathers your tools" just works.
+ * The Quill &amp; Ledger's job is the rule EDITOR: a tab's stored, player-authored rules
+ * (name substring / mod id / category) are only edited AND only match while the ledger is
+ * fitted (the {@code ledger} flag). Pull it and custom tabs fall back to stamp + pins -
+ * nothing is lost, items just re-route. Manual pins always win either way.
  */
 
 /**
@@ -118,33 +119,31 @@ public final class SortEngine {
     }
 
     /**
-     * Build the runtime view of a custom tab. Without a Quill &amp; Ledger the tab is
-     * pin-only (no rules evaluated); with one, it claims by its stored rules plus a rule
-     * derived from the item it's stamped with (see {@link #iconRule}).
+     * Build the runtime view of a custom tab. The rule derived from the tab's stamped
+     * icon (see {@link #iconRule}) is ALWAYS live - stamping is the no-trinket baseline.
+     * The tab's stored, player-authored rules only match while a Quill &amp; Ledger is
+     * fitted; pull the ledger and the tab falls back to stamp + pins.
      */
     public static TabView toView(TabDef t, boolean ledger) {
         Component name = t.name().isBlank() ? Component.translatable("packwork.tab.unnamed")
                 : Component.literal(t.name());
-        List<SortRule> rules;
-        if (!ledger) {
-            rules = List.of();
-        } else {
-            SortRule fromIcon = iconRule(t.icon());
-            if (fromIcon == null || t.rules().contains(fromIcon)) {
-                rules = t.rules();
-            } else {
-                rules = new ArrayList<>(t.rules());
-                rules.add(fromIcon);
+        List<SortRule> rules = new ArrayList<>();
+        SortRule fromIcon = iconRule(t.icon());
+        if (fromIcon != null) rules.add(fromIcon);
+        if (ledger) {
+            for (SortRule r : t.rules()) {
+                if (!rules.contains(r)) rules.add(r);
             }
         }
         return new TabView(t.id(), name, t.icon(), t.color(), rules, true, false);
     }
 
     /**
-     * The category rule a Quill &amp; Ledger reads off a tab's stamped icon: the icon's
-     * own kind (food, potion, weapon, armour, tool, block), or null if the icon is a
-     * plain item with no obvious category (so the tab just stays pin-only). Order matters
-     * - the most specific kinds are tested first so a stamped item claims one category.
+     * The category rule read off a tab's stamped icon - always live, no trinket needed:
+     * the icon's own kind (food, potion, weapon, armour, tool, block), or null if the
+     * icon is a plain item with no obvious category (the tab then matches only by its
+     * authored rules and pins). Order matters - the most specific kinds are tested first
+     * so a stamped item claims one category.
      */
     public static SortRule iconRule(ResourceLocation icon) {
         var item = BuiltInRegistries.ITEM.getOptional(icon).orElse(null);

@@ -74,6 +74,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private net.minecraft.world.item.crafting.Ingredient[] ghostGrid =
             new net.minecraft.world.item.crafting.Ingredient[9];
 
+    // ---- the Rule Editor: the Quill & Ledger's parchment sheet for a custom tab's filters ----
+    private static final int RU_W = 112;
+    private static final int RULE_ROW_H = 11;
+    private boolean rulesOpen = false;
+    private EditBox ruleValueBox;
+    private int rulesScroll = 0;
+
     // store gauges stacked under the sockets
     private static final int GAUGE_W = 16;
     private static final int GAUGE_H = 40;
@@ -121,6 +128,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         addWidget(browserSearch);
         repositionForBrowser();   // a resize re-inits; keep the ledger shift if it's open
 
+        ruleValueBox = new EditBox(this.font, rulesX() + 5, rulesAddTop() + 10, RU_W - 10, 12,
+                Component.translatable("packwork.ui.rules_add"));
+        ruleValueBox.setMaxLength(48);
+        ruleValueBox.setHint(Component.translatable("packwork.ui.rules_hint_value"));
+        ruleValueBox.setVisible(rulesOpen);   // a window resize re-inits mid-edit
+        addWidget(ruleValueBox);
+
         // dropping an item into a tab it wouldn't sort to auto-pins it there; say so
         menu.setPinToast((stack, tabName) -> showPinNote(
                 Component.translatable("packwork.ui.pinned_note", stack.getHoverName(), tabName)));
@@ -154,13 +168,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * derives from {@code leftPos} except the two absolutely-placed edit boxes, which follow.
      */
     private void repositionForBrowser() {
-        int total = ledgerVisible() ? imageWidth + 30 + BR_W : imageWidth;
+        int sheet = ledgerVisible() ? BR_W : rulesVisible() ? RU_W : 0;
+        int total = sheet > 0 ? imageWidth + 30 + sheet : imageWidth;
         this.leftPos = Math.max(TAB_W + 2, (this.width - total) / 2);
         if (searchBox != null) searchBox.setX(leftPos + 11);
         if (renameBox != null) renameBox.setX(leftPos + 8);
         if (browserSearch != null) {   // the sheet's search rides the sheet, nowhere else
             browserSearch.setX(browserX() + 4);
             browserSearch.setY(browserY() + 16);
+        }
+        if (ruleValueBox != null) {
+            ruleValueBox.setX(rulesX() + 5);
+            ruleValueBox.setY(rulesAddTop() + 10);
         }
     }
 
@@ -183,6 +202,12 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         if (browserOpen && --browserRecomputeIn <= 0) {
             recomputeCraftable();
+        }
+
+        // The rule editor lives and dies with its gate: the Quill & Ledger fitted and a
+        // custom tab active. Pull either and the sheet folds away.
+        if (rulesOpen && !canEditRules()) {
+            closeRules();
         }
     }
 
@@ -570,6 +595,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         drawPageNav(g, mouseX, mouseY);
         drawStoreGauges(g);
         drawBrowser(g, mouseX, mouseY);
+        drawRulesSheet(g, mouseX, mouseY);
         drawPinNote(g);
         drawHoverTooltips(g, mouseX, mouseY);
         this.renderTooltip(g, mouseX, mouseY);
@@ -607,6 +633,262 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         return Math.max(0, (craftable.size() + BR_COLS - 1) / BR_COLS - browserRows());
     }
 
+    // ---- the Rule Editor sheet ----
+
+    private int rulesX() { return leftPos + PackMenu.TRINKET_X + 26; } // same anchor as the ledger
+    private int rulesY() { return topPos + 4; }
+    private int rulesH() { return imageHeight - 8; }
+    private int rulesListY() { return rulesY() + 40; }
+    private int rulesAddTop() { return rulesY() + rulesH() - 90; }
+    private int rulesListRows() { return (rulesAddTop() - 4 - rulesListY()) / RULE_ROW_H; }
+
+    /** The editor exists while its gate holds: a Quill &amp; Ledger fitted, a custom tab active. */
+    private boolean canEditRules() {
+        return !menu.flatten() && isActiveCustom()
+                && menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER);
+    }
+
+    private boolean rulesVisible() {
+        return rulesOpen && canEditRules();
+    }
+
+    /** The rule sheet's hit-box, spine included - every consumer uses this one definition. */
+    private boolean overRules(int mx, int my) {
+        return rulesVisible() && inRect(mx, my, rulesX() - 2, rulesY(), RU_W + 2, rulesH());
+    }
+
+    private void openRules() {
+        closeBrowser();          // one sheet at a time on the right flank
+        rulesOpen = true;
+        rulesScroll = 0;
+        if (ruleValueBox != null) {
+            ruleValueBox.setValue("");
+            ruleValueBox.setVisible(true);
+        }
+        repositionForBrowser();
+    }
+
+    private void closeRules() {
+        rulesOpen = false;
+        rulesScroll = 0;
+        if (ruleValueBox != null) ruleValueBox.setVisible(false);
+        repositionForBrowser();
+    }
+
+    /** The active custom tab's stored definition (authored rules live here, not on the view). */
+    private com.sappersquad.packwork.sort.TabDef activeCustomDef() {
+        return menu.layout().customTab(menu.activeTab());
+    }
+
+    /** One authored rule, in words. */
+    private Component ruleText(com.sappersquad.packwork.sort.SortRule r) {
+        return switch (r.type()) {
+            case NAME -> Component.translatable("packwork.ui.rules_name_row", r.value());
+            case MODID -> Component.translatable("packwork.ui.rules_mod_row", r.value());
+            case TAG -> Component.translatable("packwork.ui.rules_tag_row", r.value());
+            case PREDICATE -> Component.translatable("packwork.ui.rules_kind_row",
+                    kindName(r.value()));
+        };
+    }
+
+    private Component kindName(String predicateName) {
+        var kind = com.sappersquad.packwork.sort.PredicateKind.byNameOrNull(predicateName);
+        return kind == null ? Component.literal(predicateName)
+                : Component.translatable("packwork.kind." + kind.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private static final com.sappersquad.packwork.sort.PredicateKind[] CHIP_KINDS = {
+            com.sappersquad.packwork.sort.PredicateKind.IS_FOOD,
+            com.sappersquad.packwork.sort.PredicateKind.IS_TOOL,
+            com.sappersquad.packwork.sort.PredicateKind.IS_WEAPON,
+            com.sappersquad.packwork.sort.PredicateKind.IS_ARMOR,
+            com.sappersquad.packwork.sort.PredicateKind.IS_BLOCK,
+            com.sappersquad.packwork.sort.PredicateKind.IS_POTION,
+    };
+
+    /** Top-left of a category chip (two per row, three rows, under the Name/Mod buttons). */
+    private int[] chipRect(int i) {
+        int w = (RU_W - 12) / 2;
+        int x = rulesX() + 4 + (i % 2) * (w + 4);
+        int y = rulesAddTop() + 42 + (i / 2) * 12;
+        return new int[]{x, y, w, 10};
+    }
+
+    /** The index of a stored predicate rule for this kind, or -1. */
+    private static int predicateRuleIndex(com.sappersquad.packwork.sort.TabDef def,
+                                          com.sappersquad.packwork.sort.PredicateKind kind) {
+        for (int i = 0; i < def.rules().size(); i++) {
+            var r = def.rules().get(i);
+            if (r.type() == com.sappersquad.packwork.sort.SortRule.Type.PREDICATE
+                    && kind.name().equalsIgnoreCase(r.value())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The parchment rule sheet: what this compartment gathers and why. The stamp line is
+     * the always-on baseline; the list below is the authored rules the Quill &amp; Ledger
+     * unlocks; the controls at the bottom write new ones.
+     */
+    private void drawRulesSheet(GuiGraphics g, int mouseX, int mouseY) {
+        if (!rulesVisible()) return;
+        var def = activeCustomDef();
+        if (def == null) return;
+        int x = rulesX(), y = rulesY(), w = RU_W, h = rulesH();
+
+        // parchment sheet with a leather spine toward the pack and brass tacks (ledger chrome)
+        g.fill(x - 2, y, x + w, y + h, 0xFF3E2A18);
+        g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
+        g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
+        g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
+        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
+            g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
+        }
+        g.drawString(this.font, Component.translatable("packwork.ui.rules_title"),
+                x + 5, y + 5, 0xFF3A2A18, false);
+        String tabName = this.font.plainSubstrByWidth(menu.tabName(def.id()).getString(), w - 10);
+        g.drawString(this.font, tabName, x + 5, y + 16, 0xFF6A4A2A, false);
+
+        // the stamp baseline - always on, trinket or no
+        var stampRule = com.sappersquad.packwork.sort.SortEngine.iconRule(def.icon());
+        Component stampLine = stampRule == null
+                ? Component.translatable("packwork.ui.rules_stamp_none")
+                : Component.translatable("packwork.ui.rules_stamp", kindName(stampRule.value()));
+        g.drawString(this.font, this.font.plainSubstrByWidth(stampLine.getString(), w - 10),
+                x + 5, y + 28, 0xFF3A2A18, false);
+        if (inRect(mouseX, mouseY, x + 3, y + 26, w - 6, 11)) {
+            g.renderTooltip(this.font, Component.translatable("packwork.ui.rules_stamp_hint"),
+                    mouseX, mouseY);
+        }
+
+        // authored rules, one per row, each with a strike-off box
+        int rows = rulesListRows();
+        rulesScroll = Math.max(0, Math.min(rulesScroll, Math.max(0, def.rules().size() - rows)));
+        for (int v = 0; v < rows; v++) {
+            int i = rulesScroll + v;
+            if (i >= def.rules().size()) break;
+            int ry = rulesListY() + v * RULE_ROW_H;
+            var rule = def.rules().get(i);
+            String line = this.font.plainSubstrByWidth(ruleText(rule).getString(), w - 24);
+            g.drawString(this.font, line, x + 5, ry + 1, 0xFF3A2A18, false);
+            int bx = x + w - 14;
+            boolean hov = inRect(mouseX, mouseY, bx, ry, 9, 9);
+            g.fill(bx, ry, bx + 9, ry + 9, hov ? 0xFF8A3A2A : 0xFF6B4A2F);
+            g.renderOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
+            g.fill(bx + 2, ry + 4, bx + 7, ry + 5, 0xFFEAD9A6); // the strike
+            if (hov) {
+                g.renderTooltip(this.font, Component.translatable("packwork.ui.rules_remove"),
+                        mouseX, mouseY);
+            }
+        }
+        if (def.rules().isEmpty()) {
+            g.drawWordWrap(this.font, Component.translatable("packwork.ui.rules_empty"),
+                    x + 5, rulesListY() + 2, w - 10, 0xFF6A5A40);
+        }
+        if (def.rules().size() > rows) { // a thin brass track when there's more than fits
+            int trackY = rulesListY(), trackH = rows * RULE_ROW_H - 2;
+            int maxScroll = def.rules().size() - rows;
+            g.fill(x + w - 4, trackY, x + w - 3, trackY + trackH, 0xFF8A6A28);
+            int nub = trackY + (int) ((trackH - 8) * (rulesScroll / (double) maxScroll));
+            g.fill(x + w - 5, nub, x + w - 2, nub + 8, 0xFFC9A24B);
+        }
+
+        // the writing desk: a value, two ways to file it, and the category chips
+        int at = rulesAddTop();
+        g.drawString(this.font, Component.translatable("packwork.ui.rules_add"),
+                x + 5, at, 0xFF6A4A2A, false);
+        ruleValueBox.render(g, mouseX, mouseY, 0);
+        int bw = (RU_W - 14) / 2;
+        drawTextButton(g, x + 4, at + 26, bw, Component.translatable("packwork.ui.rules_add_name"),
+                inRect(mouseX, mouseY, x + 4, at + 26, bw, 12), false);
+        drawTextButton(g, x + 8 + bw, at + 26, bw, Component.translatable("packwork.ui.rules_add_mod"),
+                inRect(mouseX, mouseY, x + 8 + bw, at + 26, bw, 12), false);
+        for (int i = 0; i < CHIP_KINDS.length; i++) {
+            int[] r = chipRect(i);
+            boolean on = predicateRuleIndex(def, CHIP_KINDS[i]) >= 0;
+            drawTextButton(g, r[0], r[1], r[2],
+                    Component.translatable("packwork.kind." + CHIP_KINDS[i].name().toLowerCase(java.util.Locale.ROOT)),
+                    inRect(mouseX, mouseY, r[0], r[1], r[2], r[3]), on);
+        }
+        g.drawString(this.font, Component.translatable("packwork.ui.rules_footer"),
+                x + 5, y + h - 12, 0xFF6A5A40, false);
+    }
+
+    /** A small labelled brass-edged plate (chips and the Name/Mod buttons). */
+    private void drawTextButton(GuiGraphics g, int x, int y, int w, Component label,
+                                boolean hover, boolean on) {
+        int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
+        g.fill(x, y, x + w, y + 10, base);
+        g.renderOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
+        String s = this.font.plainSubstrByWidth(label.getString(), w - 4);
+        g.drawString(this.font, s, x + (w - this.font.width(s)) / 2, y + 1, 0xFFEAD9A6, false);
+    }
+
+    /** Clicks inside the rule sheet: focus the box, add or strike rules, or just be swallowed. */
+    private boolean handleRulesClick(double mx, double my, int button) {
+        if (!overRules((int) mx, (int) my)) return false;
+        if (ruleValueBox.mouseClicked(mx, my, button)) {
+            setFocused(ruleValueBox);
+            return true;
+        }
+        var def = activeCustomDef();
+        if (def == null || button != 0) return true;
+        int x = rulesX(), w = RU_W;
+
+        // strike a rule off
+        int rows = rulesListRows();
+        for (int v = 0; v < rows; v++) {
+            int i = rulesScroll + v;
+            if (i >= def.rules().size()) break;
+            int ry = rulesListY() + v * RULE_ROW_H;
+            if (inRect((int) mx, (int) my, x + w - 14, ry, 9, 9)) {
+                PackClientActions.removeTabRule(menu, def.id(), i);
+                return true;
+            }
+        }
+
+        // file the typed value as a name or mod rule
+        int at = rulesAddTop();
+        int bw = (RU_W - 14) / 2;
+        String typed = ruleValueBox.getValue().trim().toLowerCase(java.util.Locale.ROOT);
+        if (inRect((int) mx, (int) my, x + 4, at + 26, bw, 12)) {
+            if (!typed.isEmpty()) {
+                PackClientActions.addTabRule(menu, def.id(),
+                        com.sappersquad.packwork.sort.SortRule.Type.NAME.ordinal(), typed);
+                ruleValueBox.setValue("");
+            }
+            return true;
+        }
+        if (inRect((int) mx, (int) my, x + 8 + bw, at + 26, bw, 12)) {
+            if (!typed.isEmpty()) {
+                PackClientActions.addTabRule(menu, def.id(),
+                        com.sappersquad.packwork.sort.SortRule.Type.MODID.ordinal(), typed);
+                ruleValueBox.setValue("");
+            }
+            return true;
+        }
+
+        // toggle a category chip
+        for (int i = 0; i < CHIP_KINDS.length; i++) {
+            int[] r = chipRect(i);
+            if (inRect((int) mx, (int) my, r[0], r[1], r[2], r[3])) {
+                int existing = predicateRuleIndex(def, CHIP_KINDS[i]);
+                if (existing >= 0) {
+                    PackClientActions.removeTabRule(menu, def.id(), existing);
+                } else {
+                    PackClientActions.addTabRule(menu, def.id(),
+                            com.sappersquad.packwork.sort.SortRule.Type.PREDICATE.ordinal(),
+                            CHIP_KINDS[i].name());
+                }
+                return true;
+            }
+        }
+        return true; // anywhere else on the sheet: consumed, never vanilla's drop-outside
+    }
+
     private void drawButtons(GuiGraphics g, int mouseX, int mouseY) {
         drawPlate(g, flatBtnX(), btnY(), inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN), menu.flatten());
         drawPlate(g, tidyBtnX(), btnY(), inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN), false);
@@ -641,7 +923,23 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // new: a plus
         g.fill(newBtnX() + 5, btnY() + 3, newBtnX() + 7, btnY() + 9, gl);
         g.fill(newBtnX() + 3, btnY() + 5, newBtnX() + 9, btnY() + 7, gl);
+
+        // the quill (edit this compartment's rules) sits under the grid, by the page nav -
+        // it appears exactly when it means something: ledger fitted, custom tab showing
+        if (canEditRules() && !menu.rollActive()) {
+            int qx = quillBtnX(), qy = perTabBtnY();
+            drawPlate(g, qx, qy, inRect(mouseX, mouseY, qx, qy, BTN, BTN), rulesOpen);
+            for (int i = 0; i < 6; i++) {                      // feather shaft, nib to tip
+                g.fill(qx + 2 + i, qy + 8 - i, qx + 3 + i, qy + 9 - i, gl);
+            }
+            g.fill(qx + 5, qy + 3, qx + 9, qy + 4, gl);        // barbs
+            g.fill(qx + 6, qy + 5, qx + 9, qy + 6, gl);
+            g.fill(qx + 2, qy + 9, qx + 3, qy + 10, 0xFF3A2A18); // ink nib
+        }
     }
+
+    private int quillBtnX() { return leftPos + 138; }
+    private int perTabBtnY() { return topPos + 142; }
 
     /** Glass store gauges under the trinket sockets: a waterskin, then a soul vial. */
     private void drawStoreGauges(GuiGraphics g) {
@@ -860,6 +1158,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.translatable("packwork.ui.roll_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+        } else if (canEditRules() && !menu.rollActive()
+                && inRect(mouseX, mouseY, quillBtnX(), perTabBtnY(), BTN, BTN)) {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable("packwork.ui.rules_btn"));
+            lines.add(Component.translatable("packwork.ui.rules_btn_hint")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
         } else if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
             g.renderTooltip(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN))
@@ -876,12 +1181,21 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             if (renameBox.mouseClicked(mx, my, button)) return true;
             commitRename();
         }
-        // the Recipe Ledger swallows every click inside its sheet
+        // the Recipe Ledger and the rule sheet each swallow every click inside their sheet
         if (ledgerVisible() && handleBrowserClick(mx, my, button)) {
+            return true;
+        }
+        if (rulesVisible() && handleRulesClick(mx, my, button)) {
             return true;
         }
         // title buttons
         if (button == 0) {
+            if (canEditRules() && !menu.rollActive()
+                    && inRect((int) mx, (int) my, quillBtnX(), perTabBtnY(), BTN, BTN)) {
+                if (rulesOpen) closeRules();
+                else openRules();
+                return true;
+            }
             if (hasKit() && inRect((int) mx, (int) my, rollBtnX(), btnY(), BTN, BTN)) {
                 PackClientActions.toggleRoll(menu);
                 return true;
@@ -890,6 +1204,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 if (browserOpen) {
                     closeBrowser();
                 } else {
+                    closeRules();     // one sheet at a time on the right flank
                     browserOpen = true;
                     browserSearch.setVisible(true);
                     repositionForBrowser();
@@ -978,8 +1293,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // left: stamped leather tabs (they tuck under the frame, so start a touch further out)
         if (mx >= leftPos - TAB_W && mx < leftPos
                 && my >= topPos + RAIL_TOP && my < topPos + imageHeight) return true;
-        // the ledger sheet, when it's open
-        if (overLedger(mx, my)) return true;
+        // whichever sheet is open on the right flank
+        if (overLedger(mx, my) || overRules(mx, my)) return true;
         // right: brass sockets, then the stack of store gauges beneath them
         int bottom = gaugeTopY() + gaugeCount() * (gaugeHeight() + GAUGE_GAP);
         return mx >= leftPos + PackMenu.TRINKET_X - 5 && mx < leftPos + PackMenu.TRINKET_X + 24
@@ -1012,6 +1327,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             browserScroll = Math.max(0, Math.min(maxLedgerScroll(), browserScroll - (int) Math.signum(dy)));
             return true;
         }
+        if (overRules((int) mx, (int) my)) {
+            rulesScroll = Math.max(0, rulesScroll - (int) Math.signum(dy)); // draw clamps the top end
+            return true;
+        }
         return super.mouseScrolled(mx, my, dx, dy);
     }
 
@@ -1039,6 +1358,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             return renameBox.keyPressed(key, scan, mods) || renameBox.canConsumeInput() || super.keyPressed(key, scan, mods);
         }
         if (searchBox != null && searchBox.isFocused()) {
+            return super.keyPressed(key, scan, mods);
+        }
+        if (ruleValueBox != null && ruleValueBox.isFocused()) {
             return super.keyPressed(key, scan, mods);
         }
         Slot hovered = this.hoveredSlot;
