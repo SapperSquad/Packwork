@@ -1,19 +1,26 @@
 package com.sappersquad.packwork.compat.jei;
 
 import com.sappersquad.packwork.Packwork;
+import com.sappersquad.packwork.client.PackScreen;
 import com.sappersquad.packwork.pack.PackTier;
 import com.sappersquad.packwork.pack.PackUpgradeRecipe;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.trinket.TrinketType;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
 import mezz.jei.api.recipe.IFocusGroup;
+import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension;
+import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -55,6 +62,44 @@ public class PackworkJeiPlugin implements IModPlugin {
     @Override
     public void registerVanillaCategoryExtensions(IVanillaCategoryExtensionRegistration reg) {
         reg.getCraftingCategory().addExtension(PackUpgradeRecipe.class, new PackUpgradeExtension());
+    }
+
+    /**
+     * Tell JEI where the pack GUI really ends: the tab rail, the fittings rail with its
+     * gauges, and whichever parchment sheet (Recipe Ledger / rule editor) is open all hang
+     * beyond {@code imageWidth}, and without this JEI's ingredient list would draw right
+     * over them.
+     */
+    @Override
+    public void registerGuiHandlers(IGuiHandlerRegistration reg) {
+        reg.addGuiContainerHandler(PackScreen.class, new IGuiContainerHandler<>() {
+            @Override
+            public List<Rect2i> getGuiExtraAreas(PackScreen screen) {
+                return screen.jeiExtraAreas();
+            }
+        });
+    }
+
+    // ---- dev-harness hook (autoshot only; see DevAutoShot, which reaches this by reflection
+    // so nothing outside compat/jei ever references a JEI type) ----
+
+    private static IJeiRuntime runtime;
+
+    @Override
+    public void onRuntimeAvailable(IJeiRuntime rt) {
+        runtime = rt;
+    }
+
+    /** Open JEI's recipe view on the Studded pack - the autoshot proof that the ladder renders. */
+    public static void devShowUpgradeRecipes() {
+        IJeiRuntime rt = runtime;
+        if (rt == null) {
+            Packwork.LOGGER.warn("[autoshot][jei] runtime not available yet");
+            return;
+        }
+        rt.getRecipesGui().show(rt.getJeiHelpers().getFocusFactory().createFocus(
+                RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK,
+                new ItemStack(ModItems.pack(PackTier.STUDDED).get())));
     }
 
     /**
