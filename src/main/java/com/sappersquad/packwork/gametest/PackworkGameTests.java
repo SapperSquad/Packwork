@@ -250,10 +250,11 @@ public class PackworkGameTests {
                 List.of(net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.IRON_INGOT, 4)),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
-        // a 3x3 crafting input: the pack + 4 iron ingots
+        // a 3x3 crafting input: the pack + 4 iron ingots, one per cell (crafting consumes
+        // one item per cell, so the recipe demands the honest spread)
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.IRON_INGOT, 4), ItemStack.EMPTY,
-                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
+                pack, new ItemStack(Items.IRON_INGOT), new ItemStack(Items.IRON_INGOT),
+                new ItemStack(Items.IRON_INGOT), new ItemStack(Items.IRON_INGOT), ItemStack.EMPTY,
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
         helper.assertTrue(recipe.matches(input, helper.getLevel()), "recipe should match pack + 4 iron");
 
@@ -1169,17 +1170,28 @@ public class PackworkGameTests {
                         net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.DRAGON_BREATH, 4)),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
+        // materials spread ONE PER CELL - the only layout crafting can charge honestly
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
+                pack, new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
+                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
+                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.DRAGON_BREATH),
+                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.DRAGON_BREATH)));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "runed + shells + breath matches");
+
+        // stacked into one cell must NOT match: taking the craft only consumes ONE item per
+        // grid cell, so a stacked cell would buy the upgrade at a quarter of its price
+        var stacked = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
                 pack, new ItemStack(Items.SHULKER_SHELL, 4), new ItemStack(Items.DRAGON_BREATH, 4),
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
-        helper.assertTrue(recipe.matches(input, helper.getLevel()), "runed + shells + breath matches");
+        helper.assertTrue(!recipe.matches(stacked, helper.getLevel()),
+                "stacked materials must not match - crafting would underpay");
 
         // missing the second material must NOT match - the End gate is real
         var half = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.SHULKER_SHELL, 4), ItemStack.EMPTY,
-                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
-                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
+                pack, new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
+                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
+                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
         helper.assertTrue(!recipe.matches(half, helper.getLevel()), "shells alone are not enough");
 
         ItemStack out = recipe.assemble(input, reg);
@@ -1276,6 +1288,40 @@ public class PackworkGameTests {
         for (int i = 0; i < 9; i++) onGrid += menu.slots.get(gridStart + i).getItem().getCount();
         helper.assertTrue(onGrid == 0, "an uncoverable pattern lays nothing out");
         helper.assertTrue(countPack(pack, Items.WHEAT) == wheatBefore, "and spends nothing");
+        helper.succeed();
+    }
+
+    /**
+     * The natural pinning gesture: dropping an item into a tab its rules would NOT route it
+     * to pins it there (so it stays put instead of jumping back on the next sort), while
+     * dropping an item where it already belongs pins nothing. Conservation holds throughout.
+     */
+    @GameTest(template = "empty")
+    public static void droppingIntoForeignTabAutoPins(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        player.getInventory().setItem(0, pack);
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(41, player.getInventory(), 0);
+
+        // drop bread (a Food item) into the Ores tab: it must PIN there and stay
+        menu.applySelectTab("auto:ores");
+        menu.setCarried(new ItemStack(Items.BREAD, 5));
+        menu.clicked(0, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+        PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue("auto:ores".equals(layout.pinnedTab(BuiltInRegistries.ITEM.getKey(Items.BREAD))),
+                "bread dropped into Ores pins to Ores, got " + layout.pins());
+        helper.assertTrue(countPack(pack, Items.BREAD) == 5, "the bread itself landed in the pack");
+        helper.assertTrue(menu.getCarried().isEmpty(), "and left the cursor");
+        helper.assertTrue("auto:ores".equals(SortEngine.route(new ItemStack(Items.BREAD),
+                SortEngine.tabsFor(layout), layout)), "so bread now routes to Ores");
+
+        // drop iron into Ores - its own tab - and no pin is created
+        menu.setCarried(new ItemStack(Items.IRON_INGOT, 3));
+        menu.clicked(1, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+        layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(layout.pinnedTab(BuiltInRegistries.ITEM.getKey(Items.IRON_INGOT)) == null,
+                "iron dropped into Ores needs no pin");
+        helper.assertTrue(countPack(pack, Items.IRON_INGOT) == 3, "the iron landed all the same");
         helper.succeed();
     }
 

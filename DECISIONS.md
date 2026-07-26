@@ -299,6 +299,33 @@ one can be flipped later without unpicking the rest:
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
 
+## 2026-07-26 — JEI real recipes, per-cell materials, and the pinning gesture (reopen with evidence)
+
+- **Pack upgrades render in JEI's own crafting category via a category extension, not a custom
+  category.** The upgrade IS a crafting recipe (`RecipeType.CRAFTING`), so the standard move is
+  `ICraftingCategoryExtension<PackUpgradeRecipe>` registered through
+  `registerVanillaCategoryExtensions` — it shows up exactly where players look for "how do I make
+  this", beside the Canvas recipe, with JEI's shapeless marker. A bespoke category would have
+  moved the ladder into its own tab nobody checks. The preserving behaviour rides the result
+  slot's tooltip (`packwork.jei.upgrade.preserves`). The API shapes were verified against the
+  pinned 19.21.1.312 api jar via javap, not memory.
+- **Upgrade material counts mean CELLS, not items (supersedes the summed-count matcher).**
+  Vanilla consumes exactly one item per occupied cell when a craft is taken (`ResultSlot.onTake`
+  shrinks each slot by 1 — verified in the 1.21.1 sources), so counting item totals let a stacked
+  cell match while the craft consumed one: a 75% discount on the Dragonhide upgrade. `matches()`
+  now tallies one per cell and demands the exact spread, like every vanilla recipe; the JSONs are
+  unchanged (count = number of cells). A gametest pins the stacked case as a non-match.
+- **The pinning gesture is "drop it where you want it".** Placing an item into a tab whose rules
+  would NOT route it there auto-pins it to that tab; placing it where it belongs does nothing.
+  Chosen because the old failure mode was exactly this gesture: drop bread into Valuables, the
+  next sort snatches it back, and the player concludes the pack is haunted. Implementation:
+  `PackViewSlot.setByPlayer` is the ONE vanilla hook that fires only for the player's own hand
+  (safeInsert/swap; programmatic writes use `set` — verified in the decompiled Slot class), and
+  the decision is deferred to after `clicked` resolves so the view is never rebound mid-click.
+  Both sides run it from mirrored state, so no new packet. Pin/unpin feedback is an in-screen
+  stitched parchment note (vanilla's actionbar overlay dims under the container-screen gradient,
+  so an in-GUI note is the legible spot). P stays the explicit toggle and shows the same note.
+
 ## 2026-07-25 — rail clicks, cursor conservation, and who's authoritative (reopen with evidence)
 
 - **The rails count as INSIDE the GUI.** `PackScreen` overrides `hasClickedOutside(...)` to return

@@ -34,6 +34,13 @@ import java.util.List;
  * <p>{@code materials} is a list of sized ingredients, so a tier may demand any number
  * of distinct reagents (the Dragonhide upgrade wants shulker shells AND dragon's
  * breath) without the recipe shape growing a field per reagent.
+ *
+ * <p><b>Count means SLOTS, not stack size.</b> Vanilla crafting consumes exactly one item
+ * per occupied grid cell when the result is taken ({@code ResultSlot.onTake} shrinks each
+ * slot by 1 - verified in the 1.21.1 sources), so the only honest way to charge four
+ * leather is to require four leather-holding CELLS. Counting item totals instead let a
+ * stack of four in one cell match while crafting consumed only one - a 75% discount.
+ * This also makes the JEI layout literal: what it draws is exactly what you place.
  */
 public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient> materials,
                                 CraftingBookCategory category) implements CraftingRecipe {
@@ -57,11 +64,12 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
                 }
             }
             if (matched < 0) return false; // any unexpected item disqualifies the recipe
-            found[matched] += s.getCount();
+            found[matched]++;              // one SLOT pays one material (see class doc)
         }
         if (packs != 1) return false;
         for (int m = 0; m < materials.size(); m++) {
-            if (found[m] < materials.get(m).count()) return false;
+            // exact, like every vanilla recipe: extra material cells would be silently eaten
+            if (found[m] != materials.get(m).count()) return false;
         }
         return true;
     }
@@ -96,7 +104,10 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
 
     @Override
     public boolean canCraftInDimensions(int width, int height) {
-        return width * height >= 2;
+        // the pack's cell plus one cell per material item (count = slots, see class doc)
+        int cells = 1;
+        for (SizedIngredient m : materials) cells += m.count();
+        return width * height >= cells;
     }
 
     @Override

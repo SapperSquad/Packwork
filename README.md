@@ -23,8 +23,9 @@ grid that keeps itself in order:
 - **Make your own compartments** — name a tab, stamp it with any item's icon, dye the
   leather, drag to reorder. Priority is top-to-bottom; the first tab that wants an item
   gets it.
-- **Pin an item** to a compartment (hover it, press **P**) and it always lands there,
-  beating every rule.
+- **Pin an item by putting it where you want it** — drop it into any compartment it
+  wouldn't sort to and the pack pins it there on the spot (a stitched note tells you so).
+  Hover + **P** toggles a pin too. Pinned items wear a red ribbon and beat every rule.
 - **Tidy Up** merges partial stacks and re-sorts the whole pack; **search** finds
   anything across every tab; **flatten** drops it all into one grid when you just want
   to rummage.
@@ -123,7 +124,8 @@ Zero hard dependencies — every one of these lights up only when its mod is ins
 - **Curios** — wear the pack in the **back** slot, and its trinkets keep working while worn.
 - **Forgework** — a placed pack's Charge Crystal charges straight off Forgework's Flux cables
   (1 Flux = 1 FE), and the crystal tops up your carried Forgework terminals.
-- **JEI** — look up any pack tier, trinket, or the handbook from the recipe screen.
+- **JEI** — every craft renders as a real recipe, tier upgrades included (previous pack +
+  materials in, next pack out), plus info pages for every pack, trinket, and the handbook.
 - **Pantrywork** — its food tags fold into the Food tab.
 
 Everything else — the sorting, the tiers, the fluid/XP/charge stores, the placeable block,

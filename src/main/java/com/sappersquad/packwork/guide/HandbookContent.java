@@ -95,8 +95,10 @@ public final class HandbookContent {
                 + "cover modded items with no per-mod support."),
             text("A Loose tab always sits last and claims anything no rule wanted. Nothing dropped "
                 + "into a pack is ever lost; at worst it lands in Loose."),
-            text("PIN an item to force it: hover it in the grid and press P, and it always lands in "
-                + "the active tab, beating every rule. Press P again over a pinned item to unpin it."),
+            text("PIN an item to keep it where you put it. Drop it into any tab it wouldn't sort "
+                + "to and the pack pins it there on the spot - watch for the stitched note - or "
+                + "hover it and press P. A pinned item wears a red ribbon, beats every rule, and "
+                + "never gets moved by the sort. Press P over a pinned item to release it."),
             text("Three tools across the title bar: TIDY UP merges partial stacks and re-sorts the "
                 + "whole pack; SEARCH finds anything across every tab; FLATTEN drops it all into one "
                 + "grid when you just want to rummage."),

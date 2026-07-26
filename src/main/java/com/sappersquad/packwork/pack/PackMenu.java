@@ -138,7 +138,7 @@ public class PackMenu extends AbstractContainerMenu {
         // Grid of view slots (indices 0 .. VIEW_SLOTS-1).
         for (int row = 0; row < PackTier.VIEW_ROWS; row++) {
             for (int col = 0; col < PackTier.VIEW_COLS; col++) {
-                PackViewSlot s = new PackViewSlot(packInv,
+                PackViewSlot s = new PackViewSlot(packInv, this,
                         GRID_X + col * 18, GRID_Y + row * 18);
                 viewSlots.add(s);
                 addSlot(s);
@@ -247,6 +247,66 @@ public class PackMenu extends AbstractContainerMenu {
             if (!t.loose()) return t.id();
         }
         return AutoTabs.LOOSE_ID;
+    }
+
+    // ---- watching the player's own hand on the grid (auto-pin) ----
+
+    /** Client-side listener the screen registers so pin changes can show a note. */
+    public interface PinToast {
+        void pinned(ItemStack stack, Component tabName);
+    }
+
+    private PinToast pinToast; // only ever set on the client
+    private ItemStack pendingPlaced = ItemStack.EMPTY;
+
+    public void setPinToast(PinToast t) {
+        this.pinToast = t;
+    }
+
+    /**
+     * Called by {@link PackViewSlot#setByPlayer} whenever the PLAYER's own hand puts a
+     * stack in a grid cell - cursor place, merge, swap, number-key swap. Programmatic
+     * moves (shift-click routing, hoppers, refills) never come through here, so this is
+     * exactly the "I put it HERE" gesture. Only recorded during the click; the decision
+     * runs after the click fully resolves (see {@link #clicked}), because re-routing the
+     * view mid-click would rebind slots under vanilla's own bookkeeping.
+     */
+    void onPlayerSetViewSlot(PackViewSlot slot, ItemStack now) {
+        if (now.isEmpty()) return; // a pickup-to-empty, not a placement
+        if (!viewSlots.contains(slot)) return;
+        pendingPlaced = now.copy();
+    }
+
+    @Override
+    public void clicked(int slotId, int button, net.minecraft.world.inventory.ClickType type, Player player) {
+        super.clicked(slotId, button, type, player);
+        flushPendingPlacement();
+    }
+
+    /**
+     * The natural pinning gesture: dropping an item into a tab its rules would NOT route
+     * it to pins it there, so it stays where you put it instead of jumping back to its
+     * routed tab on the next sort. Dropping it where it already belongs changes nothing.
+     * Runs identically on both sides (active tab and layout are mirrored), so the pin
+     * lands without an extra packet; the client side also raises the on-screen note.
+     */
+    private void flushPendingPlacement() {
+        ItemStack placed = pendingPlaced;
+        pendingPlaced = ItemStack.EMPTY;
+        if (placed.isEmpty() || flatten) return;
+        String route = SortEngine.route(placed, tabs, layout);
+        if (route.equals(activeTab)) return; // it belongs here already (or is pinned here)
+        applyPin(activeTab, net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getKey(placed.getItem()).toString());
+        if (pinToast != null && isClient()) pinToast.pinned(placed, tabName(activeTab));
+    }
+
+    /** The display name of a tab on this pack's rail (falls back to the raw id). */
+    public Component tabName(String tabId) {
+        for (TabView t : tabs) {
+            if (t.id().equals(tabId)) return t.name();
+        }
+        return Component.literal(tabId);
     }
 
     private void addPlayerInventory(Inventory inv) {
