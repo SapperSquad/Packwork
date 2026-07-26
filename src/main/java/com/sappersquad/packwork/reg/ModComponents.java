@@ -20,10 +20,16 @@ public class ModComponents {
     public static final DeferredRegister.DataComponents COMPONENTS =
             DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, Packwork.MODID);
 
-    /** The pack's item store: one flat backing inventory; tabs are virtual views over it. */
+    /**
+     * The pack's item store: one flat backing inventory; tabs are virtual views over it.
+     * Persisted through {@link com.sappersquad.packwork.pack.DeepContentsCodec} because
+     * per-slot DEPTH holds counts far past vanilla's 99-count codec cap; the codec still
+     * reads pre-depth saves via its legacy fallback. The stream codec is vanilla's - it
+     * writes counts as raw VarInts, so sync never needed a change.
+     */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> PACK_CONTENTS =
             COMPONENTS.registerComponentType("pack_contents", builder -> builder
-                    .persistent(ItemContainerContents.CODEC)
+                    .persistent(com.sappersquad.packwork.pack.DeepContentsCodec.CODEC)
                     .networkSynchronized(ItemContainerContents.STREAM_CODEC));
 
     /** Custom tabs, manual pins, the void-filter list, and per-pack view settings. */

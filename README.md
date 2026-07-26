@@ -33,9 +33,19 @@ grid that keeps itself in order:
 
 The pack grows two ways — the material it's made of, and the fittings you craft for it.
 
-**Material ladder:** Canvas → Leather → Studded → Reinforced → Runed, more slots and
-more trinket sockets each step. Upgrading a *full* pack carries its contents, layout,
-and trinkets straight up — a craft never eats what's inside.
+**Material ladder:** Canvas → Leather → Studded → Reinforced → Runed → **Dragonhide**,
+and every step grows the pack THREE ways: more slots, another trinket socket, and
+**deeper slots** — each slot holds one more vanilla stack per tier, from 64 a slot on
+Canvas to **384 a slot** on Dragonhide (six stacks of cobble in one cell, filed under one
+tab). Depth stays inside the pack: your cursor, a hopper, a fitting drawing from stock
+all pull one legal stack at a time. (Extra slots stay the Bottomless Lining's job —
+depth is the tier's, so the two never double-dip.)
+
+**The ladder is a chain:** sew a Canvas pack from wool and string, then every later tier
+is crafted *from the pack before it* plus that tier's materials — leather, iron, copper,
+amethyst + echo shards, and finally shulker shells + dragon's breath for Dragonhide. The
+upgrade craft carries **everything** up: contents, compartments, pins, trinkets, name,
+and every store. There is no recipe anywhere that can eat a filled pack.
 
 **Trinkets** slot into the brass sockets on the right rail:
 
@@ -48,7 +58,7 @@ and trinkets straight up — a craft never eats what's inside.
 | **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
 | **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
 | **Quill & Ledger** | Custom compartments start filing by rule, not just pins — each gathers items that share the kind of the item it's stamped with. |
-| **Tinker's Kit** | Unrolls a leather tool roll across the pack's lower rows: a 3×3 bench fed straight from your stores. Shift-click from the pack to lay out a pattern; each cell tops itself back up after every craft, so one shift-click on the result runs the batch until the pack is out of makings. |
+| **Tinker's Kit** | Unrolls a leather tool roll across the pack's lower rows: a 3×3 bench fed straight from your stores. Shift-click from the pack to lay out a pattern; each cell tops itself back up after every craft, so one shift-click on the result runs the batch until the pack is out of makings. Its **Recipe Ledger** is a parchment sheet of everything craftable *from pack stock* — click a recipe to chalk it onto the roll as a ghost, click the result well to lay it out (all-or-nothing, straight from your stores). |
 | **Field Furnace** | Banked campfire embers cook as you walk — raw ore and raw food only, never your building blocks. Burns fuel out of the pack at furnace rates. |
 | **Provisioner's Pouch** | Feeds you before hunger bites, eating the plainest thing in the pack first. Anything with an effect on it — your golden apples — stays yours. |
 | **Cartographer's Sleeve** | Opens a **Charts & Bearings** compartment: maps, compasses, clocks and the spyglass file themselves instead of scattering through Tools. |

@@ -14,7 +14,7 @@ public final class PackXpStore {
     /** Vial capacity in points, scaling with the material tier. */
     public static int capacityFor(ItemStack pack) {
         PackTier tier = PackItem.tierOf(pack);
-        return 5000 * (tier.ordinal() + 1); // Canvas 5k .. Runed 25k points
+        return 5000 * tier.step(); // Canvas 5k .. Dragonhide 30k points
     }
 
     public static int stored(ItemStack pack) {

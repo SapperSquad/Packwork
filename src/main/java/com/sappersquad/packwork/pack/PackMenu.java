@@ -348,6 +348,11 @@ public class PackMenu extends AbstractContainerMenu {
         return resultIndex;
     }
 
+    /** The menu index of the tool roll's first 3x3 cell. */
+    public int craftStart() {
+        return craftStart;
+    }
+
     private static boolean matchesSearch(ItemStack stack, String q) {
         if (stack.getHoverName().getString().toLowerCase(Locale.ROOT).contains(q)) return true;
         var id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
@@ -564,7 +569,70 @@ public class PackMenu extends AbstractContainerMenu {
             case XP_SIPHON -> applyXpSiphon();
             case XP_POUR -> applyXpPour();
             case TOGGLE_ROLL -> applyToggleRoll();
+            case LAY_OUT_GHOST -> applyLayOutGhost(s1);
         }
+    }
+
+    /**
+     * The recipe browser's one server verb: lay ONE set of the named recipe's makings from
+     * PACK stock onto the tool roll. All-or-nothing - the pack is checked for every
+     * ingredient before a single item moves, so a half-laid pattern can never strand
+     * anything. Items move only here, at the player's explicit request; the browser and its
+     * ghosts are pure client-side paint.
+     */
+    public void applyLayOutGhost(String recipeId) {
+        if (isClient()) return; // server-authoritative: it moves real items
+        if (!rollActive()) return;
+        Player player = playerInv.player;
+        var server = player.level().getServer();
+        if (server == null) return;
+        var id = net.minecraft.resources.ResourceLocation.tryParse(recipeId);
+        if (id == null) return;
+        var holder = server.getRecipeManager().byKey(id).orElse(null);
+        if (holder == null
+                || !(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)
+                || !recipe.canCraftInDimensions(3, 3)) {
+            return;
+        }
+        net.minecraft.world.item.crafting.Ingredient[] wanted = arrangeOn3x3(recipe);
+        if (wanted == null) return; // custom recipes (our own upgrades) have no layable shape
+
+        // Pass 1 - SIMULATE: find a pack slot for every still-unfilled cell, spending nothing.
+        // The pack is snapshotted ONCE - each getStackInSlot deserializes a component, so the
+        // per-cell scan must not re-read all 256 slots nine times over.
+        int slots = packInv.getSlots();
+        ItemStack[] stock = new ItemStack[slots];
+        for (int s = 0; s < slots; s++) stock[s] = packInv.getStackInSlot(s);
+        int[] fromSlot = new int[9];
+        java.util.Arrays.fill(fromSlot, -1);
+        int[] spentPerSlot = new int[slots];
+        for (int cell = 0; cell < 9; cell++) {
+            var ing = wanted[cell];
+            if (ing == null || ing.isEmpty()) continue;
+            ItemStack already = craftSlots.getItem(cell);
+            if (!already.isEmpty()) {
+                if (ing.test(already)) continue;   // the cell already holds its makings
+                return;                            // something foreign is on the roll - never overwrite
+            }
+            boolean found = false;
+            for (int s = 0; s < slots; s++) {
+                if (stock[s].isEmpty() || !ing.test(stock[s])) continue;
+                if (stock[s].getCount() - spentPerSlot[s] <= 0) continue;
+                fromSlot[cell] = s;
+                spentPerSlot[s]++;
+                found = true;
+                break;
+            }
+            if (!found) return; // the pack can't cover the pattern: move NOTHING
+        }
+
+        // Pass 2 - EXECUTE: the pack covered everything, so pull exactly one per cell.
+        for (int cell = 0; cell < 9; cell++) {
+            if (fromSlot[cell] < 0) continue;
+            ItemStack pulled = packInv.extractItem(fromSlot[cell], 1, false);
+            if (!pulled.isEmpty()) craftSlots.setItem(cell, pulled); // setItem triggers slotsChanged
+        }
+        rebuildView();
     }
 
     // ---- the Tinker's Kit tool roll ----
@@ -659,6 +727,47 @@ public class PackMenu extends AbstractContainerMenu {
             }
         }
         return false;
+    }
+
+    /**
+     * The one place a recipe's ingredient list is arranged onto the tool roll's 3x3 -
+     * shaped recipes keep their shape, the rest fill left to right. The client's chalk
+     * ghost and the server's lay-out BOTH call this, so they cannot drift apart.
+     *
+     * @return the 9-cell arrangement, or null for recipes with no layable shape (special
+     *         recipes - our own pack upgrades - report no ingredients).
+     */
+    public static net.minecraft.world.item.crafting.Ingredient[] arrangeOn3x3(
+            net.minecraft.world.item.crafting.CraftingRecipe recipe) {
+        var ingredients = recipe.getIngredients();
+        if (ingredients.isEmpty()) return null;
+        net.minecraft.world.item.crafting.Ingredient[] wanted =
+                new net.minecraft.world.item.crafting.Ingredient[9];
+        if (recipe instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped) {
+            for (int r = 0; r < shaped.getHeight(); r++)
+                for (int c = 0; c < shaped.getWidth(); c++)
+                    wanted[r * 3 + c] = ingredients.get(r * shaped.getWidth() + c);
+        } else {
+            for (int i = 0; i < ingredients.size() && i < 9; i++) wanted[i] = ingredients.get(i);
+        }
+        return wanted;
+    }
+
+    /**
+     * Account everything craftable-from for the recipe browser: the pack's whole store (at
+     * full DEPTH) plus whatever is already laid out on the roll. Client-safe - it reads the
+     * synced component, so the browser computes the same answer the server would.
+     */
+    public void fillPackStacked(net.minecraft.world.entity.player.StackedContents contents) {
+        int slots = packInv.getSlots();
+        for (int i = 0; i < slots; i++) {
+            ItemStack s = packInv.getStackInSlot(i);
+            if (!s.isEmpty()) contents.accountStack(s, s.getCount());
+        }
+        for (int i = 0; i < craftSlots.getContainerSize(); i++) {
+            ItemStack s = craftSlots.getItem(i);
+            if (!s.isEmpty()) contents.accountStack(s, s.getCount());
+        }
     }
 
     /** Take exactly one of {@code item} out of the pack's store, or EMPTY if it holds none. */
@@ -861,7 +970,7 @@ public class PackMenu extends AbstractContainerMenu {
             if (!s.isEmpty()) source.add(s);
         }
         List<ItemStack> merged = com.sappersquad.packwork.sort.PackSorting.tidy(
-                source, SortEngine.tabsFor(layout, fitted()), layout);
+                source, SortEngine.tabsFor(layout, fitted()), layout, packInv::depthFor);
         for (int i = 0; i < packInv.getSlots(); i++) {
             packInv.setStackInSlot(i, i < merged.size() ? merged.get(i) : ItemStack.EMPTY);
         }

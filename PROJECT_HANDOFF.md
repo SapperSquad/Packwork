@@ -42,6 +42,51 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
+**2026-07-25 playtest wave 3 — DEPTH, the recipe chain, the Dragonhide tier, the Recipe
+Ledger.** SapperSquad's four asks, all landed. 41 GameTests green; version stays **0.1.0**.
+
+1. **Per-slot DEPTH by tier (the headline).** Every slot holds `maxStack × (ordinal+1)`:
+   Canvas 64 → Dragonhide 384 of a 64-stackable (pearls 16→96; unstackables never stack).
+   The hard part was persistence: `ItemStack.CODEC` caps counts at 99 (verified in sources),
+   so `pack/DeepContentsCodec` persists `{slot, item:{id,components}, count}` with an
+   unbounded count and a `Codec.withAlternative` fallback that loads pre-depth saves intact
+   (count REQUIRED on the deep shape so legacy data falls through instead of shrinking to 1).
+   Network sync needed nothing (stream codecs are uncapped VarInts). Escape hatches closed:
+   `PackInventory.insertItem` (parent clamps to item max — verified), `extractItem` (parent
+   doesn't clamp at all), `PackViewSlot.remove` (vanilla pickup passes Integer.MAX_VALUE) +
+   a swap-guard in `mayPlace` (swap hands the slot stack to the cursor without `remove`).
+   Rule: inserts fill to depth, every pull out is ≤ one vanilla stack. Tidy merges INTO
+   depth. Deep counts render exact at 3/4 scale inside their own cell (vanilla's 3-digit
+   spill smeared into the neighbour — seen and fixed as pixels). Gametests: tier depth
+   scaling, relog + block-entity NBT + legacy round-trips, never-escapes drain, tidy depth.
+
+2. **The recipe chain (supersedes raw-materials-only — SapperSquad's call).** Canvas stays a raw
+   craft; every higher tier is `packwork:pack_upgrade` FROM the previous pack (raw recipes
+   for tiers 2+ deleted). Found + fixed: the upgrade was silently dropping the five STORE
+   components (fluid/XP/energy/embers/chemical) — all carried now, gametested with deep
+   contents + name + trinkets across Runed→Dragonhide. The recipe gained an optional
+   `material2`/`count2` (hand-rolled stream codec; 7 fields beats composite's arity).
+
+3. **DRAGONHIDE, the 6th tier (name flagged for SapperSquad — alternatives: Wyrmhide, Drakeskin).**
+   Runed pack + 4 shulker shells + 4 dragon's breath. 256 slots (component cap — the top
+   tiers grow DEEP, not wide), 5 sockets, depth ×6, stores ×6, placed light 11. Art: near
+   black charcoal-plum hide, brick-laid scale scallops, pale bone claws, ember-pink breath
+   gem — clearly a step past Runed at hotbar size (checked in `pack_small_preview.png` and
+   in-game). Blockstate went 20→24 variants; the gauge rail shrinks (`gaugeHeight()`) so
+   5 sockets + gauges stay inside the panel. Runed upgrade also gained 2 echo shards
+   (keeping the deleted raw recipe's Deep Dark gate).
+
+4. **The Recipe Ledger (SapperSquad said the word on the recipe book).** Path taken: IN-HOUSE
+   parchment browser, not `RecipeBookMenu` — vanilla's craftability + auto-place plumbing is
+   hardwired to the player inventory and its layout claims the tab rail's flank; fighting
+   both is more code than the sheet. Client-side: searchable, scrollable list of every
+   3×3-able recipe craftable FROM PACK STOCK (StackedContents at full depth + the roll),
+   recomputed on open/search/40 ticks. Click chalks a GHOST onto the roll (vanilla's own
+   ghost-overlay render pattern; zero movement). Clicking the result well sends the ONE
+   server verb `LAY_OUT_GHOST`: simulate-first, all-or-nothing pull of one item per cell
+   from pack stock. Gametested (uncoverable recipe moves nothing). The GUI recentres while
+   the ledger is open so it never clips the screen edge (found as pixels, fixed).
+
 **2026-07-25 playtest wave 2 — bug fix, art de-noise, 7 new fittings, craft-on-the-go.** SapperSquad
 playtested and called four things. All four landed.
 

@@ -4,6 +4,46 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Added — deep slots (the headline)
+- **Every tier now deepens every slot.** A slot holds one vanilla stack per tier step: Canvas
+  64 of a common item, Leather 128, Studded 192, Reinforced 256, Runed 320, Dragonhide 384 —
+  six whole stacks in one slot, filed under one tab. Sixteen-stackables scale the same way
+  (pearls: 16 up to 96); unstackables never stack. Tidy Up merges loose stacks down into
+  depth, and deep counts render as exact numbers, sized to stay inside their own cell.
+- **Depth stays inside the pack.** Anything that leaves — your cursor, a hopper, a fitting
+  drawing from stock — always comes out one vanilla stack at a time, so the world outside
+  never sees an impossible stack. And the pack's save format carries deep counts safely
+  (vanilla's own item format caps at 99 and would have corrupted them); packs saved before
+  this update load exactly as they were.
+- **Depth is the tier's job; slots are the Lining's.** The Bottomless Lining keeps adding
+  BREADTH (more slots); the material ladder now owns DEPTH. One axis each, no double-dipping.
+
+### Added — the Dragonhide Pack (a sixth tier)
+- **Above Runed: the Dragonhide Pack**, cut from a near-black hide with brick-laid scales,
+  pale bone claws hooked over the flap, and an ember-pink breath gem in the buckle. Crafted
+  from a Runed pack plus 4 shulker shells and 4 dragon's breath — the spoils of the End.
+  Five trinket sockets, 384-deep slots, and every store at six times Canvas (a 48-bucket
+  waterskin, 30,000 XP, 600,000 FE of arcane charge, 96,000 mB of bottled vapors). Set one
+  down and its gem lights the camp brighter than a Runed pack's glyphs.
+
+### Changed — the ladder is a chain now
+- **Every tier above Canvas is crafted FROM the pack before it.** The old raw-material
+  recipes for Leather and up are gone; the pack-plus-materials upgrade craft IS the recipe,
+  and it has always been the preserving one — contents, compartments, pins, trinkets, name,
+  all carried up. There is no recipe left anywhere that could eat a filled pack.
+- **Upgrades now carry the stores too.** Found while reworking the chain: an upgrade used to
+  quietly drop stored water, XP, charge, embers and vapors. Everything rides up now.
+- **The Runed upgrade wants 2 echo shards** alongside its amethyst, keeping the Deep Dark
+  gate the old raw recipe had.
+
+### Added — the Recipe Ledger (the Tinker's Kit browser)
+- **A parchment sheet of everything the pack can make right now.** With the tool roll out,
+  a ledger button opens a searchable sheet computed from YOUR PACK's stock — not your
+  pockets. Click a recipe to **chalk it onto the roll** (a translucent ghost of the pattern;
+  nothing moves), then click the result well to **lay it out from stock** — the pack covers
+  the whole pattern or moves nothing at all. Craft and the bench refills as usual. Scroll to
+  browse, type to search, click the chalked recipe again to wipe it off.
+
 ### Added — craft on the go
 - **Tinker's Kit: a bench inside the pack.** Fit the kit and a latch appears in the title strip;
   click it and a leather tool roll unrolls across the pack's lower rows — a 3×3 workspace and a

@@ -51,8 +51,11 @@ no rule wanted, so nothing ever disappears.
 
 ## One pack, many fittings
 
-Craft it up the ladder — Canvas, Leather, Studded, Reinforced, Runed — and upgrading a
-full pack carries everything inside straight up. Then slot brass **trinkets** into it:
+Craft it up the ladder — Canvas, Leather, Studded, Reinforced, Runed, **Dragonhide** —
+each tier crafted *from the pack before it*, carrying everything inside straight up. And
+every step cuts the slots **deeper**: from one stack a slot on Canvas to **six stacks a
+slot** on Dragonhide, with the world outside only ever seeing legal stacks. Then slot
+brass **trinkets** into it:
 
 | Fitting | |
 |---|---|
@@ -63,7 +66,7 @@ full pack carries everything inside straight up. Then slot brass **trinkets** in
 | Compass Rose | the only way a pack throws anything out — and it's opt-in |
 | Quick-Draw Straps | when a tool breaks in your hand, the pack hands you another |
 | Quill & Ledger | custom compartments start filing by rule, not just pins |
-| Tinker's Kit | a leather tool roll unrolls inside the pack — a 3×3 bench fed from your stores |
+| Tinker's Kit | a leather tool roll unrolls inside the pack — a 3×3 bench fed from your stores, with a parchment Recipe Ledger of everything craftable from pack stock |
 | Field Furnace | banked embers cook raw ore and raw food as you walk |
 | Provisioner's Pouch | feeds you before hunger bites, cheapest rations first |
 | Cartographer's Sleeve | opens a Charts & Bearings compartment for maps and compasses |

@@ -44,7 +44,9 @@ public final class DevAutoShot {
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
         WBREAK, SHOOT_BROKEN, WREPLACE, SHOOT_REPLACED,
         WLINEUP, SHOOT_LINEUP, SHOOT_INHAND,
-        KIT_GIVE, KIT_W1, KIT_UNROLL, KIT_W2, SHOOT_ROLL, KIT_LOAD, KIT_W3, SHOOT_LOADED,
+        KIT_GIVE, KIT_W1, KIT_UNROLL, KIT_W2, SHOOT_ROLL,
+        LEDGER_OPEN, LEDGER_W1, SHOOT_LEDGER, LEDGER_CHALK, LEDGER_W2, SHOOT_GHOST,
+        LEDGER_LAY, LEDGER_W3, SHOOT_LAID,
         KIT_CRAFT, KIT_W4, KIT_REPORT, DONE
     }
 
@@ -273,16 +275,35 @@ public final class DevAutoShot {
             case KIT_W2 -> { if (++wait > 14) phase = Phase.SHOOT_ROLL; }
             case SHOOT_ROLL -> {
                 grab(mc, "packwork_roll_open");   // the tool roll unrolled across the lower rows
-                phase = Phase.KIT_LOAD; wait = 0;
+                phase = Phase.LEDGER_OPEN; wait = 0;
             }
-            case KIT_LOAD -> {
-                loadRollFromPack(mc, 3);          // three real shift-clicks off the pack grid = a row of wheat
-                phase = Phase.KIT_W3; wait = 0;
+            // ---- the Recipe Ledger: browse -> chalk -> lay out -> craft, all real clicks ----
+            case LEDGER_OPEN -> {
+                clickAt(mc, ps -> ps.devLedgerButtonCenter(), "ledger button");
+                phase = Phase.LEDGER_W1; wait = 0;
             }
-            case KIT_W3 -> { if (++wait > 16) phase = Phase.SHOOT_LOADED; }
-            case SHOOT_LOADED -> {
-                grab(mc, "packwork_roll_loaded"); // a 2x2 of planks laid out, result showing
-                logKitState(mc, "before crafting");
+            case LEDGER_W1 -> { if (++wait > 10) phase = Phase.SHOOT_LEDGER; }
+            case SHOOT_LEDGER -> {
+                grab(mc, "packwork_ledger");      // the parchment sheet, craftable-from-stock
+                phase = Phase.LEDGER_CHALK; wait = 0;
+            }
+            case LEDGER_CHALK -> {
+                clickAt(mc, ps -> ps.devLedgerCellCenter("minecraft:bread"), "bread on the ledger");
+                phase = Phase.LEDGER_W2; wait = 0;
+            }
+            case LEDGER_W2 -> { if (++wait > 10) phase = Phase.SHOOT_GHOST; }
+            case SHOOT_GHOST -> {
+                grab(mc, "packwork_ledger_ghost"); // the wheat row chalked onto the roll
+                phase = Phase.LEDGER_LAY; wait = 0;
+            }
+            case LEDGER_LAY -> {
+                clickAt(mc, ps -> ps.devResultWellCenter(), "the result well (lay out from stock)");
+                phase = Phase.LEDGER_W3; wait = 0;
+            }
+            case LEDGER_W3 -> { if (++wait > 14) phase = Phase.SHOOT_LAID; }
+            case SHOOT_LAID -> {
+                grab(mc, "packwork_ledger_laid"); // real wheat on the roll now, bread in the well
+                logKitState(mc, "after lay-out");
                 phase = Phase.KIT_CRAFT; wait = 0;
             }
             case KIT_CRAFT -> {
@@ -332,19 +353,7 @@ public final class DevAutoShot {
 
     /** Dispatch a genuine press + release at the waterskin gauge - the same pair MouseHandler sends. */
     private static void clickFluidGauge(Minecraft mc) {
-        if (!(mc.screen instanceof PackScreen ps)) {
-            Packwork.LOGGER.warn("[autoshot][bucket] pack screen not open");
-            return;
-        }
-        int[] c = ps.devFluidGaugeCenter();
-        if (c == null) {
-            Packwork.LOGGER.warn("[autoshot][bucket] no waterskin gauge on the rail");
-            return;
-        }
-        boolean pressed = ps.mouseClicked(c[0], c[1], 0);
-        boolean released = ps.mouseReleased(c[0], c[1], 0);
-        Packwork.LOGGER.info("[autoshot][bucket] clicked gauge at ({},{}) press={} release={}",
-                c[0], c[1], pressed, released);
+        clickAt(mc, PackScreen::devFluidGaugeCenter, "the waterskin gauge");
     }
 
     /** Log what the click actually did: cursor, pockets, ground, tank. This is the proof. */
@@ -412,38 +421,26 @@ public final class DevAutoShot {
         });
     }
 
-    /** A genuine press + release on the tool-roll latch in the title strip. */
-    private static void clickRollLatch(Minecraft mc) {
+    /** THE click helper: a genuine press + release at a dev-exposed GUI point. Every scripted
+     *  click in the harness routes through here (skips politely if the target is missing). */
+    private static void clickAt(Minecraft mc, java.util.function.Function<PackScreen, int[]> where, String what) {
         if (!(mc.screen instanceof PackScreen ps)) {
-            Packwork.LOGGER.warn("[autoshot][kit] pack screen not open");
+            Packwork.LOGGER.warn("[autoshot] pack screen not open for {}", what);
             return;
         }
-        int[] c = ps.devRollButtonCenter();
+        int[] c = where.apply(ps);
         if (c == null) {
-            Packwork.LOGGER.warn("[autoshot][kit] no roll latch - is the kit fitted?");
+            Packwork.LOGGER.warn("[autoshot] no target for {}", what);
             return;
         }
         ps.mouseClicked(c[0], c[1], 0);
         ps.mouseReleased(c[0], c[1], 0);
-        Packwork.LOGGER.info("[autoshot][kit] clicked the roll latch at ({},{})", c[0], c[1]);
+        Packwork.LOGGER.info("[autoshot] clicked {} at ({},{})", what, c[0], c[1]);
     }
 
-    /** Shift-click a plank out of the pack grid onto the bench, {@code times} over - the real path. */
-    private static void loadRollFromPack(Minecraft mc, int times) {
-        if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
-        PackMenu menu = ps.getMenu();
-        for (int n = 0; n < times; n++) {
-            int slot = -1;
-            for (int i = 0; i < menu.slots.size(); i++) {
-                var s = menu.slots.get(i);
-                if (s instanceof com.sappersquad.packwork.pack.PackViewSlot && s.isActive()
-                        && s.getItem().is(Items.WHEAT)) { slot = i; break; }
-            }
-            if (slot < 0) { Packwork.LOGGER.warn("[autoshot][kit] no wheat in the grid to lay out"); return; }
-            mc.gameMode.handleInventoryMouseClick(menu.containerId, slot, 0,
-                    net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
-        }
-        Packwork.LOGGER.info("[autoshot][kit] shift-clicked {} wheat onto the bench", times);
+    /** A genuine press + release on the tool-roll latch in the title strip. */
+    private static void clickRollLatch(Minecraft mc) {
+        clickAt(mc, PackScreen::devRollButtonCenter, "the roll latch");
     }
 
     /** A real shift-click on the roll's result slot. */
@@ -472,7 +469,7 @@ public final class DevAutoShot {
             }
             StringBuilder bench = new StringBuilder();
             if (sp.containerMenu instanceof PackMenu m) {
-                for (int i = m.resultIndex() - 9; i <= m.resultIndex(); i++) {
+                for (int i = m.craftStart(); i <= m.resultIndex(); i++) {
                     ItemStack s = m.slots.get(i).getItem();
                     bench.append(s.isEmpty() ? "-" : (net.minecraft.core.registries.BuiltInRegistries.ITEM
                             .getKey(s.getItem()).getPath() + "x" + s.getCount())).append(' ');
@@ -491,8 +488,8 @@ public final class DevAutoShot {
                     ? null : server.getPlayerList().getPlayers().get(0);
             if (sp == null) return;
 
-            // a Runed pack (4 trinket sockets) so all four store gauges can be on show
-            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.RUNED).get());
+            // a Dragonhide pack (5 trinket sockets) so all four store gauges + the depth are on show
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.DRAGONHIDE).get());
             IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
@@ -514,10 +511,13 @@ public final class DevAutoShot {
                     new ItemStack(Items.EGG, 8), new ItemStack(Items.BONE, 12),
             };
             for (int i = 0; i < spread.length; i++) h.insertItem(i, spread[i], false);
+            // deepen the cobblestone slot to its full 384 (6 stacks in one slot) so the GUI's
+            // true-count rendering can be judged as pixels
+            for (int k = 0; k < 5; k++) h.insertItem(22, new ItemStack(Items.COBBLESTONE, 64), false);
 
             // fit all four store trinkets so every gauge on the right rail shows a level
             var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
-                    () -> pack, com.sappersquad.packwork.pack.PackTier.RUNED);
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.DRAGONHIDE);
             sockets.insertItem(0, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
             sockets.insertItem(1, new ItemStack(ModItems.trinket(
@@ -675,7 +675,7 @@ public final class DevAutoShot {
             for (com.sappersquad.packwork.trinket.TrinketType tt : com.sappersquad.packwork.trinket.TrinketType.values())
                 sp.getInventory().add(new ItemStack(ModItems.trinket(tt).get()));
             sp.getInventory().add(new ItemStack(ModItems.HANDBOOK.get()));
-            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.RUNED).get()));
+            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.DRAGONHIDE).get()));
             sp.getInventory().selected = 0;
             Packwork.LOGGER.info("[autoshot] lineup handed over");
         });
