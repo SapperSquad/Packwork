@@ -40,11 +40,28 @@ public final class AutoTabs {
     /**
      * A built-in tab template. Kept package-simple: the id, its lang key, the icon
      * item, an ARGB leather tint, and the default rules.
+     *
+     * <p>{@code gate} is the fitting that has to be installed for the compartment to exist
+     * at all - null for the compartments every pack ships with. This is how a trinket adds a
+     * compartment with ONE entry in this table (plus its tag JSON and a lang key): the
+     * Cartographer's Sleeve and the Angler's Creel each pay for themselves in sorting.
      */
-    public record Auto(String id, String langKey, ResourceLocation icon, int color, List<SortRule> rules) {}
+    public record Auto(String id, String langKey, ResourceLocation icon, int color,
+                       List<SortRule> rules, com.sappersquad.packwork.trinket.TrinketType gate) {
+        public Auto(String id, String langKey, ResourceLocation icon, int color, List<SortRule> rules) {
+            this(id, langKey, icon, color, rules, null);
+        }
+    }
 
     // Leather/brass-friendly tab tints. ARGB, opaque.
     public static final List<Auto> DEFAULTS = List.of(
+            // Angler's Creel (fitting-gated): the catch gets first claim, ahead of Food, or
+            // every cod you land would file itself under rations.
+            new Auto("auto:catch", "packwork.tab.catch",
+                    vanilla("cod"), 0xFF6E8BB9,
+                    List.of(sortTagRule("catch"), SortRule.tag("minecraft:fishes")),
+                    com.sappersquad.packwork.trinket.TrinketType.ANGLERS_CREEL),
+
             new Auto("auto:food", "packwork.tab.food",
                     vanilla("bread"), 0xFF8AB36B,
                     List.of(SortRule.predicate(PredicateKind.IS_FOOD), sortTagRule("food"))),
@@ -57,6 +74,13 @@ public final class AutoTabs {
                             SortRule.predicate(PredicateKind.IS_ARMOR),
                             SortRule.tag("minecraft:arrows"),
                             sortTagRule("combat"))),
+
+            // Cartographer's Sleeve (fitting-gated): charts, compasses, clocks and the spyglass,
+            // claimed before Tools so a compass never ends up in with the pickaxes.
+            new Auto("auto:charts", "packwork.tab.charts",
+                    vanilla("filled_map"), 0xFFC9A24B,
+                    List.of(sortTagRule("charts")),
+                    com.sappersquad.packwork.trinket.TrinketType.CARTOGRAPHER),
 
             new Auto("auto:tools", "packwork.tab.tools",
                     vanilla("iron_pickaxe"), 0xFFB9905A,
@@ -100,6 +124,12 @@ public final class AutoTabs {
     /** Default tab order when a pack has no custom order: all autos, then Loose. */
     public static List<String> defaultOrder() {
         return DEFAULTS.stream().map(Auto::id).toList();
+    }
+
+    /** Where this shipped compartment sits in the default priority run (-1 if it isn't one). */
+    public static int priorityOf(String id) {
+        for (int i = 0; i < DEFAULTS.size(); i++) if (DEFAULTS.get(i).id().equals(id)) return i;
+        return -1;
     }
 
     public static Auto byId(String id) {

@@ -1,0 +1,24 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "minecraft:cooked_cod", "required": false },
+    { "id": "minecraft:cooked_salmon", "required": false },
+    { "id": "minecraft:tropical_fish", "required": false },
+    { "id": "minecraft:pufferfish", "required": false },
+    { "id": "minecraft:fishing_rod", "required": false },
+    { "id": "minecraft:cod_bucket", "required": false },
+    { "id": "minecraft:salmon_bucket", "required": false },
+    { "id": "minecraft:tropical_fish_bucket", "required": false },
+    { "id": "minecraft:pufferfish_bucket", "required": false },
+    { "id": "minecraft:axolotl_bucket", "required": false },
+    { "id": "minecraft:tadpole_bucket", "required": false },
+    { "id": "minecraft:nautilus_shell", "required": false },
+    { "id": "minecraft:lily_pad", "required": false },
+    { "id": "minecraft:sea_pickle", "required": false },
+    { "id": "minecraft:kelp", "required": false },
+    { "id": "#c:foods/fish", "required": false },
+    { "id": "#c:foods/raw_fish", "required": false },
+    { "id": "#c:foods/cooked_fish", "required": false },
+    { "id": "#pantrywork:fish", "required": false }
+  ]
+}

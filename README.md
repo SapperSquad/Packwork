@@ -15,6 +15,7 @@ grid that keeps itself in order:
 
 - **Auto-tabs, out of the box** — Food, Combat, Tools & Utility, Ores & Valuables,
   Brewing & Alchemy, Nature & Farming, Blocks & Building, and a **Loose** catch-all.
+  Two more open up when you fit their trinket: **Charts & Bearings** and **The Catch**.
   They're driven by what an item *is* (any mod's pickaxe is a Tool, any mod's food is
   Food) plus item tags, so they cover modded items for free. Retune the tag lists in a
   datapack — no code.
@@ -47,6 +48,13 @@ and trinkets straight up — a craft never eats what's inside.
 | **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
 | **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
 | **Quill & Ledger** | Custom compartments start filing by rule, not just pins — each gathers items that share the kind of the item it's stamped with. |
+| **Tinker's Kit** | Unrolls a leather tool roll across the pack's lower rows: a 3×3 bench fed straight from your stores. Shift-click from the pack to lay out a pattern; each cell tops itself back up after every craft, so one shift-click on the result runs the batch until the pack is out of makings. |
+| **Field Furnace** | Banked campfire embers cook as you walk — raw ore and raw food only, never your building blocks. Burns fuel out of the pack at furnace rates. |
+| **Provisioner's Pouch** | Feeds you before hunger bites, eating the plainest thing in the pack first. Anything with an effect on it — your golden apples — stays yours. |
+| **Cartographer's Sleeve** | Opens a **Charts & Bearings** compartment: maps, compasses, clocks and the spyglass file themselves instead of scattering through Tools. |
+| **Angler's Creel** | Opens **The Catch**, and your catch drops straight into the pack instead of bouncing off your chest. |
+| **Torchbearer's Loop** | Sets a torch down from pack stock whenever you're standing somewhere genuinely dark. Stops the moment the light comes up. |
+| **Herbalist's Bundle** | Replants a grown crop the instant you pull it, spending one seed from your own stock. |
 | **Waterskin Rack** | Fits a fluid tank: a glass gauge you fill with a bucket or flask. |
 | **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
 | **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. With Forgework installed it also feeds your portable terminals, 1 Flux = 1 FE. |

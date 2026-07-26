@@ -33,33 +33,44 @@ public final class SortEngine {
      * saved order are appended so nothing a player made disappears.
      */
     public static List<TabView> tabsFor(PackLayout layout) {
-        return tabsFor(layout, false);
+        return tabsFor(layout, java.util.Set.of());
+    }
+
+    /** Convenience for tests/callers that only care about the Quill &amp; Ledger gate. */
+    public static List<TabView> tabsFor(PackLayout layout, boolean ledger) {
+        return tabsFor(layout, ledger
+                ? java.util.Set.of(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER)
+                : java.util.Set.of());
     }
 
     /**
-     * @param ledger whether a Quill &amp; Ledger is fitted, which turns custom tabs from
-     *               pin-only into rule-matching (their stored rules plus a rule derived
-     *               from the stamped icon). Must be computed the same on client + server.
+     * @param fitted the trinkets currently installed in this pack. Two things depend on it:
+     *               a Quill &amp; Ledger turns custom tabs from pin-only into rule-matching, and
+     *               a fitting-gated compartment (Charts, Catch) only exists while its fitting
+     *               does. Must be computed the same on client + server.
      */
-    public static List<TabView> tabsFor(PackLayout layout, boolean ledger) {
+    public static List<TabView> tabsFor(PackLayout layout,
+                                        java.util.Set<com.sappersquad.packwork.trinket.TrinketType> fitted) {
+        boolean ledger = fitted.contains(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER);
         List<TabView> out = new ArrayList<>();
         List<String> order = layout.tabOrder().isEmpty() ? defaultOrderWithCustoms(layout) : layout.tabOrder();
 
         List<String> seen = new ArrayList<>();
         for (String id : order) {
             if (seen.contains(id)) continue;
-            TabView v = viewFor(id, layout, ledger);
+            TabView v = viewFor(id, layout, ledger, fitted);
             if (v != null) {
                 out.add(v);
                 seen.add(id);
             }
         }
-        // Safety net: append any auto/custom tab not named in the order.
+        // Safety net: a shipped compartment missing from a saved order is INSERTED at its
+        // default priority, not appended. That matters for the gated ones - fit a creel to an
+        // old pack and its Catch compartment has to land ahead of Food to actually claim fish.
         for (AutoTabs.Auto a : AutoTabs.DEFAULTS) {
-            if (!seen.contains(a.id())) {
-                out.add(AutoTabs.toView(a));
-                seen.add(a.id());
-            }
+            if (seen.contains(a.id()) || (a.gate() != null && !fitted.contains(a.gate()))) continue;
+            out.add(insertionIndexFor(a.id(), out), AutoTabs.toView(a));
+            seen.add(a.id());
         }
         for (TabDef t : layout.customTabs()) {
             if (!seen.contains(t.id())) {
@@ -71,16 +82,32 @@ public final class SortEngine {
         return out;
     }
 
+    /** The first position in {@code out} held by a shipped tab of lower priority (else the end). */
+    private static int insertionIndexFor(String id, List<TabView> out) {
+        int mine = AutoTabs.priorityOf(id);
+        for (int i = 0; i < out.size(); i++) {
+            int theirs = AutoTabs.priorityOf(out.get(i).id());
+            if (theirs >= 0 && theirs > mine) return i;
+        }
+        return out.size();
+    }
+
     private static List<String> defaultOrderWithCustoms(PackLayout layout) {
         List<String> order = new ArrayList<>(AutoTabs.defaultOrder());
         for (TabDef t : layout.customTabs()) order.add(t.id());
         return order;
     }
 
-    private static TabView viewFor(String id, PackLayout layout, boolean ledger) {
+    private static TabView viewFor(String id, PackLayout layout, boolean ledger,
+                                   java.util.Set<com.sappersquad.packwork.trinket.TrinketType> fitted) {
         if (id.equals(AutoTabs.LOOSE_ID)) return null; // Loose is appended once, always last
         AutoTabs.Auto a = AutoTabs.byId(id);
-        if (a != null) return AutoTabs.toView(a);
+        if (a != null) {
+            // a fitting-gated compartment simply isn't there without its fitting; pull the
+            // fitting and its items just re-route (nothing is stored per-tab, so nothing is lost)
+            if (a.gate() != null && !fitted.contains(a.gate())) return null;
+            return AutoTabs.toView(a);
+        }
         TabDef t = layout.customTab(id);
         if (t != null) return toView(t, ledger);
         return null;

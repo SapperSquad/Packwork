@@ -113,7 +113,36 @@ public final class HandbookContent {
                 + "still win over rules, so you can always carve out exceptions."),
             text("QUICK-DRAW STRAPS keep you swinging: when a tool breaks in your hand, the pack "
                 + "passes you an identical one from stock without missing a beat. It only ever hands "
-                + "back what the pack actually holds, so it can't conjure a duplicate."))),
+                + "back what the pack actually holds, so it can't conjure a duplicate."),
+            row("the working kit",
+                trinket(TrinketType.TINKERS_KIT), trinket(TrinketType.FIELD_FURNACE),
+                trinket(TrinketType.PROVISIONER), trinket(TrinketType.TORCHBEARER)),
+            text("TINKER'S KIT unrolls a leather tool roll across the pack's lower rows: a 3x3 bench "
+                + "you can work at anywhere. Shift-click from the pack to lay ingredients out, and "
+                + "after each craft the bench tops itself back up from your stores, so one shift-click "
+                + "on the result runs the batch until the pack is out of makings. Roll it back up and "
+                + "everything on it goes home."),
+            text("FIELD FURNACE banks a few campfire embers in the pack and cooks as you walk - raw "
+                + "ore and raw food only, so it never turns your cobblestone to stone behind your "
+                + "back. It burns fuel out of the pack, a lump of coal for eight things cooked, and "
+                + "if the finished piece won't fit, the raw one goes straight back."),
+            text("PROVISIONER'S POUCH feeds you before hunger bites, and it eats the CHEAPEST safe "
+                + "thing in the pack first - your golden apples stay yours. It leaves anything with a "
+                + "nasty effect well alone, and the bowl comes back in the pack."),
+            text("TORCHBEARER'S LOOP sets a torch down from pack stock whenever you're standing "
+                + "somewhere genuinely dark. It stops the moment the light comes up, and if the torch "
+                + "can't stand there it goes back in the pack."),
+            row("the field trades",
+                trinket(TrinketType.CARTOGRAPHER), trinket(TrinketType.ANGLERS_CREEL),
+                trinket(TrinketType.HERBALIST)),
+            text("CARTOGRAPHER'S SLEEVE adds a Charts & Bearings compartment - maps, compasses, "
+                + "clocks and the spyglass file themselves there instead of scattering through Tools. "
+                + "ANGLER'S CREEL adds The Catch, and your catch drops straight into the pack instead "
+                + "of bouncing off your chest. Pull either fitting and the compartment simply closes; "
+                + "its items re-route, because a tab was only ever a filter."),
+            text("HERBALIST'S BUNDLE replants a grown crop the instant you pull it, spending one seed "
+                + "out of your own stock. If the ground is taken by the time it gets there, the seed "
+                + "comes home."))),
 
         // =================================================================
         new Chapter("Tiers & Upgrades", List.of(
@@ -155,6 +184,6 @@ public final class HandbookContent {
             text("Running Forgework? The Charge Crystal also feeds any Forgework portable terminal "
                 + "you're carrying, 1 Flux = 1 FE - the same arcane charge, poured into your "
                 + "ender-gear. It does nothing without Forgework installed."),
-            text("One store is still on the bench: an Alchemist's Flask Harness for bottled vapors "
-                + "(Mekanism chemicals) - a fitting you can see, never a plasma tank."))));
+            text("ALCHEMIST'S FLASK HARNESS racks bottled vapors - Mekanism chemicals in glass, never "
+                + "a plasma tank. It only shows up with Mekanism installed."))));
 }

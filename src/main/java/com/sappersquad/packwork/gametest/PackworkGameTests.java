@@ -724,6 +724,263 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    // =====================================================================
+    //  2026-07-25 batch: the Tinker's Kit and the six new fittings.
+    //  Everything below that MOVES an item proves it conserves exactly.
+    // =====================================================================
+
+    /**
+     * The headline conservation proof for the Tinker's Kit: shift-crafting off the tool roll
+     * consumes the grid, tops it back up from pack stock, and stops dead when the pack runs dry.
+     * Planks in must equal planks out (counting 4 per crafting table) at every step.
+     */
+    @GameTest(template = "empty")
+    public static void tinkersKitCraftsFromPackAndConserves(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT).get()), false);
+        new PackInventory(pack, PackTier.STUDDED).insertItem(0, new ItemStack(Items.OAK_PLANKS, 8), false);
+        player.getInventory().setItem(0, pack);
+
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(11, player.getInventory(), 0);
+        menu.applyToggleRoll();
+        helper.assertTrue(menu.rollActive(), "the roll unrolls with a kit fitted");
+        helper.assertTrue(menu.visibleSlots() == PackTier.VIEW_SLOTS - com.sappersquad.packwork.pack.PackMenu.ROLL_HIDES,
+                "the roll covers its rows of the grid, got " + menu.visibleSlots());
+
+        // lay a 2x2 of planks on the roll (as a shift-click from the pack would)
+        int gridStart = menu.resultIndex() - 9;
+        for (int i : new int[]{0, 1, 3, 4}) {
+            menu.slots.get(gridStart + i).set(new ItemStack(Items.OAK_PLANKS));
+        }
+        helper.assertTrue(menu.slots.get(menu.resultIndex()).getItem().is(Items.CRAFTING_TABLE),
+                "the roll works out what the pattern makes");
+
+        int expected = plankValue(player, menu);      // 8 in the pack + 4 on the roll
+        helper.assertTrue(expected == 12, "twelve planks in play to start, got " + expected);
+
+        // three shift-clicks: two refill from stock, the third empties the roll and stops
+        for (int craft = 1; craft <= 3; craft++) {
+            menu.quickMoveStack(player, menu.resultIndex());
+            helper.assertTrue(plankValue(player, menu) == 12,
+                    "planks conserved after craft " + craft + ", got " + plankValue(player, menu));
+        }
+        helper.assertTrue(countPack(pack, Items.CRAFTING_TABLE) == 3,
+                "three crafting tables came out, got " + countPack(pack, Items.CRAFTING_TABLE));
+        helper.assertTrue(countPack(pack, Items.OAK_PLANKS) == 0, "the pack's planks are all spent");
+
+        // a fourth shift-click with nothing left must be a no-op, not a free table
+        menu.quickMoveStack(player, menu.resultIndex());
+        helper.assertTrue(countPack(pack, Items.CRAFTING_TABLE) == 3, "no free craft once the pack is dry");
+        helper.assertTrue(plankValue(player, menu) == 12, "still exactly twelve planks' worth");
+        helper.succeed();
+    }
+
+    /** Rolling the kit back up - or closing the pack - returns every laid-out ingredient. */
+    @GameTest(template = "empty")
+    public static void toolRollReturnsEverythingWhenRolledUp(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT).get()), false);
+        player.getInventory().setItem(0, pack);
+
+        var menu = com.sappersquad.packwork.pack.PackMenu.server(12, player.getInventory(), 0);
+        menu.applyToggleRoll();
+        int gridStart = menu.resultIndex() - 9;
+        menu.slots.get(gridStart).set(new ItemStack(Items.DIAMOND, 5));
+        menu.slots.get(gridStart + 4).set(new ItemStack(Items.IRON_INGOT, 3));
+
+        menu.applyToggleRoll();  // roll it back up
+        helper.assertTrue(!menu.rollActive(), "the roll is stowed");
+        helper.assertTrue(countPack(pack, Items.DIAMOND) == 5 && countPack(pack, Items.IRON_INGOT) == 3,
+                "everything laid out came home: " + countPack(pack, Items.DIAMOND) + " diamonds, "
+                        + countPack(pack, Items.IRON_INGOT) + " iron");
+        for (int i = 0; i < 9; i++) {
+            helper.assertTrue(menu.slots.get(gridStart + i).getItem().isEmpty(), "the roll is empty");
+        }
+
+        // and again via closing the whole pack, which is the other way out
+        menu.applyToggleRoll();
+        menu.slots.get(gridStart).set(new ItemStack(Items.DIAMOND, 2));
+        menu.removed(player);
+        helper.assertTrue(countPack(pack, Items.DIAMOND) == 7, "closing the pack returns them too, got "
+                + countPack(pack, Items.DIAMOND));
+        helper.succeed();
+    }
+
+    /** The Field Furnace cooks raw ore on pack fuel, spends the right embers, and conserves. */
+    @GameTest(template = "empty")
+    public static void fieldFurnaceCooksAndConserves(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.RAW_IRON, 8), false);
+        store.insertItem(1, new ItemStack(Items.COAL, 1), false);
+        store.insertItem(2, new ItemStack(Items.COBBLESTONE, 16), false);
+
+        for (int i = 0; i < 3; i++) {
+            helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.smeltOnce(
+                    helper.getLevel(), pack, store), "cook " + (i + 1) + " should happen");
+        }
+        helper.assertTrue(countPack(pack, Items.IRON_INGOT) == 3,
+                "three ingots came out, got " + countPack(pack, Items.IRON_INGOT));
+        helper.assertTrue(countPack(pack, Items.RAW_IRON) == 5,
+                "five raw iron left, got " + countPack(pack, Items.RAW_IRON));
+        helper.assertTrue(countPack(pack, Items.COAL) == 0, "the lump of coal went on the embers");
+        helper.assertTrue(pack.getOrDefault(ModComponents.PACK_EMBERS.get(), 0) == 1600 - 3 * 200,
+                "embers spent at furnace rate, got " + pack.getOrDefault(ModComponents.PACK_EMBERS.get(), 0));
+        // and it leaves your building blocks alone
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 16 && countPack(pack, Items.STONE) == 0,
+                "cobblestone is never cooked behind your back");
+        helper.succeed();
+    }
+
+    /** The Provisioner's Pouch eats the CHEAPEST safe thing, exactly one, and keeps the bowl. */
+    @GameTest(template = "empty")
+    public static void provisionerEatsCheapestAndConserves(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        player.getFoodData().setFoodLevel(3);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.GOLDEN_APPLE, 2), false);
+        store.insertItem(1, new ItemStack(Items.ROTTEN_FLESH, 4), false);
+        store.insertItem(2, new ItemStack(Items.BREAD, 3), false);
+
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.feedFrom(player, store),
+                "a hungry adventurer gets fed");
+        helper.assertTrue(countPack(pack, Items.BREAD) == 2,
+                "exactly one loaf eaten, got " + countPack(pack, Items.BREAD) + " left");
+        helper.assertTrue(countPack(pack, Items.GOLDEN_APPLE) == 2, "your golden apples stay yours");
+        helper.assertTrue(countPack(pack, Items.ROTTEN_FLESH) == 4, "it won't touch rotten flesh");
+        helper.assertTrue(player.getFoodData().getFoodLevel() > 3, "and it actually fed you");
+
+        // full up? it leaves the larder alone entirely
+        player.getFoodData().setFoodLevel(20);
+        helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketEffects.feedFrom(player, store),
+                "a full player is left alone");
+        helper.assertTrue(countPack(pack, Items.BREAD) == 2, "nothing eaten while full");
+        helper.succeed();
+    }
+
+    /** The Herbalist's Bundle spends exactly one seed out of your own stock, or none at all. */
+    @GameTest(template = "empty")
+    public static void herbalistSpendsOneSeedOrNone(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.WHEAT_SEEDS, 4), false);
+
+        ItemStack seed = com.sappersquad.packwork.trinket.TrinketEffects.takeSeedFor(
+                store, (net.minecraft.world.level.block.CropBlock) net.minecraft.world.level.block.Blocks.WHEAT);
+        helper.assertTrue(seed.is(Items.WHEAT_SEEDS) && seed.getCount() == 1, "takes exactly one seed");
+        helper.assertTrue(countPack(pack, Items.WHEAT_SEEDS) == 3,
+                "three seeds left, got " + countPack(pack, Items.WHEAT_SEEDS));
+
+        // a crop it has no seed for costs nothing
+        ItemStack none = com.sappersquad.packwork.trinket.TrinketEffects.takeSeedFor(
+                store, (net.minecraft.world.level.block.CropBlock) net.minecraft.world.level.block.Blocks.CARROTS);
+        helper.assertTrue(none.isEmpty(), "no carrots in the pack, so nothing is spent");
+        helper.assertTrue(countPack(pack, Items.WHEAT_SEEDS) == 3, "and the wheat seeds are untouched");
+        helper.succeed();
+    }
+
+    /** The Angler's Creel stows the catch and leaves behind only what genuinely wouldn't fit. */
+    @GameTest(template = "empty")
+    public static void anglersCreelStowsTheCatchLosingNothing(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
+        PackInventory store = new PackInventory(pack, PackTier.CANVAS);
+
+        List<ItemStack> drops = new ArrayList<>(List.of(
+                new ItemStack(Items.COD, 1), new ItemStack(Items.LILY_PAD, 1)));
+        com.sappersquad.packwork.trinket.TrinketEffects.stowCatch(store, drops);
+        helper.assertTrue(drops.isEmpty(), "the whole catch went in the pack");
+        helper.assertTrue(countPack(pack, Items.COD) == 1 && countPack(pack, Items.LILY_PAD) == 1,
+                "and it's all there");
+
+        // a pack with no room hands the catch straight back rather than swallowing it
+        for (int i = 0; i < PackTier.CANVAS.capacity(); i++) {
+            store.setStackInSlot(i, new ItemStack(Items.STONE, 64));
+        }
+        List<ItemStack> more = new ArrayList<>(List.of(new ItemStack(Items.SALMON, 1)));
+        com.sappersquad.packwork.trinket.TrinketEffects.stowCatch(store, more);
+        helper.assertTrue(more.size() == 1 && more.get(0).is(Items.SALMON) && more.get(0).getCount() == 1,
+                "a full pack leaves the catch for you to pick up");
+        helper.succeed();
+    }
+
+    /** Charts and Catch only exist while their fitting does - and they out-rank the tabs they'd lose to. */
+    @GameTest(template = "empty")
+    public static void gatedCompartmentsFollowTheirFittings(GameTestHelper helper) {
+        var none = SortEngine.tabsFor(PackLayout.EMPTY, java.util.Set.<com.sappersquad.packwork.trinket.TrinketType>of());
+        helper.assertTrue(!hasTab(none, "auto:charts") && !hasTab(none, "auto:catch"),
+                "a bare pack shows neither gated compartment");
+        assertRoute(helper, none, PackLayout.EMPTY, Items.FILLED_MAP, AutoTabs.LOOSE_ID);
+        assertRoute(helper, none, PackLayout.EMPTY, Items.COD, "auto:food");
+
+        var sleeve = SortEngine.tabsFor(PackLayout.EMPTY,
+                java.util.Set.of(com.sappersquad.packwork.trinket.TrinketType.CARTOGRAPHER));
+        helper.assertTrue(hasTab(sleeve, "auto:charts") && !hasTab(sleeve, "auto:catch"),
+                "the sleeve opens Charts and nothing else");
+        assertRoute(helper, sleeve, PackLayout.EMPTY, Items.FILLED_MAP, "auto:charts");
+        assertRoute(helper, sleeve, PackLayout.EMPTY, Items.COMPASS, "auto:charts");
+
+        var creel = SortEngine.tabsFor(PackLayout.EMPTY,
+                java.util.Set.of(com.sappersquad.packwork.trinket.TrinketType.ANGLERS_CREEL));
+        helper.assertTrue(hasTab(creel, "auto:catch"), "the creel opens The Catch");
+        // The Catch must out-prioritise Food or every cod would file itself as rations
+        assertRoute(helper, creel, PackLayout.EMPTY, Items.COD, "auto:catch");
+        assertRoute(helper, creel, PackLayout.EMPTY, Items.BREAD, "auto:food");
+
+        // an OLD pack with a saved tab order still slots a newly-fitted compartment in at its
+        // proper priority, not on the end where it would never claim anything
+        List<String> savedOrder = new ArrayList<>(List.of("auto:food", "auto:combat", "auto:tools",
+                "auto:ores", "auto:brewing", "auto:nature", "auto:blocks"));
+        PackLayout old = PackLayout.EMPTY.withTabOrder(savedOrder);
+        var fittedOld = SortEngine.tabsFor(old,
+                java.util.Set.of(com.sappersquad.packwork.trinket.TrinketType.ANGLERS_CREEL));
+        assertRoute(helper, fittedOld, old, Items.COD, "auto:catch");
+        helper.succeed();
+    }
+
+    private static boolean hasTab(List<TabView> tabs, String id) {
+        for (TabView t : tabs) if (t.id().equals(id)) return true;
+        return false;
+    }
+
+    /** Every plank in play: loose in the pack, laid on the roll, in the player's pockets, or
+     *  four-at-a-time inside a crafted table. Must never change. */
+    private static int plankValue(net.minecraft.world.entity.player.Player player,
+                                  com.sappersquad.packwork.pack.PackMenu menu) {
+        int total = 0;
+        // the tool roll's own nine cells (the view slots below are just windows onto the pack,
+        // which countPack already covers - counting both would double every plank)
+        for (int i = menu.resultIndex() - 9; i < menu.resultIndex(); i++) {
+            total += plankWorth(menu.slots.get(i).getItem());
+        }
+        ItemStack pack = player.getInventory().getItem(0);
+        total += countPack(pack, Items.OAK_PLANKS) + 4 * countPack(pack, Items.CRAFTING_TABLE);
+        for (int i = 1; i < player.getInventory().getContainerSize(); i++) {
+            total += plankWorth(player.getInventory().getItem(i));
+        }
+        return total;
+    }
+
+    private static int plankWorth(ItemStack s) {
+        if (s.is(Items.OAK_PLANKS)) return s.getCount();
+        if (s.is(Items.CRAFTING_TABLE)) return 4 * s.getCount();
+        return 0;
+    }
+
+    private static int countPack(ItemStack pack, net.minecraft.world.item.Item item) {
+        PackInventory store = new PackInventory(pack, com.sappersquad.packwork.pack.PackItem.tierOf(pack));
+        int n = 0;
+        for (int i = 0; i < store.getSlots(); i++) {
+            ItemStack s = store.getStackInSlot(i);
+            if (s.is(item)) n += s.getCount();
+        }
+        return n;
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

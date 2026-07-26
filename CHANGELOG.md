@@ -4,6 +4,50 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Added — craft on the go
+- **Tinker's Kit: a bench inside the pack.** Fit the kit and a latch appears in the title strip;
+  click it and a leather tool roll unrolls across the pack's lower rows — a 3×3 workspace and a
+  brass-ringed well for what comes out, with the top rows of your pack still in reach above it.
+  **Shift-click from the pack to lay one item on the bench**, and after every craft each emptied
+  cell tops itself straight back up from your stores. Set the pattern once and one shift-click on
+  the result runs the whole batch until the pack is out of makings. Roll it back up — or just
+  close the pack — and everything laid out goes home. No craft can ever cost you an ingredient it
+  didn't turn into something.
+
+### Added — six more fittings
+- **Field Furnace** — banked campfire embers cook as you walk. Raw ore and raw food only, so it
+  never turns your cobblestone to stone behind your back, and it burns proper fuel (coal,
+  charcoal, blaze rods, lava) at exactly furnace rates: a lump of coal is still eight things
+  cooked. If the finished piece won't fit, the raw one never leaves its slot.
+- **Provisioner's Pouch** — feeds you before hunger bites, and eats the plainest thing in the
+  pack first. Anything carrying an effect — your golden apples, your suspicious stew — stays
+  yours, and it won't touch rotten flesh. The bowl comes back in the pack.
+- **Cartographer's Sleeve** — opens a **Charts & Bearings** compartment: maps, compasses, clocks
+  and the spyglass file themselves instead of scattering through Tools.
+- **Angler's Creel** — opens **The Catch**, and your catch drops straight into the pack instead
+  of bouncing off your chest. A full pack simply hands it back, as always.
+- **Torchbearer's Loop** — sets a torch down from pack stock whenever you're standing somewhere
+  genuinely dark. It stops the moment the light comes up, and a torch that can't stand there goes
+  straight back in.
+- **Herbalist's Bundle** — replants a grown crop the instant you pull it, spending one seed out
+  of your own stock. If the ground is taken by the time it gets there, the seed comes home.
+- Pull either gated fitting and its compartment simply closes; the items re-route, because a tab
+  was only ever a filter over one flat store.
+
+### Changed — the art reads cleaner
+- **The packs were busy, not detailed.** The shading carried per-pixel random noise on top of the
+  leather grain, the canvas weave ran at a one-pixel pitch, the hem stitch was every other pixel
+  at near-white, and the studs, plates and runes were single-pixel sprinkles. At hotbar size all
+  of that dissolves into static. Now: broad, smooth value transitions with one large soft mottle;
+  a coarse low-contrast canvas weave; a proper dashed thread on an unbroken seam; **studs that are
+  studs** (2×2, lit, with a contact shadow), **bevelled steel plates with a brass rivet**, and
+  **runes drawn as strokes with a soft glow**. The detail is still all there — it just stopped
+  fighting the shape.
+- **The closure strap stopped reading as a hole.** Its shading was bottoming out at near-black and
+  punching a dark slot down the middle of every pack; it's darker leather now, with a tapered tip,
+  and the buckle got a crisp outer edge to sit against it. Re-checked at 16px and 12px.
+- Same de-noising on the placed-block faces, so a pack you set down still matches the one in hand.
+
 ### Fixed
 - **Filling the waterskin no longer throws your bucket on the floor.** The gauges and the tab
   rail hang outside the panel's edge, and that strip is exactly where the game assumes you meant

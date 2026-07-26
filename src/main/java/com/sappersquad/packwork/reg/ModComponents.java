@@ -56,6 +56,15 @@ public class ModComponents {
                     .persistent(com.mojang.serialization.Codec.INT)
                     .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
 
+    /**
+     * The Field Furnace's banked embers, in ticks of burn left. One fuel item feeds it exactly
+     * as long as it would feed a furnace, so a lump of charcoal is still eight things cooked.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> PACK_EMBERS =
+            COMPONENTS.registerComponentType("pack_embers", builder -> builder
+                    .persistent(com.mojang.serialization.Codec.INT)
+                    .networkSynchronized(net.minecraft.network.codec.ByteBufCodecs.VAR_INT));
+
     /** The Flask Harness's chemical tank (dist-neutral primitives). Gated by the trinket + Mekanism. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.sappersquad.packwork.pack.PackChemical>> PACK_CHEMICAL =
             COMPONENTS.registerComponentType("pack_chemical", builder -> builder

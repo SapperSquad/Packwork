@@ -1,0 +1,4 @@
+{ "type": "minecraft:crafting_shaped", "category": "equipment",
+  "pattern": [" c ", "cFc", " c "],
+  "key": { "c": { "item": "minecraft:copper_ingot" }, "F": { "item": "minecraft:campfire" } },
+  "result": { "id": "packwork:field_furnace", "count": 1 } }

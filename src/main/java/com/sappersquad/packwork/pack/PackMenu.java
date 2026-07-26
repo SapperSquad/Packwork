@@ -42,6 +42,16 @@ public class PackMenu extends AbstractContainerMenu {
     public static final int TRINKET_Y0 = 26;
     public static final int TRINKET_PITCH = 20;
 
+    // ---- the Tinker's Kit tool roll: unrolls across the pack's bottom three rows ----
+    /** Grid rows the unrolled tool roll covers (the pack keeps the rows above it). */
+    public static final int ROLL_ROWS = 3;
+    /** View slots the roll hides while it's unrolled. */
+    public static final int ROLL_HIDES = PackTier.VIEW_COLS * ROLL_ROWS;
+    public static final int ROLL_Y = GRID_Y + (PackTier.VIEW_ROWS - ROLL_ROWS) * 18; // 88
+    public static final int ROLL_GRID_X = 30;
+    public static final int ROLL_RESULT_X = 122;
+    public static final int ROLL_RESULT_Y = ROLL_Y + 18;
+
     private static final int VIEW_SLOTS = PackTier.VIEW_SLOTS;
     private static final int PLAYER_SLOTS = 36;
 
@@ -52,7 +62,19 @@ public class PackMenu extends AbstractContainerMenu {
     private final PackTrinketInventory trinketInv;
     private final List<PackViewSlot> viewSlots = new ArrayList<>();
     private final int trinketStart; // menu index where trinket slots begin
-    private final int trinketEnd;   // one past the last trinket slot (host slot, if any, sits here)
+    private final int trinketEnd;   // one past the last trinket slot
+
+    // Tinker's Kit. The slots exist on EVERY pack menu (client and server must agree on the
+    // slot count before the trinket component has synced); they simply go inactive - and refuse
+    // every interaction - unless the kit is fitted and the roll is unrolled.
+    private final net.minecraft.world.inventory.CraftingContainer craftSlots =
+            new net.minecraft.world.inventory.TransientCraftingContainer(this, 3, 3);
+    private final net.minecraft.world.inventory.ResultContainer resultSlots =
+            new net.minecraft.world.inventory.ResultContainer();
+    private final int craftStart;   // menu index where the 3x3 begins
+    private final int resultIndex;  // the roll's result slot
+    private final int hostIndex;    // the hidden placed-pack host slot, or -1
+    private boolean rollOpen = false;
 
     // Where the live pack stack comes from: a player-inventory slot (carried) or a
     // block-entity via a hidden synced host slot (placed). Both stay server-authoritative.
@@ -110,7 +132,7 @@ public class PackMenu extends AbstractContainerMenu {
         this.packInv = new PackInventory(this::liveStack, tier);
         this.trinketInv = new PackTrinketInventory(this::liveStack, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
-        this.tabs = SortEngine.tabsFor(layout, hasLedger());
+        this.tabs = SortEngine.tabsFor(layout, fitted());
         this.activeTab = firstRealTab();
 
         // Grid of view slots (indices 0 .. VIEW_SLOTS-1).
@@ -133,11 +155,40 @@ public class PackMenu extends AbstractContainerMenu {
         }
         this.trinketEnd = slots.size();
 
+        // The Tinker's Kit tool roll: a 3x3 and its result, always present, active only when
+        // the kit is fitted and the roll is unrolled.
+        this.craftStart = slots.size();
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                addSlot(new Slot(craftSlots, col + row * 3,
+                        ROLL_GRID_X + col * 18, ROLL_Y + row * 18) {
+                    @Override
+                    public boolean isActive() {
+                        return rollActive();
+                    }
+
+                    @Override
+                    public boolean mayPlace(ItemStack s) {
+                        return rollActive();
+                    }
+
+                    @Override
+                    public boolean mayPickup(Player p) {
+                        return rollActive();
+                    }
+                });
+            }
+        }
+        this.resultIndex = slots.size();
+        addSlot(new RollResultSlot(playerInv.player, craftSlots, resultSlots, 0,
+                ROLL_RESULT_X, ROLL_RESULT_Y));
+
         // For a placed pack: one hidden, inactive slot mirrors the block entity's pack
         // stack so its components sync to the viewing client (as a carried pack's slot
         // does). Never rendered, never player-movable. Kept LAST so slot indices above are
         // identical on client and server (a mismatch overruns the container packet).
         if (hostContainer != null) {
+            this.hostIndex = slots.size();
             addSlot(new Slot(hostContainer, 0, -9000, -9000) {
                 @Override
                 public boolean isActive() {
@@ -154,9 +205,41 @@ public class PackMenu extends AbstractContainerMenu {
                     return false;
                 }
             });
+        } else {
+            this.hostIndex = -1;
         }
 
         rebuildView();
+    }
+
+    /** The tool roll's result slot: crafting a stack tops the grid back up from pack stock,
+     *  so one pattern keeps producing for as long as the pack holds the makings. */
+    private class RollResultSlot extends net.minecraft.world.inventory.ResultSlot {
+        RollResultSlot(Player player, net.minecraft.world.inventory.CraftingContainer craft,
+                       net.minecraft.world.Container result, int idx, int x, int y) {
+            super(player, craft, result, idx, x, y);
+        }
+
+        @Override
+        public boolean isActive() {
+            return rollActive();
+        }
+
+        @Override
+        public boolean mayPickup(Player p) {
+            return rollActive();
+        }
+
+        @Override
+        public void onTake(Player player, ItemStack stack) {
+            net.minecraft.world.item.Item[] before = new net.minecraft.world.item.Item[9];
+            for (int i = 0; i < 9; i++) {
+                ItemStack s = craftSlots.getItem(i);
+                before[i] = s.isEmpty() ? null : s.getItem();
+            }
+            super.onTake(player, stack);   // vanilla consumes the grid + handles container items
+            refillRollFromPack(before);
+        }
     }
 
     private String firstRealTab() {
@@ -202,7 +285,8 @@ public class PackMenu extends AbstractContainerMenu {
     public void rebuildView() {
         // Re-read the durable layout from the (synced) live stack so both sides stay current.
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
-        this.tabs = SortEngine.tabsFor(layout, hasLedger());
+        this.tabs = SortEngine.tabsFor(layout, fitted());
+        int visible = visibleSlots();
         List<Integer> order = new ArrayList<>();
         String q = search.toLowerCase(Locale.ROOT).trim();
         boolean searching = !q.isEmpty();
@@ -235,19 +319,33 @@ public class PackMenu extends AbstractContainerMenu {
             }
         }
 
-        this.pageCount = Math.max(1, (order.size() + VIEW_SLOTS - 1) / VIEW_SLOTS);
+        this.pageCount = Math.max(1, (order.size() + visible - 1) / visible);
         if (page >= pageCount) page = pageCount - 1;
         if (page < 0) page = 0;
 
-        int start = page * VIEW_SLOTS;
+        int start = page * visible;
         for (int p = 0; p < VIEW_SLOTS; p++) {
             int gi = start + p;
-            if (gi < order.size()) {
+            if (p < visible && gi < order.size()) {
                 viewSlots.get(p).bind(order.get(gi), true);
             } else {
-                viewSlots.get(p).bind(-1, false);
+                viewSlots.get(p).bind(-1, false); // rows the unrolled tool roll covers
             }
         }
+    }
+
+    /** How many grid cells the pack is showing: the full grid, or the top rows when the roll is out. */
+    public int visibleSlots() {
+        return rollActive() ? VIEW_SLOTS - ROLL_HIDES : VIEW_SLOTS;
+    }
+
+    /** True while the tool roll is unrolled AND a Tinker's Kit is actually fitted. */
+    public boolean rollActive() {
+        return rollOpen && hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
+    }
+
+    public int resultIndex() {
+        return resultIndex;
     }
 
     private static boolean matchesSearch(ItemStack stack, String q) {
@@ -270,7 +368,7 @@ public class PackMenu extends AbstractContainerMenu {
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
         // The hidden host slot (a placed pack's own stack) is never shift-moved.
-        if (hostContainer != null && index >= trinketEnd) return ItemStack.EMPTY;
+        if (hostIndex >= 0 && index == hostIndex) return ItemStack.EMPTY;
         Slot slot = slots.get(index);
         if (slot == null || !slot.hasItem()) return ItemStack.EMPTY;
         ItemStack inSlot = slot.getItem();
@@ -279,8 +377,27 @@ public class PackMenu extends AbstractContainerMenu {
         int playerStart = VIEW_SLOTS;
         int playerEnd = VIEW_SLOTS + PLAYER_SLOTS;
 
-        if (index < VIEW_SLOTS) {
-            // pack view -> player inventory (never into trinket sockets)
+        if (index == resultIndex) {
+            return quickCraftOut(player, slot, inSlot, original, playerStart, playerEnd);
+        }
+        if (index >= craftStart && index < resultIndex) {
+            // off the tool roll -> back in the pack, else your pockets
+            if (!rollActive()) return ItemStack.EMPTY;
+            ItemStack leftover = insertIntoPack(inSlot.copy(), false);
+            int moved = inSlot.getCount() - leftover.getCount();
+            if (moved <= 0 && !moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
+            if (moved > 0) inSlot.shrink(moved);
+            slot.setChanged();
+        } else if (index < VIEW_SLOTS) {
+            // With the roll unrolled, a shift-click lays ONE of that item on the bench - you're
+            // setting out a pattern, not tipping the stack in. The bench then tops each cell back
+            // up from the pack after every craft, so one of each is all you ever need to place.
+            // Roll it back up to shift-click into your pockets again.
+            if (rollActive() && layOneOnRoll(inSlot)) {
+                slot.setChanged();
+                rebuildView();
+                return ItemStack.EMPTY;   // one per click, deliberately
+            }
             if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) return ItemStack.EMPTY;
             slot.setChanged();
         } else if (index >= trinketStart && index < trinketEnd) {
@@ -310,12 +427,49 @@ public class PackMenu extends AbstractContainerMenu {
         return original;
     }
 
+    /**
+     * Shift-click the tool roll's result: the crafted stack goes into the PACK first (you are,
+     * after all, crafting inside it), your pockets second. Vanilla's quick-move loop calls this
+     * repeatedly, and the grid tops itself back up from pack stock between crafts - so one
+     * shift-click runs the batch until the pack runs out of makings.
+     */
+    private ItemStack quickCraftOut(Player player, Slot slot, ItemStack inSlot, ItemStack original,
+                                    int playerStart, int playerEnd) {
+        if (!rollActive()) return ItemStack.EMPTY;
+        ItemStack leftover = insertIntoPack(inSlot.copy(), false);
+        int placed = inSlot.getCount() - leftover.getCount();
+        if (placed > 0) {
+            inSlot.shrink(placed);
+        } else if (!moveItemStackTo(inSlot, playerStart, playerEnd, true)) {
+            return ItemStack.EMPTY;
+        }
+        slot.onQuickCraft(inSlot, original);
+        if (inSlot.isEmpty()) slot.set(ItemStack.EMPTY);
+        else slot.setChanged();
+        if (inSlot.getCount() == original.getCount()) return ItemStack.EMPTY;
+        slot.onTake(player, inSlot);
+        // anything the pack and the pockets both refused rides back to the player, never the void
+        if (!inSlot.isEmpty() && !player.getInventory().add(inSlot)) player.drop(inSlot, false);
+        rebuildView();
+        return original;
+    }
+
     /** Insert into the whole backing store: merge into existing stacks first, then fill empties. */
     ItemStack insertIntoPack(ItemStack stack) {
+        return insertIntoPack(stack, true);
+    }
+
+    /**
+     * @param allowVoid whether the Compass Rose's opt-in discard list applies. Items being HANDED
+     *                  BACK (a cancelled craft, a spent bucket) always pass false: a return path
+     *                  must return, never bin.
+     */
+    ItemStack insertIntoPack(ItemStack stack, boolean allowVoid) {
         // Compass Rose: the ONLY void path, opt-in. If this exact item is on the
         // trinket's discard list, it never enters the pack.
         ItemStack pack = liveStack();
-        if (com.sappersquad.packwork.trinket.TrinketAccess.has(pack, com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE)
+        if (allowVoid
+                && com.sappersquad.packwork.trinket.TrinketAccess.has(pack, com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE)
                 && layout.voids(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()))) {
             return ItemStack.EMPTY;
         }
@@ -348,9 +502,14 @@ public class PackMenu extends AbstractContainerMenu {
         return com.sappersquad.packwork.trinket.TrinketAccess.has(liveStack(), type);
     }
 
-    /** Whether a Quill &amp; Ledger is fitted, so custom tabs match by rule (not just pins). */
-    private boolean hasLedger() {
-        return hasTrinket(com.sappersquad.packwork.trinket.TrinketType.QUILL_LEDGER);
+    /**
+     * Every fitting installed in this pack right now. Drives the Quill &amp; Ledger's rule gate
+     * AND the fitting-gated compartments (Charts, Catch), so a trinket adds a compartment with
+     * one entry in {@link AutoTabs}. Read live from the (synced) stack, so client and server
+     * compute the same tab list.
+     */
+    private java.util.Set<com.sappersquad.packwork.trinket.TrinketType> fitted() {
+        return com.sappersquad.packwork.trinket.TrinketAccess.installed(liveStack());
     }
 
     public String activeTab() {
@@ -404,7 +563,130 @@ public class PackMenu extends AbstractContainerMenu {
             case FLUID_INTERACT -> applyFluidInteract();
             case XP_SIPHON -> applyXpSiphon();
             case XP_POUR -> applyXpPour();
+            case TOGGLE_ROLL -> applyToggleRoll();
         }
+    }
+
+    // ---- the Tinker's Kit tool roll ----
+
+    /**
+     * Unroll or roll up the tool roll. Rolling it up empties the grid back into the pack, so a
+     * half-set-up craft is never stranded - and neither is a cancelled one.
+     */
+    public void applyToggleRoll() {
+        if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT)) {
+            rollOpen = false;
+        } else {
+            rollOpen = !rollOpen;
+            if (!rollOpen) emptyRollIntoPack();
+        }
+        this.page = 0;
+        rebuildView();
+    }
+
+    @Override
+    public void slotsChanged(net.minecraft.world.Container container) {
+        if (container == craftSlots) recomputeCraftResult();
+        super.slotsChanged(container);
+    }
+
+    /** Work out what the roll's pattern makes and push the result down to the viewing client. */
+    private void recomputeCraftResult() {
+        Player player = playerInv.player;
+        if (player.level().isClientSide()) return;
+        var level = player.level();
+        var server = level.getServer();
+        if (server == null) return;
+        net.minecraft.world.item.crafting.CraftingInput input = craftSlots.asCraftInput();
+        ItemStack result = ItemStack.EMPTY;
+        var found = server.getRecipeManager().getRecipeFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level);
+        if (found.isPresent()) {
+            // recipe-book bookkeeping only applies to a real connected player
+            boolean allowed = !(player instanceof net.minecraft.server.level.ServerPlayer sp)
+                    || resultSlots.setRecipeUsed(level, sp, found.get());
+            if (allowed) {
+                ItemStack out = found.get().value().assemble(input, level.registryAccess());
+                if (out.isItemEnabled(level.enabledFeatures())) result = out;
+            }
+        }
+        resultSlots.setItem(0, result);
+        setRemoteSlot(resultIndex, result);
+        if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+            sp.connection.send(new net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket(
+                    containerId, incrementStateId(), resultIndex, result));
+        }
+    }
+
+    /**
+     * After a craft, top each emptied grid cell back up from pack stock - the whole point of a
+     * tool roll fed by the pack. Conserves exactly: it can only put back what it takes out of
+     * the store, so a batch craft stops the moment the pack runs dry.
+     */
+    private void refillRollFromPack(net.minecraft.world.item.Item[] before) {
+        if (isClient()) return;
+        boolean changed = false;
+        for (int i = 0; i < before.length; i++) {
+            if (before[i] == null || !craftSlots.getItem(i).isEmpty()) continue;
+            ItemStack pulled = pullOneFromPack(before[i]);
+            if (!pulled.isEmpty()) {
+                craftSlots.setItem(i, pulled); // setItem re-runs slotsChanged -> recomputes
+                changed = true;
+            }
+        }
+        if (!changed) recomputeCraftResult();
+    }
+
+    /** Lay one of {@code from} into the first free cell of the roll (topping up a matching cell
+     *  first). Returns false when the bench has no room for it. */
+    private boolean layOneOnRoll(ItemStack from) {
+        // Next EMPTY cell first, left to right: you're laying out a shape, so three shift-clicks
+        // of wheat should be a row of three, not a pile of three in one corner. Only once every
+        // cell is spoken for does another click deepen the stack already there.
+        for (int i = 0; i < craftSlots.getContainerSize(); i++) {
+            if (craftSlots.getItem(i).isEmpty()) {
+                craftSlots.setItem(i, from.split(1));
+                return true;
+            }
+        }
+        for (int i = 0; i < craftSlots.getContainerSize(); i++) {
+            ItemStack cell = craftSlots.getItem(i);
+            if (ItemStack.isSameItemSameComponents(cell, from) && cell.getCount() < cell.getMaxStackSize()) {
+                from.shrink(1);
+                cell.grow(1);
+                craftSlots.setItem(i, cell);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Take exactly one of {@code item} out of the pack's store, or EMPTY if it holds none. */
+    private ItemStack pullOneFromPack(net.minecraft.world.item.Item item) {
+        for (int i = 0; i < packInv.getSlots(); i++) {
+            ItemStack s = packInv.getStackInSlot(i);
+            if (!s.isEmpty() && s.getItem() == item) return packInv.extractItem(i, 1, false);
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** Everything laid out on the roll goes back in the pack, then your pockets, then the floor. */
+    private void emptyRollIntoPack() {
+        if (isClient()) return;
+        for (int i = 0; i < craftSlots.getContainerSize(); i++) {
+            ItemStack s = craftSlots.removeItemNoUpdate(i);
+            if (s.isEmpty()) continue;
+            ItemStack left = insertIntoPack(s, false);
+            if (left.isEmpty()) continue;
+            if (!playerInv.player.getInventory().add(left)) playerInv.player.drop(left, false);
+        }
+        resultSlots.clearContent();
+    }
+
+    @Override
+    public void removed(Player player) {
+        emptyRollIntoPack();   // closing the pack never strands a half-laid-out craft
+        super.removed(player);
     }
 
     public void applyXpSiphon() {
@@ -521,7 +803,7 @@ public class PackMenu extends AbstractContainerMenu {
 
         Player player = playerInv.player;
         if (!player.getInventory().add(give)) {     // pockets full? the pack takes it
-            ItemStack leftover = insertIntoPack(give);
+            ItemStack leftover = insertIntoPack(give, false);
             if (!leftover.isEmpty()) player.drop(leftover, false); // truly nowhere left
         }
     }
@@ -579,7 +861,7 @@ public class PackMenu extends AbstractContainerMenu {
             if (!s.isEmpty()) source.add(s);
         }
         List<ItemStack> merged = com.sappersquad.packwork.sort.PackSorting.tidy(
-                source, SortEngine.tabsFor(layout, hasLedger()), layout);
+                source, SortEngine.tabsFor(layout, fitted()), layout);
         for (int i = 0; i < packInv.getSlots(); i++) {
             packInv.setStackInSlot(i, i < merged.size() ? merged.get(i) : ItemStack.EMPTY);
         }
