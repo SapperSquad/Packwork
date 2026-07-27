@@ -56,10 +56,12 @@ no rule wanted, so nothing ever disappears.
 ## One pack, many fittings
 
 Craft it up the ladder — Canvas, Leather, Studded, Reinforced, Runed, **Dragonhide** —
-each tier crafted *from the pack before it*, carrying everything inside straight up. And
-every step cuts the slots **deeper**: from one stack a slot on Canvas to **six stacks a
-slot** on Dragonhide, with the world outside only ever seeing legal stacks. Then slot
-brass **trinkets** into it:
+each tier built as a full **ring around the pack before it** (its hide on the edges, its
+fittings on the corners: copper buckles, cut-copper studs, iron plates with diamonds,
+amethyst with echo shards, shulker shells with dragon's breath), carrying everything
+inside straight up. And every step cuts the slots **deeper**: from one stack a slot on
+Canvas to **six stacks a slot** on Dragonhide, with the world outside only ever seeing
+legal stacks. Then slot brass **trinkets** into it:
 
 | Fitting | |
 |---|---|

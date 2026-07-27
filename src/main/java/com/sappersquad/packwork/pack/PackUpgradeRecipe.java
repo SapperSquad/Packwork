@@ -6,6 +6,7 @@ import com.sappersquad.packwork.reg.ModComponents;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.reg.ModRecipes;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -16,74 +17,65 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.common.crafting.SizedIngredient;
-
-import java.util.List;
 
 /**
- * THE way up the ladder: a pack of the {@code from} tier plus this tier's materials
- * becomes the {@code to} tier with every component - items, layout, trinkets, custom
- * name, and all five stores - carried over. Since 2026-07-25 (SapperSquad's call) this
- * preserving craft IS the visible recipe for every tier above Canvas; there are no
- * raw-material recipes that could sit beside it and confuse anyone into a craft that
- * eats a pack. No recipe in this mod ever consumes a filled pack's contents.
+ * THE way up the ladder, drawn as a picture: the previous tier's pack sits in the CENTER
+ * of the bench, and the new tier is built as a full RING around it - the tier's hide or
+ * plating on the four EDGES, its fittings on the four CORNERS. All nine cells filled,
+ * always (SapperSquad's call, 2026-07-26: no gaps, pack centered). The result carries every
+ * component - items, layout, trinkets, custom name, and all five stores - so no recipe in
+ * this mod ever consumes a filled pack's contents.
  *
- * <p>{@code materials} is a list of sized ingredients, so a tier may demand any number
- * of distinct reagents (the Dragonhide upgrade wants shulker shells AND dragon's
- * breath) without the recipe shape growing a field per reagent.
+ * <p><b>Positions matter; the picture IS the recipe.</b> Edges and corners are not
+ * interchangeable - iron plates go on the edges, diamonds on the corners, and a swapped
+ * ring does not match. Rotations and mirrors are all accepted for free, because every
+ * edge cell asks for the same thing and every corner cell does too.
  *
- * <p><b>Count means SLOTS, not stack size.</b> Vanilla crafting consumes exactly one item
- * per occupied grid cell when the result is taken ({@code ResultSlot.onTake} shrinks each
- * slot by 1 - verified in the 1.21.1 sources), so the only honest way to charge four
- * leather is to require four leather-holding CELLS. Counting item totals instead let a
- * stack of four in one cell match while crafting consumed only one - a 75% discount.
- * This also makes the JEI layout literal: what it draws is exactly what you place.
+ * <p><b>Consumption is honest by construction.</b> Vanilla crafting consumes exactly one
+ * item per occupied cell when the result is taken ({@code ResultSlot.onTake} shrinks each
+ * slot by 1 - verified in the 1.21.1 sources), and this recipe demands all nine cells
+ * occupied, so the full price is always paid; payment can never be concentrated into a
+ * stacked cell (the old summed-count matcher allowed exactly that underpay).
+ *
+ * <p>{@link #getIngredients} is load-bearing, not decorative: JEI's recipe scan
+ * ({@code CategoryRecipeValidator}, verified in the 19.21.1.312 sources) silently drops
+ * any non-special crafting recipe whose ingredient list is empty, before drawing
+ * extensions are consulted. The row-major 3x3 list here is what lets the ladder render.
  */
-public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient> materials,
+public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, Ingredient corners,
                                 CraftingBookCategory category) implements CraftingRecipe {
+
+    /** Row-major 3x3 cell roles: the centre is the pack; odd cells are edges, the rest corners. */
+    public static final int CENTER_CELL = 4;
+
+    private static boolean isEdgeCell(int cell) {
+        return cell % 2 == 1;
+    }
 
     @Override
     public boolean matches(CraftingInput input, Level level) {
-        int packs = 0;
-        int[] found = new int[materials.size()];
-        for (int i = 0; i < input.size(); i++) {
-            ItemStack s = input.getItem(i);
-            if (s.isEmpty()) continue;
-            if (s.getItem() instanceof PackItem p && p.tier() == from) {
-                packs++;
-                continue;
+        // CraftingInput trims empty rows/columns, so a full ring is the only way to be 3x3.
+        if (input.width() != 3 || input.height() != 3) return false;
+        for (int cell = 0; cell < 9; cell++) {
+            ItemStack s = input.getItem(cell);
+            if (cell == CENTER_CELL) {
+                if (!(s.getItem() instanceof PackItem p) || p.tier() != from) return false;
+            } else if (isEdgeCell(cell)) {
+                if (!edges.test(s)) return false;
+            } else {
+                if (!corners.test(s)) return false;
             }
-            int matched = -1;
-            for (int m = 0; m < materials.size(); m++) {
-                if (materials.get(m).ingredient().test(s)) {
-                    matched = m;
-                    break;
-                }
-            }
-            if (matched < 0) return false; // any unexpected item disqualifies the recipe
-            found[matched]++;              // one SLOT pays one material (see class doc)
-        }
-        if (packs != 1) return false;
-        for (int m = 0; m < materials.size(); m++) {
-            // exact, like every vanilla recipe: extra material cells would be silently eaten
-            if (found[m] != materials.get(m).count()) return false;
         }
         return true;
     }
 
     @Override
     public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
-        ItemStack pack = ItemStack.EMPTY;
-        for (int i = 0; i < input.size(); i++) {
-            ItemStack s = input.getItem(i);
-            if (s.getItem() instanceof PackItem p && p.tier() == from) {
-                pack = s;
-                break;
-            }
-        }
+        ItemStack pack = input.getItem(CENTER_CELL);
         ItemStack result = new ItemStack(ModItems.pack(to).get());
         copy(pack, result, ModComponents.PACK_CONTENTS.get());
         copy(pack, result, ModComponents.PACK_LAYOUT.get());
@@ -104,37 +96,28 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
 
     @Override
     public boolean canCraftInDimensions(int width, int height) {
-        // the pack's cell plus one cell per material item (count = slots, see class doc)
-        int cells = 1;
-        for (SizedIngredient m : materials) cells += m.count();
-        return width * height >= cells;
+        return width >= 3 && height >= 3; // the full ring needs the whole bench
     }
 
     /**
-     * The honest cell-by-cell ingredient list: the previous tier's pack, then one entry
-     * per material CELL. This is not decorative - JEI's recipe scan
-     * ({@code CategoryRecipeValidator.hasValidInputsAndOutputs}, verified in the
-     * 19.21.1.312 sources) silently drops any non-special crafting recipe whose
-     * ingredient list is empty ("Skipping Recipe because it has no inputs", DEBUG-only),
-     * so with the default empty list the upgrade never reached our JEI extension and the
-     * ladder showed info pages instead of crafts. It also matches how {@code matches()}
-     * counts and how crafting consumes: one item per cell.
+     * The honest row-major 3x3: corner, edge, corner / edge, PACK, edge / corner, edge,
+     * corner. Exactly what {@link #matches} accepts and what JEI draws - and the reason
+     * JEI's validator accepts the recipe at all (see the class doc).
      *
      * <p>Deliberately harmless elsewhere: vanilla's recipe book only shows unlocked
-     * recipes (we award none), and the pack's own Recipe Ledger will not list an
-     * upgrade from pack stock because a pack cannot contain a pack (nesting is
-     * blocked) - {@code StackedContents.canCraft} says no, and the all-or-nothing
-     * lay-out can never cover the pack cell from stock. (A pack laid on the tool roll
-     * by hand already crafted its upgrade before this change - the roll goes through
-     * {@code matches()}, not this list.)
+     * recipes (we award none), and the pack's own Recipe Ledger will not list an upgrade
+     * from pack stock because a pack cannot contain a pack (nesting is blocked) -
+     * {@code StackedContents.canCraft} says no, and the all-or-nothing lay-out can never
+     * cover the pack cell from stock.
      */
     @Override
-    public net.minecraft.core.NonNullList<net.minecraft.world.item.crafting.Ingredient> getIngredients() {
-        net.minecraft.core.NonNullList<net.minecraft.world.item.crafting.Ingredient> list =
-                net.minecraft.core.NonNullList.create();
-        list.add(net.minecraft.world.item.crafting.Ingredient.of(ModItems.pack(from).get()));
-        for (SizedIngredient m : materials) {
-            for (int i = 0; i < m.count(); i++) list.add(m.ingredient());
+    public NonNullList<Ingredient> getIngredients() {
+        NonNullList<Ingredient> list = NonNullList.create();
+        Ingredient pack = Ingredient.of(ModItems.pack(from).get());
+        for (int cell = 0; cell < 9; cell++) {
+            if (cell == CENTER_CELL) list.add(pack);
+            else if (isEdgeCell(cell)) list.add(edges);
+            else list.add(corners);
         }
         return list;
     }
@@ -158,7 +141,8 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
         private static final MapCodec<PackUpgradeRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("from").forGetter(PackUpgradeRecipe::from),
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("to").forGetter(PackUpgradeRecipe::to),
-                SizedIngredient.NESTED_CODEC.listOf().fieldOf("materials").forGetter(PackUpgradeRecipe::materials),
+                Ingredient.CODEC_NONEMPTY.fieldOf("edges").forGetter(PackUpgradeRecipe::edges),
+                Ingredient.CODEC_NONEMPTY.fieldOf("corners").forGetter(PackUpgradeRecipe::corners),
                 CraftingBookCategory.CODEC.optionalFieldOf("category", CraftingBookCategory.EQUIPMENT)
                         .forGetter(PackUpgradeRecipe::category)
         ).apply(inst, PackUpgradeRecipe::new));
@@ -167,7 +151,8 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
                 StreamCodec.composite(
                         ByteBufCodecs.idMapper(i -> PackTier.values()[i], Enum::ordinal), PackUpgradeRecipe::from,
                         ByteBufCodecs.idMapper(i -> PackTier.values()[i], Enum::ordinal), PackUpgradeRecipe::to,
-                        SizedIngredient.STREAM_CODEC.apply(ByteBufCodecs.list()), PackUpgradeRecipe::materials,
+                        Ingredient.CONTENTS_STREAM_CODEC, PackUpgradeRecipe::edges,
+                        Ingredient.CONTENTS_STREAM_CODEC, PackUpgradeRecipe::corners,
                         CraftingBookCategory.STREAM_CODEC, PackUpgradeRecipe::category,
                         PackUpgradeRecipe::new);
 

@@ -4,6 +4,21 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Changed — every upgrade is a full ring around the pack
+- **The recipe is a picture now.** Set your pack in the MIDDLE of the bench and build the
+  next tier around it — all nine cells filled, the tier's hide or plating on the four
+  edges, its fittings on the four corners. Turn the ring any way you like; swap edges and
+  corners and it won't craft, because the picture is the recipe.
+- **The ladder, cell by cell:** CANVAS is a chest wrapped in wool, corners tied with
+  string. LEATHER rings the canvas pack in leather with copper buckles at the corners.
+  STUDDED rings it in leather with **cut-copper studs**. REINFORCED wears **iron plates
+  cornered with diamonds**. RUNED sets **amethyst edged around echo shards** from the
+  Deep Dark. DRAGONHIDE armors the ring in **shulker shells with dragon's breath** at
+  the corners.
+- Studs are copper now and plates are iron — the recipes finally match the art on the
+  packs (the studded tier wears brass, the reinforced tier wears steel). Diamonds on
+  Reinforced are SapperSquad's call. Everything inside still rides up untouched.
+
 ### Fixed — JEI shows the real recipes
 - **"How do I make each pack" is a recipe again, not lore.** The tier-upgrade craft is a
   custom recipe, and JEI was never taught to draw it — every pack above Canvas showed only
@@ -86,8 +101,8 @@ All notable changes, newest first. Dates are the suite's working dates.
   all carried up. There is no recipe left anywhere that could eat a filled pack.
 - **Upgrades now carry the stores too.** Found while reworking the chain: an upgrade used to
   quietly drop stored water, XP, charge, embers and vapors. Everything rides up now.
-- **The Runed upgrade wants 2 echo shards** alongside its amethyst, keeping the Deep Dark
-  gate the old raw recipe had.
+- **The Runed upgrade keeps the Deep Dark gate** the old raw recipe had — echo shards sit
+  at its corners (see the full-ring recipes above).
 
 ### Added — the Recipe Ledger (the Tinker's Kit browser)
 - **A parchment sheet of everything the pack can make right now.** With the tool roll out,

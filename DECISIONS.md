@@ -266,6 +266,8 @@ one can be flipped later without unpicking the rest:
 - **`PackUpgradeRecipe` gained an optional second material** (`material2`/`count2`,
   absent-safe for the existing JSONs) because one endgame gate wants two distinct reagents.
   Its stream codec is hand-rolled - seven fields exceeds `StreamCodec.composite`'s arity.
+  *(SUPERSEDED 2026-07-26 by the upgrade-ring rework: the recipe is shaped now with plain
+  `edges`/`corners` Ingredients, and the sized-material machinery is gone.)*
 - **The 6th tier is DRAGONHIDE** (flag for SapperSquad - veto welcome; alternatives considered:
   Wyrmhide, Drakeskin). End-gated: Runed pack + 4 shulker shells + 4 dragon's breath. The
   Runed upgrade also picked up 2 echo shards as material2, preserving the deleted raw recipe's
@@ -302,6 +304,36 @@ one can be flipped later without unpicking the rest:
   upgrades) are refused on both sides.
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
+
+## 2026-07-26 — the upgrade ring: nine cells, pack centered, diamonds on Reinforced (SapperSquad's calls)
+
+- **SapperSquad's hard constraints, from playtest:** every pack recipe fills ALL NINE cells; the
+  previous tier's pack sits in the CENTER; Reinforced uses DIAMONDS, not copper. Composition
+  beyond that was delegated: every upgrade is a TWO-MATERIAL RING — the tier's bulk hide or
+  plating on the four EDGES, its fitting/accent on the four CORNERS — so each recipe pictures
+  the tier's art story. The ladder: Canvas = chest heart, wool edges, string-tied corners
+  (raw craft, same ring language); Leather = leather edges + copper-ingot corners (the buckle,
+  visible); Studded = leather edges + CUT COPPER corners (worked copper reads as studs, and
+  copper finally gets a sink); Reinforced = iron-plate edges + diamond corners; Runed =
+  amethyst edges + echo-shard corners (Deep Dark gate kept, now 4 shards); Dragonhide =
+  shulker-shell edges + dragon's-breath corners. Studs-copper/plates-iron also FIXES the old
+  material swap — the art always drew studs as brass and reinforcement as steel, but the old
+  recipes charged iron for Studded and copper for Reinforced.
+- **`PackUpgradeRecipe` is genuinely shaped now: `(from, to, edges, corners)`, two plain
+  Ingredients.** `matches()` demands a 3x3 input (CraftingInput trims empties, so a gapped
+  ring can never be 3x3), the from-tier pack at cell 4, `edges` on the odd cells, `corners`
+  on the rest. Rotations and mirrors are free (all edge cells alike, all corner cells alike);
+  edges and corners are NOT interchangeable — the picture is the recipe — and a gametest pins
+  the swapped ring as a non-match. The underpay exploit stays closed by construction: all
+  nine cells occupied means vanilla's shrink-one-per-cell always charges full price; payment
+  cannot be concentrated into a stack. The optional `material2`/`count2` machinery (and
+  `SizedIngredient`s entirely) went away — the ring IS the two-material shape, and the
+  5-field codec fits `composite` again.
+- **JEI draws the ring positioned (3x3, no shapeless marker)** — `createAndSetInputs(…, 3, 3)`
+  with the same cell mapping `matches()` uses, and the extension answers `getWidth/getHeight`
+  = 3. `getIngredients()` stays honest (row-major ring, pack at index 4) — it remains the
+  reason JEI's validator accepts the recipe at all; the gametest asserts all nine cells and
+  the centered pack.
 
 ## 2026-07-26 — per-tab arrangement: Tidy vs Keep-my-layout (SapperSquad's call)
 

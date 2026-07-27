@@ -1,2 +1,3 @@
 { "type": "packwork:pack_upgrade", "from": "canvas", "to": "leather",
-  "materials": [ { "ingredient": { "item": "minecraft:leather" }, "count": 4 } ] }
+  "edges":   { "item": "minecraft:leather" },
+  "corners": { "item": "minecraft:copper_ingot" } }

@@ -43,8 +43,9 @@ keeping every fidelity gain from pass 3.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
 **2026-07-26 playtest wave 4 — JEI real recipes, legible pinning, the rule editor, per-tab
-arrangement.** SapperSquad's live-client playtest called four things; ALL FOUR are landed. 44
-GameTests green; version stays **0.1.0**. **Visuals pending:** his client ran through most of
+arrangement, the upgrade ring.** SapperSquad's live-client playtest called four things; all four
+are landed, plus two field follow-ups from his re-tests (the JEI validator root-cause fix
+and the full-ring recipes, items 1 and 5 below). 45 GameTests green; version stays **0.1.0**. **Visuals pending:** his client ran through most of
 this wave and client launches were blocked after it closed, so the new GUI work is
 logic-verified + gametested but NOT yet seen as pixels. The harness is ready for it:
 `./gradlew.bat runClient -Pautoshot -Pjei` now walks the auto-pin drop (note + ribbon), the
@@ -54,6 +55,19 @@ screenshots `packwork_autopin` / `packwork_rules_*` / `packwork_keep_layout` /
 `packwork_jei_upgrade`. Also new: the JEI plugin declares the tab rail, fittings rail, and
 open parchment sheets as GUI extra areas so JEI's ingredient list stays off them — check
 that as pixels too.
+
+5. **The upgrade RING (SapperSquad's playtest calls: nine cells, pack centered, diamonds).** Every
+   pack recipe now fills all 9 cells with the previous pack in the CENTER: bulk material on
+   the edges, fittings on the corners. Ladder: Canvas = wool edges/string corners/chest
+   heart (raw); Leather = leather/copper; Studded = leather/CUT COPPER (studs read as
+   worked copper, fixing the old studs-iron/plates-copper art swap); Reinforced =
+   iron/DIAMOND (SapperSquad's explicit call); Runed = amethyst/echo shards; Dragonhide = shulker
+   shells/dragon's breath. `PackUpgradeRecipe` is shaped now — `(from, to, edges, corners)`
+   plain Ingredients, matches() demands the 3x3 with the pack at cell 4, rotations free,
+   edges/corners NOT interchangeable (gametest pins the swap as non-match), underpay closed
+   by construction (all cells occupied = full price). JEI draws the positioned ring, no
+   shapeless marker; `getIngredients()` stays the honest row-major ring (still what gets the
+   recipe past JEI's validator). material2/SizedIngredient machinery removed.
 
 4. **Per-tab arrangement switch (SapperSquad's call: Tidy / Keep-my-layout).** Every compartment
    gets a mode button under the grid (next to the quill): TIDY = today's auto-arranged view;

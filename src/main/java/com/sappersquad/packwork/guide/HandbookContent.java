@@ -188,10 +188,14 @@ public final class HandbookContent {
             text("Depth belongs to the TIER; extra slots belong to the BOTTOMLESS LINING. One axis "
                 + "each: craft the material to hold more of everything, fit the lining to hold more "
                 + "kinds of thing. They never overlap, so there's no double-dipping to puzzle over."),
-            text("The ladder itself: sew a CANVAS pack from wool and string, then every later tier "
-                + "is crafted FROM the pack before it plus that tier's materials - leather, then "
-                + "iron, then copper, then amethyst and echo shards for RUNED, and for DRAGONHIDE "
-                + "the spoils of the End itself: shulker shells and dragon's breath."),
+            text("The ladder itself: sew a CANVAS pack - a chest wrapped in wool, its corners tied "
+                + "with string. Every later tier is the same picture: set your pack in the MIDDLE "
+                + "of the bench and build its ring around it - the tier's hide or plating on the "
+                + "four edges, its fittings on the four corners. LEATHER ringed in copper buckles; "
+                + "STUDDED's cut-copper studs; REINFORCED iron plates cornered with diamonds; "
+                + "RUNED amethyst with echo shards from the Deep Dark; and DRAGONHIDE shulker-shell "
+                + "armor with dragon's breath at the corners. All nine cells, always - and turn the "
+                + "ring any way you like, the pack doesn't mind."),
             text("Upgrading is safe, always. The upgrade craft IS the recipe - a full pack plus "
                 + "materials - and the result carries contents, layout, trinkets, name, and every "
                 + "store (water, XP, charge, embers, vapors) straight up. A craft never eats "
