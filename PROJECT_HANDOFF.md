@@ -14,10 +14,11 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — shippable for its available-dep scope; gas/Curios/JEI deferred, ready to enable
+## Status — feature-complete and audited; all integrations (gas/Curios/JEI/Forgework) live as soft deps
 
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
-> first build); bump/label at publish. 23 GameTests green; jar builds clean.
+> first build); bump/label at publish. **54 GameTests green** (with no optional deps AND
+> with -Pforgework -Pmekanism -Pcurios combined); jar builds clean.
 
 **2026-07-23 art pass 4 (backpack silhouette) — DONE & verified in-game.** Alex reviewed the
 hero packs: shading was good but the silhouette had come out too ROUND — the packs read like

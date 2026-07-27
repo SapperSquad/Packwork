@@ -118,7 +118,7 @@ carries on without it.
 | `packwork_combat.png` (real shot) | One compartment: weapons and armor, claimed automatically. |
 | `packwork_search.png` (real shot) | Search "iron" — flattened to just what matches. |
 | `packwork_handbook.png` (real shot) | The Outfitter's Handbook, open to "The Pack". |
-| `packwork_placed_world.png` (real shot) | All five per-tier packs set down in the world, each wearing its trim. |
+| `packwork_placed_world.png` (RE-SHOOT: shows five tiers, pre-Sculkhide) | All six per-tier packs set down in the world, each wearing its trim. |
 | `card_trinkets.png` (TODO) | The working fittings. |
 
 **Art carrying version-specific claims** (trinket counts, resource-store list, MC

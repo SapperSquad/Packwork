@@ -1662,6 +1662,48 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * The pre-release craftability sweep: EVERY item Packwork registers must be reachable
+     * in survival - some loaded recipe in the real RecipeManager produces it - or be a
+     * documented deliberate exception. Exceptions: the Flask Harness's recipe is gated
+     * behind {@code neoforge:mod_loaded mekanism} (no dead craftable without the mod).
+     * Also proves every packwork recipe actually LOADED (a broken JSON is silently dropped
+     * by the recipe loader) and that every ingredient it references resolves to at least
+     * one real item with no optional deps present (empty c:-tags would make an
+     * uncraftable-in-practice recipe that still "exists").
+     */
+    @GameTest(template = "empty")
+    public static void everyItemIsCraftableOrExcepted(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+        var manager = helper.getLevel().getRecipeManager();
+
+        java.util.Set<net.minecraft.world.item.Item> producible = new java.util.HashSet<>();
+        int packworkRecipes = 0;
+        for (var holder : manager.getRecipes()) {
+            ItemStack result = holder.value().getResultItem(reg);
+            if (result != null && !result.isEmpty()) producible.add(result.getItem());
+            if (holder.id().getNamespace().equals("packwork")) {
+                packworkRecipes++;
+                for (var ing : holder.value().getIngredients()) {
+                    helper.assertTrue(ing.isEmpty() || ing.getItems().length > 0,
+                            holder.id() + ": every ingredient must resolve to a real item");
+                }
+            }
+        }
+        boolean mekanism = net.neoforged.fml.ModList.get().isLoaded("mekanism");
+        int expected = mekanism ? 25 : 24; // canvas + 5 rings + trinkets (flask gated) + handbook
+        helper.assertTrue(packworkRecipes == expected,
+                "all packwork recipes loaded, want " + expected + ", got " + packworkRecipes);
+        for (var entry : BuiltInRegistries.ITEM.entrySet()) {
+            ResourceLocation id = entry.getKey().location();
+            if (!id.getNamespace().equals("packwork")) continue;
+            if (!mekanism && id.getPath().equals("flask_harness")) continue; // gated recipe, documented
+            helper.assertTrue(producible.contains(entry.getValue()),
+                    id + " must be craftable in survival - no recipe produces it");
+        }
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

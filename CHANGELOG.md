@@ -202,8 +202,8 @@ All notable changes, newest first. Dates are the suite's working dates.
   unchanged.
 - **Search text is crisp now.** The search field was drawn with a drop shadow, which muddied
   dark text on the pale canvas strip into a fuzzy look; it now draws sharp at every GUI scale.
-- **Nothing sits low or bleeds off the slot anymore.** Every Packwork sprite (5 packs, 11
-  trinkets, the handbook, the block-item) was re-authored to a shared centred box with a 1px
+- **Nothing sits low or bleeds off the slot anymore.** Every Packwork sprite (every pack,
+  every trinket, the handbook, the block-item) was re-authored to a shared centred box with a 1px
   margin, so no icon runs to the edge or hangs low in its cell. A tiny audit tool
   (`tools/AnalyzeSprites.java`) proves each sprite's bounding box and margins.
 - **Hover + P to pin actually shows — and now you can't miss it.** Pinning is a rebindable
@@ -222,7 +222,7 @@ All notable changes, newest first. Dates are the suite's working dates.
   rack of two vapour flasks) and the Waterskin (corked, with a water sheen).
 
 ### Changed — hero packs + trinket polish
-- **The five packs are hero art now (32×32).** Each pack is a boxy, form-shaded leather
+- **The packs are hero art now (32×32).** Each pack is a boxy, form-shaded leather
   **backpack** — a draped flap with a stitched hem, a brass buckle with a metal glint, a strap
   with real thickness, side pockets, a top grab-handle — lit against a rounded, cushioned form
   with ambient occlusion under the flap and a rim light. The material story climbs the ladder:
