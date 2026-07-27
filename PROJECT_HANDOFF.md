@@ -14,11 +14,28 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Status — feature-complete and audited; all integrations (gas/Curios/JEI/Forgework) live as soft deps
+## Status — 1.0.0 stamped, awaiting SapperSquad's upload
 
-> Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
-> first build); bump/label at publish. **57 GameTests green** (with no optional deps AND
-> with -Pforgework -Pmekanism -Pcurios combined); jar builds clean.
+> Newest first. Full source map and roadmap below. Version is **1.0.0** (SapperSquad's call,
+> stamped 2026-07-26; jar = `packwork-1.0.0.jar`); the upload itself is SapperSquad's, from
+> `PUBLISHING.md`. **57 GameTests green** (with no optional deps AND with
+> -Pforgework -Pmekanism -Pcurios combined); `runData` and the full jar build clean.
+
+**2026-07-26 release stamping — 1.0.0 (SapperSquad's final calls after his confirm pass).**
+Version **1.0.0** stamped everywhere: `gradle.properties mod_version` (the single source —
+`neoforge.mods.toml` takes `${mod_version}`), PUBLISHING's placeholders + upload table
+(`1.0.0+mc1.21.1`, `packwork-1.0.0.jar`), CHANGELOG release header **1.0.0 "First Haul" —
+2026-07-26** (the old internal 0.1.0 header retitled "internal milestone, never
+published" so First Haul names exactly one release). Environment metadata locked:
+**Client Required / Server Required** in the upload table ("Needed on both sides: on
+servers, install on the server and every client") — `neoforge.mods.toml` audited, every
+dependency `side="BOTH"`, no `clientSideOnly` flag to contradict it. Gallery = **SapperSquad's 6
+picks** in display order (lineup hero / sorting / Recipe Ledger / rule editor / Sculkhide
+night in its committed stronger framing, NOT the mirrored regen / JEI ring);
+keep-layout + pickup-pin stay in `promo/` as non-store extras (noted in both READMEs).
+Verified at the stamp: full matrix green (57 plain, 57 `-Pcurios`, 57 all-flags),
+`runData` clean, `build` clean, and the built jar's own `neoforge.mods.toml` reads
+`version="1.0.0"`. Tagged `v1.0.0` (annotated, not pushed).
 
 **2026-07-26 open-from-worn — the Curios-slot GUI gap is CLOSED (SapperSquad's ask).** A pack worn
 in the back slot opens directly: same tabbed organizer, fully live (sort, pin, trinkets,

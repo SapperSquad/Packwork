@@ -2,7 +2,12 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
-## Unreleased — playtest polish
+## 1.0.0 "First Haul" — 2026-07-26
+
+The first public release. Everything below this header up to the internal 0.1.0
+milestone shipped together as **1.0.0**: the playtest-polish waves (worn-slot opening,
+pack-first pickup, the upgrade ring, the rule editor, keep-my-layout, JEI real recipes)
+on top of the internal first build.
 
 ### Added — open the pack straight off your back (Curios)
 - **A worn pack opens now.** With Curios installed and a pack in the back slot, **B**
@@ -21,7 +26,7 @@ All notable changes, newest first. Dates are the suite's working dates.
 ### Internal — release dressing (nothing published)
 - `PUBLISHING.md` restructured into the paste-ready store kit: summary, full project
   description, gallery plan with captions, requirements, and the first-release changelog
-  block. Version number is a visible TODO for SapperSquad.
+  block. (The version placeholder it carried was stamped **1.0.0** at release.)
 - New `promo/` kit: icon + wide banner composed from the real in-game sprites by
   `tools/GenPromo.java` (Java-only tooling), plus eight staged gallery shots from the new
   `-Pgallery` dev-harness chain — six-tier lineup, sorting GUI, Recipe Ledger ghost, rule
@@ -271,7 +276,7 @@ All notable changes, newest first. Dates are the suite's working dates.
   flame. The **Lodestone Charm** is a dark iron-grey magnetite stone with a faint violet sheen
   on a cord (no more antennae).
 
-## 0.1.0 "First Haul" — 2026-07-23
+## 0.1.0 — 2026-07-23 (internal milestone, never published)
 
 The first shippable build: the self-sorting pack, the material ladder, the trinket
 framework, three resource stores, a placeable + automatable pack, a gated Forgework bridge,
