@@ -61,6 +61,11 @@ runs {
         if (project.hasProperty('autoshot')) {
             systemProperty 'packwork.autoshot', '1'
         }
+        // Promo gallery shoot: ./gradlew runClient -Pgallery (add -Pjei for the ring shot)
+        // stages the store-page shots at 1920x1080 and exits the phase chain when done.
+        if (project.hasProperty('gallery')) {
+            systemProperty 'packwork.gallery', '1'
+        }
     }
 
     server {

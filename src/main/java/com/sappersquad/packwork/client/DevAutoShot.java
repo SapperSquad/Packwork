@@ -32,7 +32,10 @@ import net.neoforged.neoforge.items.IItemHandler;
 @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
 public final class DevAutoShot {
 
-    private static final boolean ENABLED = System.getProperty("packwork.autoshot") != null;
+    private static final boolean AUTOSHOT = System.getProperty("packwork.autoshot") != null;
+    /** The promo-gallery shoot: a separate, shorter chain that stages the store-page shots. */
+    private static final boolean GALLERY = System.getProperty("packwork.gallery") != null;
+    private static final boolean ENABLED = AUTOSHOT || GALLERY;
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
@@ -54,10 +57,20 @@ public final class DevAutoShot {
         RULES_TAB, RULES_W0, RULES_OPEN, RULES_W1, SHOOT_RULES,
         RULES_WRITE, RULES_W2, SHOOT_RULES2,
         MODE_PREP, MODE_W0, MODE_ON, MODE_MOVE1, MODE_MW, MODE_MOVE2, MODE_W2, SHOOT_MODE,
-        JEI_SHOW, JEI_W, SHOOT_JEI, DONE
+        JEI_SHOW, JEI_W, SHOOT_JEI, DONE,
+        // ---- the promo-gallery chain (runs INSTEAD of the above under -Pgallery) ----
+        G_BOOT, G_WAIT_LEVEL,
+        G_PLACE, G_WPLACE, G_SHOOT_LINEUP,
+        G_OPEN, G_WOPEN, G_SHOOT_SORTING,
+        G_KIT, G_KIT_W, G_UNROLL, G_UNROLL_W, G_LEDGER, G_LEDGER_W, G_CHALK, G_CHALK_W, G_SHOOT_LEDGER,
+        G_PACK2, G_PACK2_W, G_TAB, G_TAB_W, G_QUILL, G_QUILL_W, G_WRITE, G_WRITE_W, G_SHOOT_RULES,
+        G_KEEP_PREP, G_KEEP_W0, G_KEEP_ON, G_KEEP_MOVE1, G_KEEP_MW, G_KEEP_MOVE2, G_KEEP_W2, G_SHOOT_KEEP,
+        G_PICKUP, G_PICKUP_W, G_PICKUP_TAB, G_PICKUP_TW, G_PICKUP_DROP, G_PICKUP_DW, G_SHOOT_PICKUP,
+        G_NIGHT, G_NIGHT_W, G_SHOOT_NIGHT,
+        G_JEI, G_JEI_W, G_SHOOT_JEI
     }
 
-    private static Phase phase = Phase.BOOT;
+    private static Phase phase = GALLERY ? Phase.G_BOOT : Phase.BOOT;
     private static int ticks = 0;
     private static int wait = 0;
     private static String customTabId = "custom:0";
@@ -423,6 +436,174 @@ public final class DevAutoShot {
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[autoshot] done - screenshots written");
             }
+            // ================= the promo-gallery chain (-Pgallery) =================
+            case G_BOOT -> {
+                if (ticks == 5) {
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1920, 1080);
+                        mc.options.guiScale().set(3);
+                        mc.resizeDisplay();
+                        Packwork.LOGGER.info("[gallery] window 1920x1080 @ guiScale 3");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[gallery] resize failed: {}", t.toString());
+                    }
+                }
+                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                    Packwork.LOGGER.info("[gallery] creating throwaway world");
+                    LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
+                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                    mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                    phase = Phase.G_WAIT_LEVEL;
+                    wait = 0;
+                }
+            }
+            case G_WAIT_LEVEL -> {
+                if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
+                    phase = Phase.G_PLACE;
+                    wait = 0;
+                }
+            }
+            case G_PLACE -> {
+                placeBlocks(mc, 26);          // the six-tier row on a SKY pad, midday - clean backdrop
+                mc.options.hideGui = true;    // a clean world shot: no hotbar, no crosshair
+                phase = Phase.G_WPLACE; wait = 0;
+            }
+            case G_WPLACE -> { if (++wait > 50) phase = Phase.G_SHOOT_LINEUP; }
+            case G_SHOOT_LINEUP -> {
+                grab(mc, "gallery_lineup");   // (1) all SIX per-tier packs, daylight
+                mc.options.hideGui = false;
+                phase = Phase.G_OPEN; wait = 0;
+            }
+            case G_OPEN -> {
+                setupAndOpen(mc);             // the filled Sculkhide pack: tabs, sockets, gauges
+                phase = Phase.G_WOPEN; wait = 0;
+            }
+            case G_WOPEN -> {
+                if (wait == 1) parkCursor(mc);   // no hover highlight in the promo frame
+                if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_SHOOT_SORTING; wait = 0; }
+            }
+            case G_SHOOT_SORTING -> {
+                grab(mc, "gallery_sorting");  // (2) the sorting flagship, mid-sort
+                phase = Phase.G_KIT; wait = 0;
+            }
+            case G_KIT -> { giveKitPack(mc); phase = Phase.G_KIT_W; wait = 0; }
+            case G_KIT_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_UNROLL; wait = 0; } }
+            case G_UNROLL -> {
+                switchTab(mc, "auto:nature");
+                clickRollLatch(mc);
+                phase = Phase.G_UNROLL_W; wait = 0;
+            }
+            case G_UNROLL_W -> { if (++wait > 14) { phase = Phase.G_LEDGER; wait = 0; } }
+            case G_LEDGER -> { clickAt(mc, PackScreen::devLedgerButtonCenter, "ledger button"); phase = Phase.G_LEDGER_W; wait = 0; }
+            case G_LEDGER_W -> { if (++wait > 10) { phase = Phase.G_CHALK; wait = 0; } }
+            case G_CHALK -> {
+                clickAt(mc, ps -> ps.devLedgerCellCenter("minecraft:bread"), "bread on the ledger");
+                phase = Phase.G_CHALK_W; wait = 0;
+            }
+            case G_CHALK_W -> {
+                if (wait == 1) parkCursor(mc);
+                if (++wait > 10) phase = Phase.G_SHOOT_LEDGER;
+            }
+            case G_SHOOT_LEDGER -> {
+                grab(mc, "gallery_ledger");   // (3) the Recipe Ledger with a ghost chalked
+                phase = Phase.G_PACK2; wait = 0;
+            }
+            case G_PACK2 -> { setupAndOpen(mc); phase = Phase.G_PACK2_W; wait = 0; }
+            case G_PACK2_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_TAB; wait = 0; } }
+            case G_TAB -> { newTab(mc); phase = Phase.G_TAB_W; wait = 0; }
+            case G_TAB_W -> { if (++wait > 8) { phase = Phase.G_QUILL; wait = 0; } }
+            case G_QUILL -> { clickAt(mc, PackScreen::devQuillButtonCenter, "the quill"); phase = Phase.G_QUILL_W; wait = 0; }
+            case G_QUILL_W -> { if (++wait > 10) { phase = Phase.G_WRITE; wait = 0; } }
+            case G_WRITE -> {
+                if (mc.screen instanceof PackScreen ps) ps.devSetRuleValue("ingot");
+                clickAt(mc, PackScreen::devRuleAddNameCenter, "file 'ingot' by name");
+                clickAt(mc, ps -> ps.devRuleChipCenter(0), "the Food chip");
+                phase = Phase.G_WRITE_W; wait = 0;
+            }
+            case G_WRITE_W -> {
+                if (wait == 1) parkCursor(mc);
+                if (++wait > 12) phase = Phase.G_SHOOT_RULES;
+            }
+            case G_SHOOT_RULES -> {
+                grab(mc, "gallery_rules");    // (4) the Quill & Ledger's rule sheet, written on
+                phase = Phase.G_KEEP_PREP; wait = 0;
+            }
+            case G_KEEP_PREP -> { switchTab(mc, "auto:ores"); phase = Phase.G_KEEP_W0; wait = 0; }
+            case G_KEEP_W0 -> { if (++wait > 8) { phase = Phase.G_KEEP_ON; wait = 0; } }
+            case G_KEEP_ON -> { clickAt(mc, PackScreen::devModeButtonCenter, "keep-my-layout"); phase = Phase.G_KEEP_MOVE1; wait = 0; }
+            case G_KEEP_MOVE1 -> {
+                if (++wait > 8) {
+                    clickViewSlot(mc, true, 0, "pick up the first Ores stack");
+                    phase = Phase.G_KEEP_MW; wait = 0;
+                }
+            }
+            case G_KEEP_MW -> { if (++wait > 6) { phase = Phase.G_KEEP_MOVE2; wait = 0; } }
+            case G_KEEP_MOVE2 -> { clickViewSlot(mc, false, 12, "set it down two rows lower"); phase = Phase.G_KEEP_W2; wait = 0; }
+            case G_KEEP_W2 -> {
+                if (wait == 1) parkCursor(mc);
+                if (++wait > 12) phase = Phase.G_SHOOT_KEEP;
+            }
+            case G_SHOOT_KEEP -> {
+                grab(mc, "gallery_keep");     // (5) keep-my-layout: the moved stack holds its cell
+                phase = Phase.G_PICKUP; wait = 0;
+            }
+            case G_PICKUP -> { giveLodestonePackAndOpen(mc); phase = Phase.G_PICKUP_W; wait = 0; }
+            case G_PICKUP_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_PICKUP_TAB; wait = 0; } }
+            case G_PICKUP_TAB -> { switchTab(mc, "auto:ores"); phase = Phase.G_PICKUP_TW; wait = 0; }
+            case G_PICKUP_TW -> { if (++wait > 8) { phase = Phase.G_PICKUP_DROP; wait = 0; } }
+            case G_PICKUP_DROP -> { giveCarried(mc, new ItemStack(Items.BREAD, 5)); phase = Phase.G_PICKUP_DW; wait = 0; }
+            case G_PICKUP_DW -> {
+                if (++wait > 12) {
+                    clickViewSlot(mc, false, 0, "drop bread into Ores (auto-pin)");
+                    phase = Phase.G_SHOOT_PICKUP; wait = 0;
+                }
+            }
+            case G_SHOOT_PICKUP -> {
+                if (wait == 1) parkCursor(mc);
+                if (++wait > 12) {
+                    grab(mc, "gallery_pickup_pin"); // (8) pickup toggle lit + the pin note + ribbon
+                    phase = Phase.G_NIGHT; wait = 0;
+                }
+            }
+            case G_NIGHT -> {
+                mc.setScreen(null);
+                var server = mc.getSingleplayerServer();
+                if (server != null) server.execute(() -> {
+                    if (server.getPlayerList().getPlayers().isEmpty()) return;
+                    ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+                    sp.serverLevel().setDayTime(18000);
+                    // step in close on the Sculkhide so its echo-gem glow carries the frame
+                    if (placedLast != null) {
+                        sp.connection.teleport(placedLast.getX() - 0.8, placedLast.getY(),
+                                placedLast.getZ() - 2.4, 20f, 16f);
+                    }
+                });
+                mc.options.hideGui = true;
+                phase = Phase.G_NIGHT_W; wait = 0;
+            }
+            case G_NIGHT_W -> { if (++wait > 70) phase = Phase.G_SHOOT_NIGHT; } // sky + light re-render
+            case G_SHOOT_NIGHT -> {
+                grab(mc, "gallery_sculkhide_night"); // (6) the glowing tiers in the dark
+                mc.options.hideGui = false;
+                phase = Phase.G_JEI; wait = 0;
+            }
+            case G_JEI -> {
+                if (!net.neoforged.fml.ModList.get().isLoaded("jei")) {
+                    Packwork.LOGGER.info("[gallery] JEI absent - skipping the ring shot");
+                    phase = Phase.DONE;
+                    Packwork.LOGGER.info("[gallery] done - shots written");
+                } else {
+                    showJeiUpgrade(mc);
+                    phase = Phase.G_JEI_W; wait = 0;
+                }
+            }
+            case G_JEI_W -> { if (++wait > 25) phase = Phase.G_SHOOT_JEI; }
+            case G_SHOOT_JEI -> {
+                grab(mc, "gallery_jei_ring");  // (7) the upgrade ring in JEI's crafting category
+                phase = Phase.DONE;
+                Packwork.LOGGER.info("[gallery] done - shots written");
+            }
             default -> {}
         }
     }
@@ -525,6 +706,28 @@ public final class DevAutoShot {
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[autoshot][kit] Runed pack with Tinker's Kit + Sleeve + Creel + Furnace opened");
         });
+    }
+
+    /** Park the real cursor in the bottom-left corner so no hover highlight or tooltip
+     *  photobombs a promo frame. {@code glfwSetCursorPos} does NOT fire the move callback,
+     *  so MouseHandler's cached xpos/ypos are set reflectively too - dev-only code on a
+     *  dev runtime, where the mojmap field names are live. */
+    private static void parkCursor(Minecraft mc) {
+        double px = 4, py = mc.getWindow().getHeight() - 4;
+        try {
+            org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), px, py);
+        } catch (Throwable ignored) {
+        }
+        try {
+            var xf = net.minecraft.client.MouseHandler.class.getDeclaredField("xpos");
+            var yf = net.minecraft.client.MouseHandler.class.getDeclaredField("ypos");
+            xf.setAccessible(true);
+            yf.setAccessible(true);
+            xf.setDouble(mc.mouseHandler, px);
+            yf.setDouble(mc.mouseHandler, py);
+        } catch (Throwable t) {
+            Packwork.LOGGER.warn("[gallery] cursor park (reflective) failed: {}", t.toString());
+        }
     }
 
     /** THE click helper: a genuine press + release at a dev-exposed GUI point. Every scripted
@@ -702,8 +905,17 @@ public final class DevAutoShot {
         });
     }
 
-    /** Set all five per-tier pack blocks on a stone-brick pad and stand the player back to view them. */
+    /** Set all per-tier pack blocks on a stone-brick pad and stand the player back to view them. */
     private static void placeBlocks(Minecraft mc) {
+        placeBlocks(mc, 0);
+    }
+
+    /**
+     * @param rise blocks to lift the pad above the player - the gallery shoot raises it into
+     *             open sky so the backdrop is guaranteed clean whatever terrain the random
+     *             seed dealt (a ground-level pad once spawned walled inside a hillside).
+     */
+    private static void placeBlocks(Minecraft mc, int rise) {
         var server = mc.getSingleplayerServer();
         if (server == null) return;
         server.execute(() -> {
@@ -711,7 +923,7 @@ public final class DevAutoShot {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
             lvl.setDayTime(6000);
-            net.minecraft.core.BlockPos base = sp.blockPosition();
+            net.minecraft.core.BlockPos base = sp.blockPosition().above(rise);
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
             var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
             for (int dx = -2; dx <= 7; dx++)
@@ -730,7 +942,7 @@ public final class DevAutoShot {
             }
             // stand back and centre the five-wide row
             sp.connection.teleport(base.getX() + 2.5, base.getY(), base.getZ() - 2.5, 0f, 14f);
-            Packwork.LOGGER.info("[autoshot] placed five per-tier pack blocks");
+            Packwork.LOGGER.info("[autoshot] placed {} per-tier pack blocks", tiers.length);
         });
     }
 
@@ -804,6 +1016,29 @@ public final class DevAutoShot {
                             buf.writeVarInt(be.getTier().ordinal());
                         });
             }
+        });
+    }
+
+    /** A Leather pack with just a Lodestone, opened - the pack-first pickup toggle's stage. */
+    private static void giveLodestonePackAndOpen(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || server.getPlayerList().getPlayers().isEmpty()) return;
+        server.execute(() -> {
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.getInventory().clearContent();
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.LEATHER).get());
+            new com.sappersquad.packwork.pack.PackTrinketInventory(
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.LEATHER).insertItem(0,
+                    new ItemStack(ModItems.trinket(
+                            com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
+            var store = new com.sappersquad.packwork.pack.PackInventory(
+                    pack, com.sappersquad.packwork.pack.PackTier.LEATHER);
+            store.insertItem(0, new ItemStack(Items.IRON_INGOT, 24), false);
+            store.insertItem(1, new ItemStack(Items.RAW_IRON, 17), false);
+            sp.getInventory().items.set(0, pack);
+            sp.getInventory().selected = 0;
+            PackItem.openPack(sp, 0);
+            Packwork.LOGGER.info("[gallery] Lodestone pack opened for the pickup shot");
         });
     }
 

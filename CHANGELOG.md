@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Internal — release dressing (nothing published)
+- `PUBLISHING.md` restructured into the paste-ready store kit: summary, full project
+  description, gallery plan with captions, requirements, and the first-release changelog
+  block. Version number is a visible TODO for SapperSquad.
+- New `promo/` kit: icon + wide banner composed from the real in-game sprites by
+  `tools/GenPromo.java` (Java-only tooling), plus eight staged gallery shots from the new
+  `-Pgallery` dev-harness chain — six-tier lineup, sorting GUI, Recipe Ledger ghost, rule
+  editor, keep-my-layout, drop-to-pin + pickup toggle, the glowing tiers at night, and the
+  JEI upgrade ring. Every shot inspected as pixels before use.
+
 ### Added — the Lodestone files what you mine (pack-first pickup)
 - **Mined cobble goes straight in the pack now.** With a Lodestone Charm fitted (carried
   or worn), anything you pick up that the pack knows where to put — it sorts to a
