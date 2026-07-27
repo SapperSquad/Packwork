@@ -43,6 +43,20 @@ keeping every fidelity gain from pass 3.
   trim was the noted follow-up at the time** — now done, see the next entry.
 - 23 GameTests green; `compileJava` clean; version stays **0.1.0**.
 
+**2026-07-26 release dressing — the store kit + the gallery shoot (nothing published).**
+`PUBLISHING.md` is now the genuine paste-ready store page (summary, full body, gallery
+captions, requirements, first-release changelog block; `<VERSION>` is Alex's visible TODO).
+New `promo/` kit: icon-512 + banner-1920x640 composed from the real sprites by
+`tools/GenPromo.java`, plus eight gallery shots from the new `-Pgallery` DevAutoShot chain
+(1920x1080, sky-pad staging so the backdrop never depends on the seed, reflective cursor
+parking because `glfwSetCursorPos` doesn't update MouseHandler's cached position). **This
+run doubled as the wave-4 visual verification — every shot inspected as pixels:** sorting
+GUI, Recipe Ledger ghost, rule editor sheet, keep-my-layout, drop-to-pin note + pickup
+toggle, the JEI ring (pack centered, no shapeless marker, overlay respecting the rails),
+the six-tier lineup, and the Sculkhide/Runed placed-glow at night (light emission
+confirmed working — the earlier "no glow" read was camera distance). The wave-4
+"visuals pending" flag is CLEARED. 54 GameTests green.
+
 **2026-07-26 playtest wave 4 — JEI real recipes, legible pinning, the rule editor, per-tab
 arrangement, the upgrade ring.** Alex's live-client playtest called four things; all four
 are landed, plus two field follow-ups from his re-tests (the JEI validator root-cause fix
