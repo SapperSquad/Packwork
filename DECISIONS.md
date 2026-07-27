@@ -307,6 +307,36 @@ one can be flipped later without unpicking the rest:
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
 
+## 2026-07-26 — pack-first pickup: the Lodestone files what you mine (Alex's ask; reopen with evidence)
+
+- **The hook is `ItemEntityPickupEvent.Pre`, and the mutation pattern is the documented one.**
+  Verified in the 21.1.235 sources: `EventHooks.fireItemPickupPre` runs "before any other
+  processing occurs" in `ItemEntity.playerTouch`, the event javadoc explicitly permits
+  mutating the entity's stored stack (and forbids `setItem`), and `TriState.FALSE` denies the
+  vanilla pickup. So the intercept inserts into the pack, shrinks the ground stack by exactly
+  the amount inserted, and denies vanilla only when nothing remains — a partial fit leaves the
+  remainder on the stack with `DEFAULT`, and vanilla pockets it in the same touch. This is the
+  mining case the tick magnet always lost: vanilla pickup won the race for anything at the
+  player's feet.
+- **The routing rule: the pack only swallows what it genuinely knows where to put.** File =
+  routes to a non-Loose compartment, OR pinned to any tab, OR the pack already holds that
+  exact item (top-up). Everything Loose-bound falls through to vanilla — new, unknown loot
+  must never vanish into the bag. Placement needs no special code: tabs are views, so an
+  inserted item auto-files.
+- **Per-pack toggle, persisted in `PackLayout.packFirst` (default ON), on the title strip** —
+  visible only with a Lodestone fitted, arrow-into-bag glyph, plain-words tooltip. First pack
+  in inventory order with a Lodestone + toggle-on that actually takes something wins; then the
+  Curios-worn pack (same order the tick effects scan, worn via the gated
+  `CuriosCompat.wornPack`). Compass Rose + void list bins the pickup outright — the magnet's
+  existing trash-collector contract, and toggle-off restores pure vanilla (the tick magnet is
+  a separate effect and untouched). Packs are never intercepted; the pickup delay and other
+  mods' explicit `canPickup` decisions are always respected; the routed portion still plays
+  `player.take`'s fly-to-player cue (stats deliberately not awarded — magnet parity).
+- **Handler accepts `Player`, not `ServerPlayer`** — the event is server-only by contract, and
+  gametest mock players are bare `Player`s; narrowing silently skipped the entire feature in
+  tests (caught by the suite, kept as a note). Curios lookup still requires the real
+  `ServerPlayer`.
+
 ## 2026-07-26 — the ladder redesigned + tier 6 is SCULKHIDE (Alex's calls; supersedes the ring table below)
 
 - **Alex redesigned the ring materials and pivoted tier 6 away from the dragon.** Locked:

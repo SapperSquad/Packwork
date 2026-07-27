@@ -123,10 +123,15 @@ public final class HandbookContent {
             row("carry & keep",
                 trinket(TrinketType.LODESTONE), trinket(TrinketType.RESTOCK),
                 trinket(TrinketType.REPAIR), trinket(TrinketType.BOTTOMLESS)),
-            text("LODESTONE CHARM draws loose items nearby into the pack. RESTOCK STRAP tops up your "
-                + "hotbar stacks from pack stock. REPAIR KIT slowly mends the gear you're wearing and "
-                + "holding. BOTTOMLESS LINING adds another run of slots - and never voids them if you "
-                + "pull it back out; the extra items just hide until it's refitted."),
+            text("LODESTONE CHARM draws loose items nearby into the pack - and it files what you "
+                + "mine. With one fitted, anything you pick up that the pack knows where to put "
+                + "(it sorts to a compartment, it's pinned, or the pack already holds some) goes "
+                + "STRAIGHT IN; new, unknown finds still go to your pockets, so nothing vanishes "
+                + "into the bag unseen. A small switch in the title strip turns pack-first pickup "
+                + "off per pack. RESTOCK STRAP tops up your hotbar stacks from pack stock. REPAIR "
+                + "KIT slowly mends the gear you're wearing and holding. BOTTOMLESS LINING adds "
+                + "another run of slots - and never voids them if you pull it back out; the extra "
+                + "items just hide until it's refitted."),
             row("sort & swap",
                 trinket(TrinketType.COMPASS_ROSE), trinket(TrinketType.QUILL_LEDGER),
                 trinket(TrinketType.QUICK_DRAW)),

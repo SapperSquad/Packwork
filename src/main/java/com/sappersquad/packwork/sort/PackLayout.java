@@ -27,17 +27,26 @@ import java.util.List;
  * @param pins       item-to-tab overrides that beat every rule
  * @param voidList   items the Compass Rose trinket discards on insert (opt-in; the ONLY void path)
  * @param manual     compartments in keep-my-layout mode, with their remembered cell placements
+ * @param packFirst  whether a fitted Lodestone routes pickups the pack can file straight in
+ *                   (default ON; the toggle lives in the pack GUI's title strip)
  */
 public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
-                         List<ResourceLocation> voidList, List<ManualTab> manual) {
+                         List<ResourceLocation> voidList, List<ManualTab> manual,
+                         boolean packFirst) {
 
     public static final PackLayout EMPTY =
-            new PackLayout(List.of(), List.of(), List.of(), List.of(), List.of());
+            new PackLayout(List.of(), List.of(), List.of(), List.of(), List.of(), true);
+
+    /** Pre-pickup-toggle shape (pack-first defaults ON); kept for older call sites and tests. */
+    public PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
+                      List<ResourceLocation> voidList, List<ManualTab> manual) {
+        this(tabOrder, customTabs, pins, voidList, manual, true);
+    }
 
     /** Pre-manual-mode shape; kept so old call sites and tests read naturally. */
     public PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
                       List<ResourceLocation> voidList) {
-        this(tabOrder, customTabs, pins, voidList, List.of());
+        this(tabOrder, customTabs, pins, voidList, List.of(), true);
     }
 
     /** A manual override: this exact item always lands in this tab. */
@@ -92,7 +101,8 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
             TabDef.CODEC.listOf().optionalFieldOf("custom_tabs", List.of()).forGetter(PackLayout::customTabs),
             Pin.CODEC.listOf().optionalFieldOf("pins", List.of()).forGetter(PackLayout::pins),
             ResourceLocation.CODEC.listOf().optionalFieldOf("void_list", List.of()).forGetter(PackLayout::voidList),
-            ManualTab.CODEC.listOf().optionalFieldOf("manual", List.of()).forGetter(PackLayout::manual)
+            ManualTab.CODEC.listOf().optionalFieldOf("manual", List.of()).forGetter(PackLayout::manual),
+            Codec.BOOL.optionalFieldOf("pack_first", true).forGetter(PackLayout::packFirst)
     ).apply(inst, PackLayout::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, PackLayout> STREAM_CODEC = StreamCodec.composite(
@@ -101,6 +111,7 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
             Pin.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::pins,
             ResourceLocation.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::voidList,
             ManualTab.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::manual,
+            ByteBufCodecs.BOOL, PackLayout::packFirst,
             PackLayout::new);
 
     /** The tab id a manual pin sends this item to, or null if unpinned. */
@@ -112,23 +123,27 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
     }
 
     public PackLayout withPins(List<Pin> newPins) {
-        return new PackLayout(tabOrder, customTabs, newPins, voidList, manual);
+        return new PackLayout(tabOrder, customTabs, newPins, voidList, manual, packFirst);
     }
 
     public PackLayout withCustomTabs(List<TabDef> newTabs) {
-        return new PackLayout(tabOrder, newTabs, pins, voidList, manual);
+        return new PackLayout(tabOrder, newTabs, pins, voidList, manual, packFirst);
     }
 
     public PackLayout withTabOrder(List<String> newOrder) {
-        return new PackLayout(newOrder, customTabs, pins, voidList, manual);
+        return new PackLayout(newOrder, customTabs, pins, voidList, manual, packFirst);
     }
 
     public PackLayout withVoidList(List<ResourceLocation> newVoid) {
-        return new PackLayout(tabOrder, customTabs, pins, newVoid, manual);
+        return new PackLayout(tabOrder, customTabs, pins, newVoid, manual, packFirst);
     }
 
     public PackLayout withManual(List<ManualTab> newManual) {
-        return new PackLayout(tabOrder, customTabs, pins, voidList, newManual);
+        return new PackLayout(tabOrder, customTabs, pins, voidList, newManual, packFirst);
+    }
+
+    public PackLayout withPackFirst(boolean newPackFirst) {
+        return new PackLayout(tabOrder, customTabs, pins, voidList, manual, newPackFirst);
     }
 
     /** This tab's kept arrangement, or null when the pack tidies it (the default). */

@@ -59,7 +59,7 @@ store. There is no recipe anywhere that can eat a filled pack.
 
 | Fitting | What it does |
 |---|---|
-| **Lodestone Charm** | Draws loose items nearby into the pack. |
+| **Lodestone Charm** | Draws loose items nearby into the pack — and files what you mine: pickups the pack can sort (or is pinned on, or already holds) go straight in, new finds still go to your pockets. A title-strip switch turns pack-first pickup off per pack. |
 | **Restock Strap** | Tops up your hotbar stacks from pack stock. |
 | **Repair Kit** | Slowly mends the gear you're wearing and holding. |
 | **Bottomless Lining** | Adds another run of slots (and never voids them if you pull it). |

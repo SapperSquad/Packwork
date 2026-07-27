@@ -1498,6 +1498,170 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    // ---- pack-first pickup routing: the Lodestone files what you mine ----
+
+    private static ItemStack lodestonePack(PackTier tier) {
+        ItemStack pack = new ItemStack(ModItems.pack(tier).get());
+        new PackTrinketInventory(() -> pack, tier).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.LODESTONE).get()), false);
+        return pack;
+    }
+
+    /** Spawn a ground item beside the player and return it, ready for a real playerTouch. */
+    private static net.minecraft.world.entity.item.ItemEntity dropAt(GameTestHelper helper, ItemStack stack) {
+        var pos = helper.absoluteVec(new net.minecraft.world.phys.Vec3(1, 2, 1));
+        var ie = new net.minecraft.world.entity.item.ItemEntity(
+                helper.getLevel(), pos.x, pos.y, pos.z, stack);
+        ie.setNoPickUpDelay();
+        helper.getLevel().addFreshEntity(ie);
+        return ie;
+    }
+
+    private static int countInv(net.minecraft.world.entity.player.Player player,
+                                net.minecraft.world.item.Item item) {
+        int n = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack s = player.getInventory().getItem(i);
+            if (s.is(item)) n += s.getCount();
+        }
+        return n;
+    }
+
+    /** Mined cobble goes STRAIGHT into the pack: it routes to Blocks, so the pack files it. */
+    @GameTest(template = "empty")
+    public static void packFirstFilesMinedDrops(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.COBBLESTONE, 10));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 10,
+                "all ten cobble filed into the pack, got " + countPack(pack, Items.COBBLESTONE));
+        helper.assertTrue(countInv(player, Items.COBBLESTONE) == 0, "none in the pockets");
+        helper.assertTrue(!ie.isAlive(), "the ground item is gone");
+        helper.succeed();
+    }
+
+    /** A new, unknown find (routes to Loose, not held, not pinned) goes to the pockets - vanilla. */
+    @GameTest(template = "empty")
+    public static void packFirstLeavesNewFindsAlone(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.STICK, 3));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.STICK) == 0, "a Loose-bound find never enters the pack");
+        helper.assertTrue(countInv(player, Items.STICK) == 3, "it lands in the pockets as vanilla");
+        helper.succeed();
+    }
+
+    /** The pack already holds the item: pickups top it up even though it would route Loose. */
+    @GameTest(template = "empty")
+    public static void packFirstTopsUpWhatItHolds(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        new PackInventory(pack, PackTier.LEATHER).insertItem(0, new ItemStack(Items.STICK, 5), false);
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.STICK, 3));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.STICK) == 8,
+                "sticks top up the pack's own stock, got " + countPack(pack, Items.STICK));
+        helper.assertTrue(countInv(player, Items.STICK) == 0, "none in the pockets");
+        helper.succeed();
+    }
+
+    /** A pinned item counts as filed, wherever it's pinned. */
+    @GameTest(template = "empty")
+    public static void packFirstRespectsPins(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        pack.set(ModComponents.PACK_LAYOUT.get(), new PackLayout(List.of(), List.of(),
+                List.of(new PackLayout.Pin(BuiltInRegistries.ITEM.getKey(Items.STICK), "auto:tools")),
+                List.of()));
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.STICK, 4));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.STICK) == 4, "the pinned stick files straight in");
+        helper.assertTrue(countInv(player, Items.STICK) == 0, "none in the pockets");
+        helper.succeed();
+    }
+
+    /** Rose + void list: a marked pickup is binned outright - the magnet's trash-collector contract. */
+    @GameTest(template = "empty")
+    public static void packFirstVoidsByTheRoseContract(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.STUDDED); // two sockets: Lodestone + Rose
+        new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(1,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE).get()), false);
+        pack.set(ModComponents.PACK_LAYOUT.get(),
+                PackLayout.EMPTY.withVoidList(List.of(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE))));
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.COBBLESTONE, 5));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 0 && countInv(player, Items.COBBLESTONE) == 0,
+                "a void-listed pickup is discarded, not stored");
+        helper.assertTrue(!ie.isAlive(), "and the ground item is gone");
+        helper.succeed();
+    }
+
+    /** A pack full for the item takes what fits; the remainder goes to the pockets. Conserved. */
+    @GameTest(template = "empty")
+    public static void packFirstPartialFitLeavesTheRest(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        PackInventory inv = new PackInventory(pack, PackTier.LEATHER);
+        inv.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        inv.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false); // slot 0 at full depth 128
+        inv.extractItem(0, 8, false);                                   // leave room for exactly 8
+        for (int i = 1; i < inv.getSlots(); i++) inv.insertItem(i, new ItemStack(Items.STICK), false);
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.COBBLESTONE, 10));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 128,
+                "the pack takes exactly what fits, got " + countPack(pack, Items.COBBLESTONE));
+        helper.assertTrue(countInv(player, Items.COBBLESTONE) == 2,
+                "the remainder lands in the pockets, got " + countInv(player, Items.COBBLESTONE));
+        helper.succeed();
+    }
+
+    /** Toggle off = pure vanilla; no Lodestone = pure vanilla. */
+    @GameTest(template = "empty")
+    public static void packFirstToggleOffIsPureVanilla(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY.withPackFirst(false));
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(Items.COBBLESTONE, 5));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 0 && countInv(player, Items.COBBLESTONE) == 5,
+                "toggle off: everything to the pockets");
+
+        // and with no Lodestone at all, the pack never intercepts (toggle defaults on)
+        player.getInventory().clearContent();
+        ItemStack bare = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        player.getInventory().setItem(0, bare);
+        var ie2 = dropAt(helper, new ItemStack(Items.COBBLESTONE, 5));
+        ie2.playerTouch(player);
+        helper.assertTrue(countPack(bare, Items.COBBLESTONE) == 0 && countInv(player, Items.COBBLESTONE) == 5,
+                "no Lodestone: everything to the pockets");
+        helper.succeed();
+    }
+
+    /** A pack on the ground is never intercepted - nesting stays blocked at pickup too. */
+    @GameTest(template = "empty")
+    public static void packFirstNeverSwallowsPacks(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = lodestonePack(PackTier.LEATHER);
+        player.getInventory().setItem(0, pack);
+        var ie = dropAt(helper, new ItemStack(ModItems.pack(PackTier.CANVAS).get()));
+        ie.playerTouch(player);
+        helper.assertTrue(countPack(pack, ModItems.pack(PackTier.CANVAS).get()) == 0,
+                "a pack never rides inside a pack");
+        helper.assertTrue(countInv(player, ModItems.pack(PackTier.CANVAS).get()) == 1,
+                "it goes to the pockets as vanilla");
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

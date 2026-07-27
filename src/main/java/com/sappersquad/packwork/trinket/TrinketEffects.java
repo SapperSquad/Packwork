@@ -381,6 +381,117 @@ public final class TrinketEffects {
         }
     }
 
+    // ---- pack-first pickup: the Lodestone routes what the pack can FILE straight in ----
+
+    /** Gate every touch of the Curios compat class so its imports never classload without the mod. */
+    private static final boolean CURIOS_LOADED = ModList.get().isLoaded("curios");
+
+    /**
+     * The mining case the magnet always lost: an item at the player's feet is vanilla's the
+     * instant they touch it, so mined cobble went to the pockets, never the pack. This hook
+     * fires FIRST - {@code EventHooks.fireItemPickupPre} runs "before any other processing
+     * occurs" in {@code ItemEntity.playerTouch} (verified in the 21.1.235 sources), and the
+     * event contract explicitly permits mutating the entity's stored stack (never
+     * {@code setItem}).
+     *
+     * <p>The routing rule, per pack (inventory order, then the Curios-worn pack - the same
+     * order the tick effects scan): with a Lodestone fitted and the pack's PACK-FIRST toggle
+     * on, a pickup the pack can FILE goes straight in - "file" meaning it routes to a
+     * non-Loose compartment, or is pinned anywhere, or the pack already holds that very item.
+     * Anything that would land in Loose falls through to vanilla untouched: new, unknown loot
+     * must never vanish into the bag. A Compass Rose discards void-listed pickups exactly as
+     * the magnet does (the trash-collector contract).
+     *
+     * <p>Conservation: insert what fits (depth-aware), shrink the ground stack by exactly the
+     * amount inserted, and deny vanilla only when NOTHING remains - a partial fit leaves the
+     * remainder to vanilla pickup. Packs are never intercepted (nesting stays blocked). The
+     * routed portion still plays the fly-to-player pickup cue.
+     */
+    @SubscribeEvent
+    public static void onItemPickup(net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent.Pre event) {
+        Player player = event.getPlayer();
+        // the event is server-only by contract; the level guard is belt-and-braces, and the
+        // player is deliberately NOT narrowed to ServerPlayer (gametest mock players aren't one)
+        if (player.level().isClientSide()) return;
+        // never fight an explicit decision by vanilla-to-be or another mod, and never jump
+        // the pickup delay (a just-dropped item must not be re-swallowed instantly)
+        if (event.canPickup() != net.neoforged.neoforge.common.util.TriState.DEFAULT) return;
+        ItemEntity ie = event.getItemEntity();
+        if (ie.hasPickUpDelay()) return;
+        ItemStack ground = ie.getItem();
+        if (ground.isEmpty() || ground.getItem() instanceof PackItem) return;
+
+        Inventory inv = player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            if (routePickupInto(player, inv.getItem(i), event, ie)) return;
+        }
+        if (CURIOS_LOADED && player instanceof ServerPlayer sp) {
+            ItemStack worn = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(sp);
+            routePickupInto(player, worn, event, ie);
+        }
+    }
+
+    /** Try one pack against a ground item. True if this pack settled the pickup (filed it
+     *  fully, filed a part of it, or binned it by the Rose contract). */
+    private static boolean routePickupInto(Player player, ItemStack packStack,
+                                           net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent.Pre event,
+                                           ItemEntity ie) {
+        if (!(packStack.getItem() instanceof PackItem)) return false;
+        if (!TrinketAccess.has(packStack, TrinketType.LODESTONE)) return false;
+        var layout = packStack.getOrDefault(com.sappersquad.packwork.reg.ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.sort.PackLayout.EMPTY);
+        if (!layout.packFirst()) return false; // the GUI toggle: off = pure vanilla
+
+        ItemStack ground = ie.getItem();
+        // Compass Rose void contract, exactly as the magnet path
+        if (TrinketAccess.has(packStack, TrinketType.COMPASS_ROSE)
+                && layout.voids(BuiltInRegistries.ITEM.getKey(ground.getItem()))) {
+            ground.setCount(0);
+            ie.discard();
+            event.setCanPickup(net.neoforged.neoforge.common.util.TriState.FALSE);
+            return true;
+        }
+
+        PackInventory pack = new PackInventory(packStack, PackItem.tierOf(packStack));
+        if (!packWouldFile(packStack, layout, ground, pack)) return false;
+
+        int before = ground.getCount();
+        ItemStack leftover = insertAll(pack, ground.copy());
+        int moved = before - leftover.getCount();
+        if (moved <= 0) return false;               // this pack is full for it - try the next
+
+        ground.shrink(moved);                        // the documented-legal mutation
+        player.take(ie, moved);                      // the vanilla fly-to-player pickup cue
+        if (ground.isEmpty()) {
+            event.setCanPickup(net.neoforged.neoforge.common.util.TriState.FALSE);
+            ie.discard();
+        }
+        // a remainder stays on the ground stack with canPickup DEFAULT, so vanilla picks it
+        // up into the pockets this same touch - conservation to the item
+        return true;
+    }
+
+    /**
+     * Would this pack FILE the item? Yes when a pin claims it anywhere, when the rules route
+     * it to any non-Loose compartment, or when the pack already holds that exact item (the
+     * top-up case). No for everything that would land in Loose - the pack only swallows what
+     * it genuinely knows where to put.
+     */
+    private static boolean packWouldFile(ItemStack packStack, com.sappersquad.packwork.sort.PackLayout layout,
+                                         ItemStack stack, PackInventory pack) {
+        var itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (layout.pinnedTab(itemId) != null) return true;
+        var tabs = com.sappersquad.packwork.sort.SortEngine.tabsFor(layout, TrinketAccess.installed(packStack));
+        if (!com.sappersquad.packwork.sort.AutoTabs.LOOSE_ID.equals(
+                com.sappersquad.packwork.sort.SortEngine.route(stack, tabs, layout))) {
+            return true;
+        }
+        for (int i = 0; i < pack.getSlots(); i++) {
+            if (ItemStack.isSameItemSameComponents(pack.getStackInSlot(i), stack)) return true;
+        }
+        return false;
+    }
+
     /** Pull loose items nearby into the pack (and quietly bin voided ones if a Compass Rose is fitted). */
     private static void magnet(ServerPlayer sp, ItemStack packStack, PackInventory pack) {
         AABB box = sp.getBoundingBox().inflate(MAGNET_RANGE);

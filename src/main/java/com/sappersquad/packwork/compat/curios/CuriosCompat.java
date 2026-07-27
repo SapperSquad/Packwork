@@ -41,6 +41,23 @@ public final class CuriosCompat {
     }
 
     /**
+     * The pack worn in the back slot, or EMPTY. Used by the pack-first pickup routing so a
+     * worn pack's Lodestone catches mined drops exactly like a pocketed one's. Only ever
+     * called behind the {@code ModList.isLoaded("curios")} gate in {@code TrinketEffects}.
+     */
+    public static ItemStack wornPack(ServerPlayer sp) {
+        return CuriosApi.getCuriosInventory(sp)
+                .flatMap(inv -> inv.getStacksHandler("back"))
+                .map(h -> {
+                    for (int i = 0; i < h.getStacks().getSlots(); i++) {
+                        ItemStack s = h.getStacks().getStackInSlot(i);
+                        if (s.getItem() instanceof com.sappersquad.packwork.pack.PackItem) return s;
+                    }
+                    return ItemStack.EMPTY;
+                }).orElse(ItemStack.EMPTY);
+    }
+
+    /**
      * Dev harness only: prove the back slot is wired - the player has it, the pack is assigned
      * to it, and it accepts the pack - then equip one there. Logged for the screenshot run.
      */
