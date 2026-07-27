@@ -19,7 +19,7 @@ Store-page art for Modrinth / CurseForge. Captions and the upload plan live in
 |---|---|
 | `icon-512.png` | Project icon: the Leather Pack on a stitched leather patch. |
 | `banner-1920x640.png` | Featured banner: name, tagline, the six-tier ladder. |
-| `gallery-1-lineup.png` | The six placed tiers, daylight, sky pad. |
+| `gallery-1-lineup.png` | The six placed tiers, daylight, sky pad — shot close and angled from the Canvas end (the hero camera), tiers ascending left-to-right Canvas → Sculkhide to match the banner. |
 | `gallery-2-sorting.png` | The sorting GUI, mid-sort (tabs, sockets, gauges). |
 | `gallery-3-ledger.png` | Tool roll + Recipe Ledger with a chalked ghost. |
 | `gallery-4-rules.png` | The Quill & Ledger rule editor, written on. |
