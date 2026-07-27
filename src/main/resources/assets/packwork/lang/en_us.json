@@ -136,6 +136,7 @@
   "packwork.kind.is_block": "Blocks",
   "packwork.kind.is_potion": "Potions",
   "key.packwork.open": "Open Pack",
+  "key.packwork.open_worn": "Open Worn Pack (back slot)",
   "key.packwork.pin": "Pin Item to Tab (in pack)",
   "key.categories.packwork": "Packwork"
 }

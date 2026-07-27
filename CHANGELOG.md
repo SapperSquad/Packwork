@@ -4,6 +4,20 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Added — open the pack straight off your back (Curios)
+- **A worn pack opens now.** With Curios installed and a pack in the back slot, **B**
+  opens it whenever your pockets hold no pack, and **Shift-B** (rebindable in Controls)
+  opens the worn one outright — same tabbed organizer, fully live: sort, pin, trinkets,
+  stores, rule editor, and the Tinker's Kit bench all read and write the pack on your
+  shoulders. This closes the old honest-note ("open it from your inventory") for good.
+- Unequipping the pack while its GUI is open closes it cleanly: anything on the tool
+  roll comes back to you, and nothing is ever written onto — or duped out of — a pack
+  that already left the slot. The scan order stays consistent everywhere: pockets first,
+  then the back slot, same as pack-first pickup.
+- The back slot is now assigned to players by an explicit `curios/entities` datapack
+  file instead of relying on defaults, so the slot exists in every environment
+  (dedicated servers and test harnesses included).
+
 ### Internal — release dressing (nothing published)
 - `PUBLISHING.md` restructured into the paste-ready store kit: summary, full project
   description, gallery plan with captions, requirements, and the first-release changelog

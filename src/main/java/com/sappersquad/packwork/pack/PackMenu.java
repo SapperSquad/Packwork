@@ -76,11 +76,23 @@ public class PackMenu extends AbstractContainerMenu {
     private final int hostIndex;    // the hidden placed-pack host slot, or -1
     private boolean rollOpen = false;
 
-    // Where the live pack stack comes from: a player-inventory slot (carried) or a
-    // block-entity via a hidden synced host slot (placed). Both stay server-authoritative.
+    /** The three places a pack can live while its organizer is open. */
+    public enum HostKind {
+        /** Rides a player-inventory slot; the slot is locked while open. */
+        CARRIED,
+        /** Rides a block entity via the hidden synced host slot. */
+        BLOCK,
+        /** Rides a Curios back slot via the hidden synced host slot (gated compat builds it). */
+        WORN
+    }
+
+    // Where the live pack stack comes from: a player-inventory slot (carried), a
+    // block-entity, or a Curios back slot (both via a hidden synced host slot). All stay
+    // server-authoritative.
+    private final HostKind hostKind;
     private final Supplier<ItemStack> liveSupplier;
     private final PackStackSlotContainer hostContainer; // null for a carried pack
-    private final ContainerLevelAccess access;          // NULL for a carried pack
+    private final ContainerLevelAccess access;          // NULL unless block-hosted
 
     private PackLayout layout;
     private List<TabView> tabs;
@@ -98,34 +110,50 @@ public class PackMenu extends AbstractContainerMenu {
 
     public static PackMenu server(int id, Inventory playerInv, int boundSlot) {
         return new PackMenu(id, playerInv, boundSlot, null,
-                PackItem.tierOf(playerInv.getItem(boundSlot)), ContainerLevelAccess.NULL);
+                PackItem.tierOf(playerInv.getItem(boundSlot)), ContainerLevelAccess.NULL, HostKind.CARRIED);
     }
 
     public static PackMenu client(int id, Inventory playerInv, int boundSlot, PackTier tier) {
-        return new PackMenu(id, playerInv, boundSlot, null, tier, ContainerLevelAccess.NULL);
+        return new PackMenu(id, playerInv, boundSlot, null, tier, ContainerLevelAccess.NULL, HostKind.CARRIED);
     }
 
     // ---- placed pack (rides a block entity via a hidden synced host slot) ----
 
     public static PackMenu serverForBlock(int id, Inventory playerInv,
                                           com.sappersquad.packwork.block.PackContainerBlockEntity be) {
-        return new PackMenu(id, playerInv, -1, new PackStackSlotContainer(be), be.getTier(),
-                ContainerLevelAccess.create(be.getLevel(), be.getBlockPos()));
+        return new PackMenu(id, playerInv, -1, PackStackSlotContainer.forBlock(be), be.getTier(),
+                ContainerLevelAccess.create(be.getLevel(), be.getBlockPos()), HostKind.BLOCK);
     }
 
     public static PackMenu clientForBlock(int id, Inventory playerInv,
                                           net.minecraft.core.BlockPos pos, PackTier tier) {
-        return new PackMenu(id, playerInv, -1, new PackStackSlotContainer(null), tier, ContainerLevelAccess.NULL);
+        return new PackMenu(id, playerInv, -1, PackStackSlotContainer.clientSide(), tier,
+                ContainerLevelAccess.NULL, HostKind.BLOCK);
+    }
+
+    // ---- worn pack (rides a Curios back slot via a hidden synced host slot) ----
+
+    /** The host container comes from the gated Curios compat class; this menu never
+     *  touches curios itself. */
+    public static PackMenu serverForWorn(int id, Inventory playerInv,
+                                         PackStackSlotContainer host, PackTier tier) {
+        return new PackMenu(id, playerInv, -1, host, tier, ContainerLevelAccess.NULL, HostKind.WORN);
+    }
+
+    public static PackMenu clientForWorn(int id, Inventory playerInv, PackTier tier) {
+        return new PackMenu(id, playerInv, -1, PackStackSlotContainer.clientSide(), tier,
+                ContainerLevelAccess.NULL, HostKind.WORN);
     }
 
     private PackMenu(int id, Inventory playerInv, int boundSlot, PackStackSlotContainer hostContainer,
-                     PackTier tier, ContainerLevelAccess access) {
+                     PackTier tier, ContainerLevelAccess access, HostKind hostKind) {
         super(ModMenus.PACK.get(), id);
         this.playerInv = playerInv;
         this.boundSlot = boundSlot;
         this.tier = tier;
         this.hostContainer = hostContainer;
         this.access = access;
+        this.hostKind = hostKind;
         this.liveSupplier = hostContainer != null
                 ? () -> hostContainer.getItem(0)
                 : () -> playerInv.getItem(boundSlot);
@@ -289,6 +317,10 @@ public class PackMenu extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, net.minecraft.world.inventory.ClickType type, Player player) {
+        // The host stack is gone (worn pack unequipped, carried one /clear-ed) but the close
+        // hasn't landed yet: swallow the click rather than write onto - or conjure out of -
+        // a stack that already left. The server closes this menu on its next container tick.
+        if (!hostAlive()) return;
         // clean slate per click: if a previous click threw mid-way, its stale pendings must
         // never leak into this one
         pendingPlaced = ItemStack.EMPTY;
@@ -589,7 +621,9 @@ public class PackMenu extends AbstractContainerMenu {
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        // The hidden host slot (a placed pack's own stack) is never shift-moved.
+        // No host stack, no moves (see clicked()).
+        if (!hostAlive()) return ItemStack.EMPTY;
+        // The hidden host slot (a placed or worn pack's own stack) is never shift-moved.
         if (hostIndex >= 0 && index == hostIndex) return ItemStack.EMPTY;
         Slot slot = slots.get(index);
         if (slot == null || !slot.hasItem()) return ItemStack.EMPTY;
@@ -770,6 +804,9 @@ public class PackMenu extends AbstractContainerMenu {
     // ---- actions (server dispatch + shared apply logic used optimistically on the client) ----
 
     public void handleAction(int actionId, int arg, String s1, String s2) {
+        // The network entry point for every GUI verb: refuse them all once the host stack
+        // has left (a worn pack unequipped mid-click races the server's close by a tick).
+        if (!hostAlive()) return;
         PackAction a = PackAction.byId(actionId);
         if (a == null) return;
         switch (a) {
@@ -1016,13 +1053,17 @@ public class PackMenu extends AbstractContainerMenu {
         return ItemStack.EMPTY;
     }
 
-    /** Everything laid out on the roll goes back in the pack, then your pockets, then the floor. */
+    /** Everything laid out on the roll goes back in the pack, then your pockets, then the
+     *  floor. If the host stack itself is gone (a worn pack unequipped while the roll was
+     *  out), the pack leg is skipped and the roll's contents go straight to the player -
+     *  pause, never punish, and never a write onto a stack that left. */
     private void emptyRollIntoPack() {
         if (isClient()) return;
+        boolean packThere = hostAlive();
         for (int i = 0; i < craftSlots.getContainerSize(); i++) {
             ItemStack s = craftSlots.removeItemNoUpdate(i);
             if (s.isEmpty()) continue;
-            ItemStack left = insertIntoPack(s, false);
+            ItemStack left = packThere ? insertIntoPack(s, false) : s;
             if (left.isEmpty()) continue;
             if (!playerInv.player.getInventory().add(left)) playerInv.player.drop(left, false);
         }
@@ -1384,11 +1425,24 @@ public class PackMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        if (hostContainer != null) {
+        if (hostKind == HostKind.BLOCK) {
             // placed pack: the block must still be there and the player in reach
             return AbstractContainerMenu.stillValid(access, player,
                     com.sappersquad.packwork.reg.ModBlocks.PACK.get());
         }
+        // Carried or worn: the live-resolved stack must still be a pack. A worn pack
+        // unequipped mid-session resolves EMPTY here, and the server closes the menu on
+        // its next container tick - gracefully, with the roll returned (see removed()).
+        return hostAlive();
+    }
+
+    /**
+     * Is the host stack still a pack, resolved live? False the instant a worn pack is
+     * unequipped (or a carried one vanishes to a command). Every mutation entry point
+     * checks this so nothing is ever written onto - or duplicated out of - a stack that
+     * already left the menu; reads are harmless either way.
+     */
+    private boolean hostAlive() {
         return liveStack().getItem() instanceof PackItem;
     }
 }

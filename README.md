@@ -128,7 +128,9 @@ Zero hard dependencies — every one of these lights up only when its mod is ins
 
 - **Mekanism** — the Alchemist's Flask Harness becomes a real chemical tank; Mekanism pipes
   fill a placed pack with bottled vapors.
-- **Curios** — wear the pack in the **back** slot, and its trinkets keep working while worn.
+- **Curios** — wear the pack in the **back** slot and open it right off your shoulders
+  (B finds it when your pockets hold no pack; **Shift-B** opens the worn one outright).
+  Its trinkets keep working while worn.
 - **Forgework** — a placed pack's Charge Crystal charges straight off Forgework's Flux cables
   (1 Flux = 1 FE), and the crystal tops up your carried Forgework terminals.
 - **JEI** — every craft renders as a real recipe, tier upgrades included (previous pack +

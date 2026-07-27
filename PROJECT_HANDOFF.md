@@ -17,8 +17,44 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 ## Status — feature-complete and audited; all integrations (gas/Curios/JEI/Forgework) live as soft deps
 
 > Newest first. Full source map and roadmap below. Version is still **0.1.0** (unreleased
-> first build); bump/label at publish. **54 GameTests green** (with no optional deps AND
+> first build); bump/label at publish. **57 GameTests green** (with no optional deps AND
 > with -Pforgework -Pmekanism -Pcurios combined); jar builds clean.
+
+**2026-07-26 open-from-worn — the Curios-slot GUI gap is CLOSED (SapperSquad's ask).** A pack worn
+in the back slot opens directly: same tabbed organizer, fully live (sort, pin, trinkets,
+stores, rule editor, Tinker's Kit bench), reading and writing the worn stack.
+- **Third menu host.** `PackStackSlotContainer` generalized to getter/setter/dirty factories
+  (`forBlock` / `forWorn` / `clientSide`); `PackMenu` grew `HostKind {CARRIED, BLOCK, WORN}` +
+  `serverForWorn`/`clientForWorn`. The open packet's leading boolean became a host-kind BYTE
+  (0 carried / 1 block / 2 worn — all three writers funnel through `PackItem`), tier still
+  rides so client and server build the same socket count. The gate held: `CuriosCompat` is
+  still the only class importing curios; it builds the host's accessors (`wornHost`), which
+  LIVE-RESOLVE the Curios inventory every access — never a captured stack or handler.
+- **Keybinds.** B's server scan now falls through to the worn pack when the pockets hold no
+  pack (same order as pickup routing: inventory, then worn). New **Shift-B** (`OPEN_WORN`,
+  NeoForge `KeyModifier.SHIFT` — constructor verified in the patched KeyMapping sources)
+  asks for the worn pack outright, falling back to the pocket scan. Both rebindable;
+  Controls + Handbook + README + PUBLISHING all say so.
+- **No dupe window.** Unequip-while-open: the live supplier collapses to EMPTY, `stillValid`
+  flips, and the server's container tick closes the menu; `clicked`/`quickMoveStack`/
+  `handleAction` all refuse on a dead host (also closing the latent carried-pack `/clear`
+  hole), and the roll-cleanup path hands the bench contents back to the player instead of
+  writing onto the departed stack.
+- **Curios semantics source-verified (9.5.1 jar, not memory):** `IDynamicStackHandler extends
+  IItemHandlerModifiable` returns live instances; `DynamicStackHandler` keeps
+  `previousStacks` and Curios' per-tick diff syncs in-place component writes (why
+  `applyWornPack` already persisted); the inventory capability provider returns null when
+  `getEntitySlots(entity)` is empty. That last one bit: the player slot-assignment default
+  that covered the live client did NOT hold on the headless GameTestServer — fixed by
+  shipping an explicit `data/packwork/curios/entities/back.json` (documented modern-Curios
+  shape), which also hardens real dedicated servers.
+- **Tests: 57 green** with and without `-Pcurios` (3 new gated: `wornOpenBindsAndListsGated`,
+  `wornWritesPersistToEquippedStackGated`, `wornUnequipClosesWithoutDupeGated` — mock players
+  need `CuriosCompat.equipWorn`'s `reset()` fallback since they never fire the join event
+  Curios inits on). CHANGELOG/README/PUBLISHING updated — the worn-GUI honest note is GONE
+  from the store page; DECISIONS v1 entry superseded. **Wants SapperSquad's eyes in-game:** the
+  worn-open feel (B vs Shift-B), and that a menu opened FROM the Curios screen area closes
+  cleanly when he swaps the pack out.
 
 **2026-07-26 gallery hero reframe — the lineup re-shot close, ladder reading left-to-right.**
 Review verdict on `promo/gallery-1-lineup.png`: the dead-on stand-back framing left the six

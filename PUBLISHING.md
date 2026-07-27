@@ -128,7 +128,9 @@ because the sorting is virtual over one store.
 
 - **JEI** — every craft renders as a real recipe (the tier rings included), plus info
   pages for every pack, trinket, and the handbook.
-- **Curios** — wear the pack in the back slot; its trinkets keep working worn.
+- **Curios** — wear the pack in the back slot and open it right off your shoulders: B
+  finds it when your pockets hold no pack, Shift-B opens the worn one outright, and its
+  trinkets keep working worn.
 - **Mekanism** — the Flask Harness becomes a real chemical tank its pipes can fill.
 - **Forgework** — Flux cables charge a placed pack, 1 Flux = 1 FE, and the Charge
   Crystal tops up carried Forgework terminals.
@@ -140,8 +142,6 @@ Remove any of them and Packwork carries on without it.
 
 - **1.21.1 / NeoForge** (21.1.235+). No other dependencies, ever. Other loaders and
   versions may follow based on demand.
-- Opening a worn pack's GUI straight from the Curios slot isn't wired yet — open it from
-  your inventory (its trinkets work fine while worn).
 - The pack never voids anything on failure. The only trash path is the Compass Rose,
   and it's opt-in per item.
 
@@ -185,8 +185,8 @@ light up only with their mod, so don't imply they work standalone.
 > - Four resource stores as gear, never tech: waterskin fluids, soul-vial XP,
 >   charge-crystal FE — and bottled vapors with Mekanism.
 > - Placeable, automatable packs speaking standard NeoForge capabilities.
-> - Soft-dep integrations: JEI, Curios, Mekanism, Forgework, Pantrywork. Zero hard
->   dependencies.
+> - Soft-dep integrations: JEI, Curios (wear it AND open it worn — B / Shift-B),
+>   Mekanism, Forgework, Pantrywork. Zero hard dependencies.
 > - The Outfitter's Handbook: an in-game guide whose numbers can't go stale.
 
 The full internal history lives in `CHANGELOG.md`.

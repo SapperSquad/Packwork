@@ -15,12 +15,26 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * The keybind that opens the pack straight from the inventory - no need to hold it.
- * Default B (for backpack); the server finds the first pack the player carries.
+ * Default B (for backpack); the server finds the first pack the player carries, and if
+ * the pockets hold none, the one worn on the back (Curios). Shift-B asks for the WORN
+ * pack first, for the player carrying spares who wants the one on their shoulders.
  */
 public final class PackKeyMappings {
 
     public static final KeyMapping OPEN = new KeyMapping(
             "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
+
+    /**
+     * Open the pack worn in the Curios back slot, explicitly. Default Shift-B (rebindable
+     * in Controls like any mapping); NeoForge's modifier system hands Shift-B clicks to
+     * this mapping and plain-B clicks to {@link #OPEN}. Registered even without Curios -
+     * the server just falls back to the pocket scan, so the key never dead-ends.
+     */
+    public static final KeyMapping OPEN_WORN = new KeyMapping(
+            "key.packwork.open_worn",
+            net.neoforged.neoforge.client.settings.KeyConflictContext.IN_GAME,
+            net.neoforged.neoforge.client.settings.KeyModifier.SHIFT,
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
 
     /**
      * Pin/unpin the hovered grid item to the active tab. Only meaningful inside the pack GUI,
@@ -35,6 +49,7 @@ public final class PackKeyMappings {
         @SubscribeEvent
         public static void register(RegisterKeyMappingsEvent event) {
             event.register(OPEN);
+            event.register(OPEN_WORN);
             event.register(PIN);
         }
     }
@@ -45,8 +60,11 @@ public final class PackKeyMappings {
         public static void onTick(ClientTickEvent.Post event) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.screen != null) return;
+            while (OPEN_WORN.consumeClick()) {
+                PacketDistributor.sendToServer(new OpenPackPayload(-1, true));
+            }
             while (OPEN.consumeClick()) {
-                PacketDistributor.sendToServer(new OpenPackPayload(-1));
+                PacketDistributor.sendToServer(new OpenPackPayload(-1, false));
             }
         }
     }

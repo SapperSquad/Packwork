@@ -678,9 +678,21 @@ dep; runtime inclusion is opt-in per gradle flag). Maven wiring lives in `build.
   `TrinketEffects.applyWornPack`, so magnet/restock/repair/soul-vial/charge work worn exactly as
   pocketed. Native inventory-use + the B keybind stay the fallback when Curios is absent.
   **Verified** in `runClient -Pcurios`: the player has a back slot, the pack is assigned to it,
-  and it equips (logged). Opening the GUI from the worn slot is NOT wired in v1 (open it from
+  and it equips (logged). ~~Opening the GUI from the worn slot is NOT wired in v1 (open it from
   the inventory) - a flagged follow-up, since the menu binds to an inventory slot or a
-  block-entity, not a Curios slot.
+  block-entity, not a Curios slot.~~ **SUPERSEDED 2026-07-26 (SapperSquad's ask): the worn GUI is
+  wired.** The menu grew a third host binding - a Curios-slot `PackStackSlotContainer` whose
+  getter live-resolves the worn stack through the gated compat every access (never captured) -
+  so the same organizer serves carried, placed, and worn. B falls through to the worn pack when
+  the pockets hold none (same scan order as pickup routing); Shift-B asks for it outright.
+  Unequip-while-open flips `stillValid` and every mutation entry point refuses (no dupe
+  window). Curios sync semantics source-verified against 9.5.1: `DynamicStackHandler` keeps
+  `previousStacks` and the per-tick diff picks up in-place component writes. The back slot is
+  now assigned to players by an explicit `data/packwork/curios/entities/back.json` - the
+  implicit default that covered a live client did NOT hold on the headless GameTestServer, and
+  explicit data beats environment-dependent defaults. 3 gated gametests (bind+list / writes
+  persist to the equipped stack / unequip closes without dupe); suite 57 with and without
+  `-Pcurios`.
 
 - **JEI = recipe/usage lookup. LIVE.** `compat/jei/PackworkJeiPlugin` (the one class touching
   `mezz.jei.*`) is a `@JeiPlugin` - JEI discovers it by annotation and loads it only when JEI is
