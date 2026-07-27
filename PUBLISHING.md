@@ -1,4 +1,4 @@
-# Packwork — publishing kit (current as of v0.1.0, unreleased)
+# Packwork — publishing kit (current as of v1.0.0, stamped, awaiting upload)
 
 Everything for the Modrinth / CurseForge project page, ready to paste. **The rule:**
 `CHANGELOG.md`, `PUBLISHING.md`, and `README.md` get bumped in the same pass — never one
@@ -6,9 +6,8 @@ alone. The store page is the only thing most players read, and every claim in it
 match shipped behavior exactly.
 
 > **Not yet published.** Uploading to Modrinth / CurseForge / GitHub is Alex's call, per
-> release. Nothing here goes external automatically.
-> **TODO (Alex): pick the release version number** — the project is at `0.1.0` internally;
-> replace `<VERSION>` below when you choose the public one.
+> release. Nothing here goes external automatically. Version **1.0.0** is Alex's call,
+> stamped 2026-07-26.
 
 Promo art lives in `promo/`: the icon and banner are composed by `java tools/GenPromo.java`
 from the real in-game sprites, and the gallery shots come from the dev-harness shoot
@@ -17,9 +16,11 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 
 **Files to upload — ADD as new versions; do not delete older ones.**
 
-| Upload as version | File | Game version tag | Loader |
-|---|---|---|---|
-| `<VERSION>+mc1.21.1` | `build/libs/packwork-0.1.0.jar` (name follows the version bump) | 1.21.1 | NeoForge |
+| Upload as version | File | Game version tag | Loader | Client | Server |
+|---|---|---|---|---|---|
+| `1.0.0+mc1.21.1` | `build/libs/packwork-1.0.0.jar` | 1.21.1 | NeoForge | **Required** | **Required** |
+
+Needed on both sides: on servers, install on the server and every client.
 
 **Migration notes for this release:** none — first release.
 
@@ -147,20 +148,24 @@ Remove any of them and Packwork carries on without it.
 
 ---
 
-## Gallery upload plan
+## Gallery upload plan — Alex's 6 picks, in display order
 
-| File | Caption |
-|---|---|
-| `promo/banner-1920x640.png` (featured) | The pack that packs itself. |
-| `promo/gallery-1-lineup.png` | The six-tier ladder, set down side by side — Canvas to Sculkhide, each wearing its own trim. |
-| `promo/gallery-2-sorting.png` | The pack, open: stamped leather compartments, brass fittings, glass gauges — mid-sort. |
-| `promo/gallery-3-ledger.png` | The Tinker's Kit tool roll and its Recipe Ledger — a chalked recipe, ready to lay out from pack stock. |
-| `promo/gallery-4-rules.png` | The Quill & Ledger's rule editor: write your own filters, strike them off — pins always win. |
-| `promo/gallery-5-keep.png` | Keep-my-layout: your arrangement, held — new arrivals fill the gaps. |
-| `promo/gallery-6-pickup-pin.png` | Drop an item where you want it and it pins there — and the Lodestone files what you mine. |
-| `promo/gallery-7-sculkhide-night.png` | A Sculkhide pack set down at night, its echo-gem lighting the camp. |
-| `promo/gallery-8-jei-ring.png` | Every upgrade is a full ring around the pack — shown in JEI exactly as you place it. |
-| `promo/icon-512.png` (project icon) | — |
+Upload these six, in this order (plus the banner as featured and the icon as project icon):
+
+| # | File | Caption |
+|---|---|---|
+| — | `promo/banner-1920x640.png` (featured) | The pack that packs itself. |
+| 1 | `promo/gallery-1-lineup.png` | The six-tier ladder, set down side by side — Canvas to Sculkhide, each wearing its own trim. |
+| 2 | `promo/gallery-2-sorting.png` | The pack, open: stamped leather compartments, brass fittings, glass gauges — mid-sort. |
+| 3 | `promo/gallery-3-ledger.png` | The Tinker's Kit tool roll and its Recipe Ledger — a chalked recipe, ready to lay out from pack stock. |
+| 4 | `promo/gallery-4-rules.png` | The Quill & Ledger's rule editor: write your own filters, strike them off — pins always win. |
+| 5 | `promo/gallery-7-sculkhide-night.png` | A Sculkhide pack set down at night, its echo-gem lighting the camp. |
+| 6 | `promo/gallery-8-jei-ring.png` | Every upgrade is a full ring around the pack — shown in JEI exactly as you place it. |
+| — | `promo/icon-512.png` (project icon) | — |
+
+**Not store picks** (kept in `promo/` as extras for posts and update galleries):
+`promo/gallery-5-keep.png` (keep-my-layout holding an arrangement) and
+`promo/gallery-6-pickup-pin.png` (drop-to-pin note + the pack-first pickup toggle).
 
 **Art carrying version-specific claims** (trinket counts, tier list, MC version): keep it
 in step with the changelog. All four resource stores ship (fluids, XP, energy always; gas
@@ -171,7 +176,7 @@ light up only with their mod, so don't imply they work standalone.
 
 ## Changelog for the first release (paste into the upload)
 
-> **<VERSION> — First Haul.** The pack that packs itself: a tabbed, self-sorting
+> **1.0.0 — First Haul.** The pack that packs itself: a tabbed, self-sorting
 > adventurer's pack for NeoForge 1.21.1.
 > - Tabbed, rule-driven sorting: eight auto-tabs, two trinket-gated compartments, custom
 >   tabs with live stamps, drop-to-pin, per-compartment Tidy / keep-my-layout, Tidy Up,
