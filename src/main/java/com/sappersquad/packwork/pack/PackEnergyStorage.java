@@ -33,7 +33,7 @@ public class PackEnergyStorage implements IEnergyStorage {
     /** Reservoir size for a pack: scales with the material tier. */
     public static int capacityFor(ItemStack pack) {
         PackTier tier = PackItem.tierOf(pack);
-        return 100_000 * tier.step(); // Canvas 100k FE .. Dragonhide 600k FE
+        return 100_000 * tier.step(); // Canvas 100k FE .. Sculkhide 600k FE
     }
 
     public static int transferFor(ItemStack pack) {

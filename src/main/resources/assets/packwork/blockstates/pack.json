@@ -26,9 +26,9 @@
     "facing=south,tier=runed": { "model": "packwork:block/pack_runed", "y": 180 },
     "facing=west,tier=runed":  { "model": "packwork:block/pack_runed", "y": 270 },
 
-    "facing=north,tier=dragonhide": { "model": "packwork:block/pack_dragonhide" },
-    "facing=east,tier=dragonhide":  { "model": "packwork:block/pack_dragonhide", "y": 90 },
-    "facing=south,tier=dragonhide": { "model": "packwork:block/pack_dragonhide", "y": 180 },
-    "facing=west,tier=dragonhide":  { "model": "packwork:block/pack_dragonhide", "y": 270 }
+    "facing=north,tier=sculkhide": { "model": "packwork:block/pack_sculkhide" },
+    "facing=east,tier=sculkhide":  { "model": "packwork:block/pack_sculkhide", "y": 90 },
+    "facing=south,tier=sculkhide": { "model": "packwork:block/pack_sculkhide", "y": 180 },
+    "facing=west,tier=sculkhide":  { "model": "packwork:block/pack_sculkhide", "y": 270 }
   }
 }

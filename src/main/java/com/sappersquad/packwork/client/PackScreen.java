@@ -1014,7 +1014,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /**
-     * Per-gauge height, shrunk when the rail is crowded: a Dragonhide pack's five sockets
+     * Per-gauge height, shrunk when the rail is crowded: a Sculkhide pack's five sockets
      * plus several store gauges must still fit beside the panel rather than hanging past
      * its bottom edge. Full 40px whenever there's room.
      */

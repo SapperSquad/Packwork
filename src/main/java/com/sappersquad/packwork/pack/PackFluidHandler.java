@@ -18,6 +18,6 @@ public class PackFluidHandler extends FluidHandlerItemStack {
     /** Tank size for a pack: scales with the material tier. */
     public static int capacityFor(ItemStack pack) {
         PackTier tier = PackItem.tierOf(pack);
-        return 8000 * tier.step(); // Canvas 8 buckets ... Dragonhide 48 buckets
+        return 8000 * tier.step(); // Canvas 8 buckets ... Sculkhide 48 buckets
     }
 }

@@ -147,13 +147,13 @@ public class GenTextures {
         {0xFF150D06, 0xFF261809, 0xFF3A2811, 0xFF513920, 0xFF6B4E2E, 0xFF87663F, 0xFFA07C50}, // studded
         {0xFF16130E, 0xFF272319, 0xFF3B3527, 0xFF524A38, 0xFF6C6249, 0xFF897C5D, 0xFFA89A75}, // reinforced
         {0xFF130C22, 0xFF201430, 0xFF302144, 0xFF43305C, 0xFF574178, 0xFF6F5695, 0xFF8A70B4}, // runed
-        // dragonhide: near-black charcoal-plum - a slain dragon's hide, unmistakably darker
-        // and heavier than runed's mid-indigo, with pale BONE trim carrying the contrast
-        {0xFF0C080E, 0xFF171019, 0xFF241927, 0xFF332336, 0xFF443048, 0xFF57405B, 0xFF6C5270},
+        // sculkhide: near-black sculk-teal - hide cured in the Deep Dark, unmistakably darker
+        // and colder than runed's mid-indigo, with glowing echo-cyan trim carrying the contrast
+        {0xFF06090B, 0xFF0D1717, 0xFF152523, 0xFF1E3430, 0xFF29453F, 0xFF365850, 0xFF456D62},
     };
-    static final String[] TIER_ID = {"canvas", "leather", "studded", "reinforced", "runed", "dragonhide"};
-    // dragonbone: the pale ivory of old dragon bone, for Dragonhide's claws and scale caps
-    static final int[] BONER = {0xFF4A4234, 0xFF6B6150, 0xFF8C806C, 0xFFAEA189, 0xFFCEC2A8, 0xFFE6DCC6, 0xFFF8F2E2};
+    static final String[] TIER_ID = {"canvas", "leather", "studded", "reinforced", "runed", "sculkhide"};
+    // echo-cyan: the cold soul-light of echo shards and sculk, for Sculkhide's veins and gem
+    static final int[] ECHOR = {0xFF07282E, 0xFF0B3C44, 0xFF11525C, 0xFF196E7A, 0xFF25909E, 0xFF41BBC6, 0xFF8FF0F6};
 
     static void genPacks() throws Exception {
         for (int t = 0; t < TIER_ID.length; t++) heroPack(TIER_ID[t] + "_pack", t, TIER_RAMP[t]);
@@ -368,7 +368,7 @@ public class GenTextures {
                 setIf(img, 15, 10, twHi); setIf(img, 16, 10, twHi); // the knot where they cross
             }
             case 1 -> leatherGrain(img, R);       // supple leather grain
-            case 2 -> { // studded: leather grain + six real brass studs ringing the flap
+            case 2 -> { // studded: leather grain + six real iron studs ringing the flap
                 leatherGrain(img, R);
                 int[][] studs = {{7, 7}, {12, 4}, {19, 4}, {24, 7}, {6, 12}, {25, 12}};
                 for (int[] s : studs) heroStud(img, s[0], s[1]);
@@ -398,28 +398,28 @@ public class GenTextures {
                 img.setRGB(15, 16, 0xFF8A6BE0); img.setRGB(16, 16, 0xFFC0A8FF);
                 img.setRGB(15, 17, 0xFF6E4FC0); img.setRGB(16, 17, 0xFF9C82E8);
             }
-            case 5 -> { // dragonhide: scale rows on the body + bone claw caps + a breath-lit gem
-                dragonScales(img, R);
-                // pale bone claws hooking over the flap's shoulders - the "clear step above
-                // Runed" read: something was killed for this hide
-                boneClaw(img, 6, 5, +1); boneClaw(img, 24, 5, -1);
-                boneClaw(img, 4, 12, +1); boneClaw(img, 26, 12, -1);
-                // an ember-breath gem set in the buckle, brighter than runed's, with a halo
-                int breath = 0xFFE066D8, breathHi = 0xFFFFC4F4;
-                img.setRGB(15, 16, 0xFFB03AA8); img.setRGB(16, 16, breath);
-                img.setRGB(15, 17, breath); img.setRGB(16, 17, breathHi);
-                runeHalo(img, breath);
+            case 5 -> { // sculkhide: hardened hide plates + sculk-vein tracery + an echo-lit gem
+                hideScales(img, R);
+                // echo-cyan sculk veins creeping over the flap's shoulders - the "clear step
+                // above Runed" read: the Deep Dark has grown into this hide
+                sculkVein(img, 6, 5, +1); sculkVein(img, 24, 5, -1);
+                sculkVein(img, 4, 12, +1); sculkVein(img, 26, 12, -1);
+                // an echo gem set in the buckle, colder and brighter than runed's, with a halo
+                int echo = 0xFF41E0EA, echoHi = 0xFFBFF8FC;
+                img.setRGB(15, 16, 0xFF1E96A6); img.setRGB(16, 16, echo);
+                img.setRGB(15, 17, echo); img.setRGB(16, 17, echoHi);
+                runeHalo(img, echo);
             }
             default -> {}
         }
     }
 
     /**
-     * Overlapping scale rows for the Dragonhide tier: offset scallop arcs, drawn as clean
-     * 3px shapes on the ramp's own values (low contrast, form-safe). The scales carry the
-     * "hide of a dragon" read while the silhouette stays a pack.
+     * Overlapping plate rows for the Sculkhide tier: offset scallop arcs, drawn as clean
+     * 3px shapes on the ramp's own values (low contrast, form-safe). The hardened plates
+     * carry the "cured monster hide" read while the silhouette stays a pack.
      */
-    static void dragonScales(BufferedImage img, int[] R) {
+    static void hideScales(BufferedImage img, int[] R) {
         for (int row = 0; row < 8; row++) {
             int y = 6 + row * 3;
             int shift = (row % 2) * 3;     // brick-laid scallops
@@ -441,14 +441,18 @@ public class GenTextures {
         img.setRGB(x, y, lerp(c, ramp(R, v), 0.55f));
     }
 
-    /** A small pale-bone claw, hooked inward (dir = +1 hooks right, -1 hooks left). */
-    static void boneClaw(BufferedImage img, int x, int y, int dir) {
-        setIf(img, x, y, ramp(BONER, 0.92));
-        setIf(img, x + dir, y, ramp(BONER, 0.78));
-        setIf(img, x, y + 1, ramp(BONER, 0.70));
-        setIf(img, x + dir, y + 1, ramp(BONER, 0.55));
-        setIf(img, x + dir, y + 2, ramp(BONER, 0.40));   // the tapered tip
-        setIf(img, x + 2 * dir, y + 2, ramp(BONER, 0.20));
+    /**
+     * A thin sculk vein creeping in from a flap shoulder (dir = +1 grows right, -1 left):
+     * a drawn stroke that steps down as it goes, dim at the root and glinting at the tip -
+     * the way sculk veins wrap an edge. A shape, never a sprinkle.
+     */
+    static void sculkVein(BufferedImage img, int x, int y, int dir) {
+        int[][] path = {{0, 0}, {1, 0}, {1, 1}, {2, 1}, {2, 2}, {3, 2}, {3, 3}};
+        for (int i = 0; i < path.length; i++) {
+            double v = 0.30 + 0.55 * i / (path.length - 1.0); // brightens toward the tip
+            setIf(img, x + dir * path[i][0], y + path[i][1], ramp(ECHOR, v));
+        }
+        setIf(img, x + dir * 4, y + 4, ramp(ECHOR, 0.97));   // the glinting tip
     }
 
     /** Canvas: a low-contrast 2-on/2-off weave rib in both directions. Coarse enough to survive
@@ -479,14 +483,15 @@ public class GenTextures {
             }
     }
 
-    /** A 2x2 brass stud, lit top-left, with a contact shadow - a shape, not a sprinkle. */
+    /** A 2x2 iron stud, lit top-left, with a contact shadow - a shape, not a sprinkle.
+     *  (Iron-grey since 2026-07-26, matching the Studded ring's iron corners.) */
     static void heroStud(BufferedImage img, int x, int y) {
         if ((img.getRGB(x, y) >>> 24) == 0) return;
-        setIf(img, x, y, ramp(BRASSR, 0.93));
-        setIf(img, x + 1, y, ramp(BRASSR, 0.72));
-        setIf(img, x, y + 1, ramp(BRASSR, 0.64));
-        setIf(img, x + 1, y + 1, ramp(BRASSR, 0.40));
-        setIf(img, x + 2, y + 2, ramp(BRASSR, 0.12)); // contact shadow, one pixel
+        setIf(img, x, y, ramp(STEELR, 0.93));
+        setIf(img, x + 1, y, ramp(STEELR, 0.72));
+        setIf(img, x, y + 1, ramp(STEELR, 0.64));
+        setIf(img, x + 1, y + 1, ramp(STEELR, 0.40));
+        setIf(img, x + 2, y + 2, ramp(STEELR, 0.12)); // contact shadow, one pixel
     }
 
     /** A bevelled 4x4 steel plate with a brass rivet: lit top-left edge, shaded bottom-right. */
@@ -1028,7 +1033,7 @@ public class GenTextures {
     /** The five packs downscaled to hotbar sizes (16/12px) on a stone-grey slot strip, so the
      *  "does it read as a backpack when small?" question can be judged without launching a client. */
     static void writeSmallPreview(String path) throws Exception {
-        String[] packs = {"canvas_pack", "leather_pack", "studded_pack", "reinforced_pack", "runed_pack", "dragonhide_pack"};
+        String[] packs = {"canvas_pack", "leather_pack", "studded_pack", "reinforced_pack", "runed_pack", "sculkhide_pack"};
         int[] sizes = {16, 12};
         int slot = 22, gap = 4, up = 8; // each cell upscaled by `up` for eyeballing
         int cols = packs.length, rows = sizes.length;
@@ -1162,7 +1167,7 @@ public class GenTextures {
     //  per-tier placed-block faces: leather (body/sides/top) + a trimmed FRONT (the flap
     //  face). Colour is baked from the shared TIER_RAMP (no tint), and the per-tier trim
     //  from the hero-item ladder is carried onto the front so a set-down pack shows its
-    //  tier -- canvas weave+twine, leather grain, brass studs, riveted steel plates+band,
+    //  tier -- canvas weave+twine, leather grain, iron studs, riveted steel plates+band,
     //  runed glowing glyphs+gem. The 3D brass buckle/straps are a shared brass texture.
     // =====================================================================
 
@@ -1235,7 +1240,7 @@ public class GenTextures {
                 blockSet(img, free, 16, 13, twHi); blockSet(img, free, 15, 13, twHi); // the crossing knot
             }
             case 1 -> {} // leather: the grain carries it
-            case 2 -> { // studded: six real brass studs ringing the flap (was eleven 1px sprinkles)
+            case 2 -> { // studded: six real iron studs ringing the flap (was eleven 1px sprinkles)
                 int[][] studs = {{5, 6}, {13, 4}, {19, 4}, {26, 6}, {4, 15}, {27, 15}};
                 for (int[] s : studs) blockStud(img, free, s[0], s[1]);
             }
@@ -1261,7 +1266,7 @@ public class GenTextures {
                 for (int[] p : new int[][]{{15, 6}, {16, 6}, {15, 7}, {16, 7}}) blockSet(img, free, p[0], p[1], gem);
                 blockSet(img, free, 15, 6, gemHi); blockSet(img, free, 16, 7, gemHi);
             }
-            case 5 -> { // dragonhide: brick-laid scale scallops + bone claws + a breath gem
+            case 5 -> { // sculkhide: brick-laid hide plates + sculk veins + an echo gem
                 for (int row = 0; row < 9; row++) {
                     int y = 3 + row * 3;
                     int shift = (row % 2) * 3;
@@ -1269,14 +1274,14 @@ public class GenTextures {
                         blockScale(img, free, sx, y, R);
                     }
                 }
-                // bone claws hooking in from the flanks
-                blockClaw(img, free, 3, 6, +1); blockClaw(img, free, 27, 6, -1);
-                blockClaw(img, free, 3, 18, +1); blockClaw(img, free, 27, 18, -1);
-                // the breath gem in the top band, above where the 3D buckle sits
-                int breath = 0xFFE066D8, breathHi = 0xFFFFC4F4;
-                for (int[] p : new int[][]{{15, 6}, {16, 6}, {15, 7}, {16, 7}}) blockSet(img, free, p[0], p[1], breath);
-                blockSet(img, free, 15, 6, breathHi); blockSet(img, free, 16, 7, 0xFFB03AA8);
-                blockHalo(img, free, breath);
+                // echo-cyan sculk veins creeping in from the flanks
+                blockVein(img, free, 3, 6, +1); blockVein(img, free, 27, 6, -1);
+                blockVein(img, free, 3, 18, +1); blockVein(img, free, 27, 18, -1);
+                // the echo gem in the top band, above where the 3D buckle sits
+                int echo = 0xFF41E0EA, echoHi = 0xFFBFF8FC;
+                for (int[] p : new int[][]{{15, 6}, {16, 6}, {15, 7}, {16, 7}}) blockSet(img, free, p[0], p[1], echo);
+                blockSet(img, free, 15, 6, echoHi); blockSet(img, free, 16, 7, 0xFF1E96A6);
+                blockHalo(img, free, echo);
             }
             default -> {}
         }
@@ -1288,13 +1293,13 @@ public class GenTextures {
         img.setRGB(x, y, c);
     }
 
-    /** A 2x2 brass stud with a contact shadow - the same shape the hero item wears. */
+    /** A 2x2 iron stud with a contact shadow - the same shape the hero item wears. */
     static void blockStud(BufferedImage img, boolean[][] free, int x, int y) {
-        blockSet(img, free, x, y, ramp(BRASSR, 0.93));
-        blockSet(img, free, x + 1, y, ramp(BRASSR, 0.72));
-        blockSet(img, free, x, y + 1, ramp(BRASSR, 0.64));
-        blockSet(img, free, x + 1, y + 1, ramp(BRASSR, 0.40));
-        blockSet(img, free, x + 2, y + 2, ramp(BRASSR, 0.12));
+        blockSet(img, free, x, y, ramp(STEELR, 0.93));
+        blockSet(img, free, x + 1, y, ramp(STEELR, 0.72));
+        blockSet(img, free, x, y + 1, ramp(STEELR, 0.64));
+        blockSet(img, free, x + 1, y + 1, ramp(STEELR, 0.40));
+        blockSet(img, free, x + 2, y + 2, ramp(STEELR, 0.12));
     }
 
     /** A bevelled 5x5 steel plate with a brass rivet - lit top-left, shaded bottom-right. */
@@ -1324,14 +1329,14 @@ public class GenTextures {
         img.setRGB(x, y, lerp(img.getRGB(x, y), ramp(R, v), 0.55f));
     }
 
-    /** A pale-bone claw on the block face, hooked inward. */
-    static void blockClaw(BufferedImage img, boolean[][] free, int x, int y, int dir) {
-        blockSet(img, free, x, y, ramp(BONER, 0.92));
-        blockSet(img, free, x + dir, y, ramp(BONER, 0.78));
-        blockSet(img, free, x, y + 1, ramp(BONER, 0.70));
-        blockSet(img, free, x + dir, y + 1, ramp(BONER, 0.55));
-        blockSet(img, free, x + dir, y + 2, ramp(BONER, 0.40));
-        blockSet(img, free, x + 2 * dir, y + 2, ramp(BONER, 0.20));
+    /** A sculk vein on the block face, creeping inward and glinting at its tip. */
+    static void blockVein(BufferedImage img, boolean[][] free, int x, int y, int dir) {
+        int[][] path = {{0, 0}, {1, 0}, {1, 1}, {2, 1}, {2, 2}, {3, 2}, {3, 3}};
+        for (int i = 0; i < path.length; i++) {
+            double v = 0.30 + 0.55 * i / (path.length - 1.0);
+            blockSet(img, free, x + dir * path[i][0], y + path[i][1], ramp(ECHOR, v));
+        }
+        blockSet(img, free, x + dir * 4, y + 4, ramp(ECHOR, 0.97));
     }
 
     /** One-pixel bloom around the block-face rune strokes, matching the hero item's glow. */

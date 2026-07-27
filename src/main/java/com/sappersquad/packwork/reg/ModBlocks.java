@@ -25,7 +25,7 @@ public class ModBlocks {
                     .strength(0.8f)
                     .sound(SoundType.WOOL)
                     .noOcclusion()
-                    // per-tier glow (Runed glyphs, the Dragonhide breath-gem) lives on the tier SSOT
+                    // per-tier glow (Runed glyphs, the Sculkhide breath-gem) lives on the tier SSOT
                     .lightLevel(state -> state.getValue(PackContainerBlock.TIER).lightLevel())
                     .noLootTable());
 }

@@ -38,20 +38,20 @@ grid that keeps itself in order:
 
 The pack grows two ways — the material it's made of, and the fittings you craft for it.
 
-**Material ladder:** Canvas → Leather → Studded → Reinforced → Runed → **Dragonhide**,
+**Material ladder:** Canvas → Leather → Studded → Reinforced → Runed → **Sculkhide**,
 and every step grows the pack THREE ways: more slots, another trinket socket, and
 **deeper slots** — each slot holds one more vanilla stack per tier, from 64 a slot on
-Canvas to **384 a slot** on Dragonhide (six stacks of cobble in one cell, filed under one
+Canvas to **384 a slot** on Sculkhide (six stacks of cobble in one cell, filed under one
 tab). Depth stays inside the pack: your cursor, a hopper, a fitting drawing from stock
 all pull one legal stack at a time. (Extra slots stay the Bottomless Lining's job —
 depth is the tier's, so the two never double-dip.)
 
 **The ladder is a chain of rings:** sew a Canvas pack — a chest wrapped in wool, corners
 tied with string — then every later tier is crafted *around the pack before it*: set it
-in the middle of the bench and fill all nine cells, the tier's hide or plating on the
-edges, its fittings on the corners. Leather ringed with copper buckles, Studded's
-cut-copper studs, Reinforced iron plates cornered with diamonds, Runed amethyst with
-echo shards, and Dragonhide shulker shells with dragon's breath. The upgrade craft
+in the middle of the bench and fill all nine cells, the tier's bulk material on the
+edges, its fittings on the corners. Leather ringed with copper buckles, Studded copper
+set with iron studs, Reinforced gold cornered with diamonds, Runed diamond bound in
+netherite, and Sculkhide amethyst with echo shards from the Deep Dark. The upgrade craft
 carries **everything** up: contents, compartments, pins, trinkets, name, and every
 store. There is no recipe anywhere that can eat a filled pack.
 

@@ -307,15 +307,15 @@ public class PackworkGameTests {
 
         var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
                 PackTier.LEATHER, PackTier.STUDDED,
-                net.minecraft.world.item.crafting.Ingredient.of(Items.LEATHER),
-                net.minecraft.world.item.crafting.Ingredient.of(Items.CUT_COPPER),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.COPPER_INGOT),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.IRON_INGOT),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
-        // the full ring: pack centered, leather on the edges, cut-copper studs on the corners
+        // the full ring: pack centered, copper on the edges, iron studs on the corners
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                new ItemStack(Items.CUT_COPPER), new ItemStack(Items.LEATHER), new ItemStack(Items.CUT_COPPER),
-                new ItemStack(Items.LEATHER), pack, new ItemStack(Items.LEATHER),
-                new ItemStack(Items.CUT_COPPER), new ItemStack(Items.LEATHER), new ItemStack(Items.CUT_COPPER)));
+                new ItemStack(Items.IRON_INGOT), new ItemStack(Items.COPPER_INGOT), new ItemStack(Items.IRON_INGOT),
+                new ItemStack(Items.COPPER_INGOT), pack, new ItemStack(Items.COPPER_INGOT),
+                new ItemStack(Items.IRON_INGOT), new ItemStack(Items.COPPER_INGOT), new ItemStack(Items.IRON_INGOT)));
         helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full studded ring matches");
 
         ItemStack out = recipe.assemble(input, reg);
@@ -1044,7 +1044,7 @@ public class PackworkGameTests {
 
     // =====================================================================
     //  2026-07-25 batch 2: per-slot DEPTH, the preserving recipe chain, and
-    //  the Dragonhide tier. The depth tests are the ones that keep worlds safe.
+    //  the Sculkhide tier. The depth tests are the ones that keep worlds safe.
     // =====================================================================
 
     /** Depth: each tier deepens every slot by x64; unstackables never stack; inserts cap at depth. */
@@ -1057,9 +1057,9 @@ public class PackworkGameTests {
         helper.assertTrue(canvasStore.getStackInSlot(0).getCount() == 64 && left.getCount() == 36,
                 "canvas holds one vanilla stack per slot, got " + canvasStore.getStackInSlot(0).getCount());
 
-        // Dragonhide = six stacks per slot
-        ItemStack dh = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
-        PackInventory dhStore = new PackInventory(dh, PackTier.DRAGONHIDE);
+        // Sculkhide = six stacks per slot
+        ItemStack dh = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
+        PackInventory dhStore = new PackInventory(dh, PackTier.SCULKHIDE);
         ItemStack l2 = dhStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
         helper.assertTrue(l2.isEmpty(), "first stack in");
         for (int i = 0; i < 5; i++) {
@@ -1067,7 +1067,7 @@ public class PackworkGameTests {
             helper.assertTrue(l2.isEmpty(), "stack " + (i + 2) + " merges into depth");
         }
         helper.assertTrue(dhStore.getStackInSlot(0).getCount() == 384,
-                "dragonhide slot holds 384, got " + dhStore.getStackInSlot(0).getCount());
+                "sculkhide slot holds 384, got " + dhStore.getStackInSlot(0).getCount());
         l2 = dhStore.insertItem(0, new ItemStack(Items.COBBLESTONE, 10), false);
         helper.assertTrue(l2.getCount() == 10, "the 385th cobblestone is refused, not eaten");
 
@@ -1095,8 +1095,8 @@ public class PackworkGameTests {
         HolderLookup.Provider reg = helper.getLevel().registryAccess();
 
         // (a) relog: ItemStack.save -> parse with 384 cobble + 96 pearls + a sword aboard
-        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
-        PackInventory store = new PackInventory(pack, PackTier.DRAGONHIDE);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
+        PackInventory store = new PackInventory(pack, PackTier.SCULKHIDE);
         store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
         for (int i = 0; i < 5; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
         store.insertItem(1, new ItemStack(Items.ENDER_PEARL, 64), false);
@@ -1105,7 +1105,7 @@ public class PackworkGameTests {
 
         Tag saved = pack.save(reg);
         ItemStack reloaded = ItemStack.parse(reg, saved).orElseThrow();
-        PackInventory reStore = new PackInventory(reloaded, PackTier.DRAGONHIDE);
+        PackInventory reStore = new PackInventory(reloaded, PackTier.SCULKHIDE);
         helper.assertTrue(reStore.getStackInSlot(0).getCount() == 384,
                 "384 cobble survive a relog, got " + reStore.getStackInSlot(0).getCount());
         helper.assertTrue(reStore.getStackInSlot(1).getCount() == 96, "96 pearls survive a relog");
@@ -1120,7 +1120,7 @@ public class PackworkGameTests {
         var be2 = new com.sappersquad.packwork.block.PackContainerBlockEntity(
                 helper.absolutePos(p), helper.getLevel().getBlockState(helper.absolutePos(p)));
         be2.loadWithComponents(beTag, reg);
-        PackInventory beStore = new PackInventory(be2.getPackStack(), PackTier.DRAGONHIDE);
+        PackInventory beStore = new PackInventory(be2.getPackStack(), PackTier.SCULKHIDE);
         helper.assertTrue(beStore.getStackInSlot(0).getCount() == 384,
                 "384 cobble survive the placed-pack chunk save, got " + beStore.getStackInSlot(0).getCount());
 
@@ -1144,8 +1144,8 @@ public class PackworkGameTests {
      */
     @GameTest(template = "empty")
     public static void oversizedStacksNeverEscape(GameTestHelper helper) {
-        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
-        PackInventory store = new PackInventory(pack, PackTier.DRAGONHIDE);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
+        PackInventory store = new PackInventory(pack, PackTier.SCULKHIDE);
         for (int i = 0; i < 6; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
 
         // capability path (hoppers/pipes): a greedy pull still gets one legal stack
@@ -1204,8 +1204,8 @@ public class PackworkGameTests {
     /**
      * The recipe chain (SapperSquad's rework): every tier above Canvas is crafted FROM the pack
      * before it, and that craft preserves EVERYTHING - deep contents, trinkets, layout,
-     * name, and all five stores. Proven on the endgame step: Runed + shulker shells +
-     * dragon's breath = Dragonhide.
+     * name, and all five stores. Proven on the endgame step: Runed + an amethyst ring
+     * cornered with echo shards = Sculkhide.
      */
     @GameTest(template = "empty")
     public static void upgradeChainPreservesEverythingIncludingDepth(GameTestHelper helper) {
@@ -1225,46 +1225,46 @@ public class PackworkGameTests {
                 net.minecraft.network.chat.Component.literal("Old Faithful"));
 
         var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
-                PackTier.RUNED, PackTier.DRAGONHIDE,
-                net.minecraft.world.item.crafting.Ingredient.of(Items.SHULKER_SHELL),
-                net.minecraft.world.item.crafting.Ingredient.of(Items.DRAGON_BREATH),
+                PackTier.RUNED, PackTier.SCULKHIDE,
+                net.minecraft.world.item.crafting.Ingredient.of(Items.AMETHYST_SHARD),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.ECHO_SHARD),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
-        // the full ring: pack centered, shell armor on the edges, breath at the corners
+        // the full ring: pack centered, amethyst on the edges, echo shards at the corners
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH),
-                new ItemStack(Items.SHULKER_SHELL), pack, new ItemStack(Items.SHULKER_SHELL),
-                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH)));
-        helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full dragonhide ring matches");
+                new ItemStack(Items.ECHO_SHARD), new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.ECHO_SHARD),
+                new ItemStack(Items.AMETHYST_SHARD), pack, new ItemStack(Items.AMETHYST_SHARD),
+                new ItemStack(Items.ECHO_SHARD), new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.ECHO_SHARD)));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full sculkhide ring matches");
 
         // cramming the materials into two stacked cells must NOT match: all nine cells or
         // nothing, so the price can never be concentrated (the old underpay exploit)
         var stacked = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.SHULKER_SHELL, 4), new ItemStack(Items.DRAGON_BREATH, 4),
+                pack, new ItemStack(Items.AMETHYST_SHARD, 4), new ItemStack(Items.ECHO_SHARD, 4),
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
         helper.assertTrue(!recipe.matches(stacked, helper.getLevel()),
                 "a gapped, stacked layout must not match - crafting would underpay");
 
-        // a ring with the roles SWAPPED (breath on edges, shells at corners) must NOT
-        // match: the picture is the recipe - positions matter, only rotations are free
+        // a ring with the roles SWAPPED (echo shards on edges, amethyst at corners) must
+        // NOT match: the picture is the recipe - positions matter, only rotations are free
         var swapped = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL),
-                new ItemStack(Items.DRAGON_BREATH), pack, new ItemStack(Items.DRAGON_BREATH),
-                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL)));
+                new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.ECHO_SHARD), new ItemStack(Items.AMETHYST_SHARD),
+                new ItemStack(Items.ECHO_SHARD), pack, new ItemStack(Items.ECHO_SHARD),
+                new ItemStack(Items.AMETHYST_SHARD), new ItemStack(Items.ECHO_SHARD), new ItemStack(Items.AMETHYST_SHARD)));
         helper.assertTrue(!recipe.matches(swapped, helper.getLevel()),
                 "edges and corners are not interchangeable");
 
-        // shells alone (no breath corners) must NOT match - the End gate is real
+        // amethyst alone (no echo-shard corners) must NOT match - the Deep Dark gate is real
         var half = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                ItemStack.EMPTY, new ItemStack(Items.SHULKER_SHELL), ItemStack.EMPTY,
-                new ItemStack(Items.SHULKER_SHELL), pack, new ItemStack(Items.SHULKER_SHELL),
-                ItemStack.EMPTY, new ItemStack(Items.SHULKER_SHELL), ItemStack.EMPTY));
-        helper.assertTrue(!recipe.matches(half, helper.getLevel()), "shells alone are not enough");
+                ItemStack.EMPTY, new ItemStack(Items.AMETHYST_SHARD), ItemStack.EMPTY,
+                new ItemStack(Items.AMETHYST_SHARD), pack, new ItemStack(Items.AMETHYST_SHARD),
+                ItemStack.EMPTY, new ItemStack(Items.AMETHYST_SHARD), ItemStack.EMPTY));
+        helper.assertTrue(!recipe.matches(half, helper.getLevel()), "amethyst alone is not enough");
 
         ItemStack out = recipe.assemble(input, reg);
-        helper.assertTrue(out.getItem() == ModItems.pack(PackTier.DRAGONHIDE).get(), "result is Dragonhide");
-        PackInventory upStore = new PackInventory(out, PackTier.DRAGONHIDE);
+        helper.assertTrue(out.getItem() == ModItems.pack(PackTier.SCULKHIDE).get(), "result is Sculkhide");
+        PackInventory upStore = new PackInventory(out, PackTier.SCULKHIDE);
         helper.assertTrue(upStore.getStackInSlot(0).getCount() == 320,
                 "the deep stack rides up intact, got " + upStore.getStackInSlot(0).getCount());
         helper.assertTrue(com.sappersquad.packwork.trinket.TrinketAccess.has(out,
@@ -1277,12 +1277,12 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
-    /** Everything keyed off the tier enum scales to Dragonhide: sockets, stores, depth. */
+    /** Everything keyed off the tier enum scales to Sculkhide: sockets, stores, depth. */
     @GameTest(template = "empty")
-    public static void dragonhideScalesEverything(GameTestHelper helper) {
-        ItemStack pack = new ItemStack(ModItems.pack(PackTier.DRAGONHIDE).get());
-        helper.assertTrue(PackTier.DRAGONHIDE.trinketSlots() == 5, "five trinket sockets");
-        helper.assertTrue(PackTier.DRAGONHIDE.depthMultiplier() == 6, "depth x6 (384 of a 64-stackable)");
+    public static void sculkhideScalesEverything(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
+        helper.assertTrue(PackTier.SCULKHIDE.trinketSlots() == 5, "five trinket sockets");
+        helper.assertTrue(PackTier.SCULKHIDE.depthMultiplier() == 6, "depth x6 (384 of a 64-stackable)");
         helper.assertTrue(com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) == 48000,
                 "waterskin scales to 48 buckets");
         helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack) == 30000,
@@ -1296,9 +1296,9 @@ public class PackworkGameTests {
         helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
         ((com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getBlockEntity(p)).setPackStack(pack.copy());
         var st = helper.getLevel().getBlockState(helper.absolutePos(p));
-        helper.assertTrue(st.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.DRAGONHIDE,
-                "the blockstate carries the dragonhide tier");
-        helper.assertTrue(st.getLightEmission() == 11, "the breath-gem glows brighter than runed");
+        helper.assertTrue(st.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.SCULKHIDE,
+                "the blockstate carries the sculkhide tier");
+        helper.assertTrue(st.getLightEmission() == 11, "the echo-gem glows brighter than runed");
         helper.succeed();
     }
 

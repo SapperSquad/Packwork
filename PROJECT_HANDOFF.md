@@ -56,6 +56,18 @@ screenshots `packwork_autopin` / `packwork_rules_*` / `packwork_keep_layout` /
 open parchment sheets as GUI extra areas so JEI's ingredient list stays off them — check
 that as pixels too.
 
+6. **The ladder redesigned + tier 6 renamed SCULKHIDE (SapperSquad's calls, second ring pass).**
+   "Recipes look good" but he re-cut the materials and pivoted tier 6 off the dragon:
+   Studded = copper/iron, Reinforced = gold/DIAMOND, Runed = diamond/NETHERITE, tier 6 =
+   amethyst/echo shards (old Runed ring) and renamed — **Sculkhide** implemented
+   (coordinator's proposal; alternates Echobound / Wardenhide flagged for veto). Balance
+   recorded as HIS design: tier 6's marginal ring is cheaper than tier 5's; the gate is the
+   required Runed pack. Art realigned: sculk-teal hide ramp, echo-cyan veins replace bone
+   claws, echo gem replaces the breath gem (ECHOR ramp in GenTextures), Studded studs
+   brass→iron; verified at 16/12px + 8x zoom. Full registry rename (no migration,
+   pre-release); found+fixed: tier 6 was missing from the `curios:back` tag. Canvas/Leather
+   rings and the ring structure unchanged.
+
 5. **The upgrade RING (SapperSquad's playtest calls: nine cells, pack centered, diamonds).** Every
    pack recipe now fills all 9 cells with the previous pack in the CENTER: bulk material on
    the edges, fittings on the corners. Ladder: Canvas = wool edges/string corners/chest

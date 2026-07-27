@@ -1,0 +1,9 @@
+{
+  "__comment": "sculkhide-tier placed pack: shared geometry, this tier's hide + trimmed front.",
+  "parent": "packwork:block/pack_shape",
+  "textures": {
+    "front": "packwork:block/pack_sculkhide_front",
+    "leather": "packwork:block/pack_sculkhide_leather",
+    "particle": "packwork:block/pack_sculkhide_leather"
+  }
+}
