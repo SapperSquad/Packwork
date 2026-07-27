@@ -56,6 +56,17 @@ screenshots `packwork_autopin` / `packwork_rules_*` / `packwork_keep_layout` /
 open parchment sheets as GUI extra areas so JEI's ingredient list stays off them — check
 that as pixels too.
 
+7. **Pack-first pickup (SapperSquad's ask: "cobblestone won't automatically go into my backpack").**
+   With a Lodestone fitted (carried or Curios-worn), `ItemEntityPickupEvent.Pre` (fires
+   before all vanilla processing — verified in the 21.1.235 sources; mutating the entity
+   stack is the documented pattern) routes pickups the pack can FILE straight in: non-Loose
+   route, pinned anywhere, or already held. Loose-bound finds fall through to vanilla.
+   Partial fits shrink the ground stack by exactly what was inserted and leave the rest to
+   vanilla; Rose+void-list bins on pickup (magnet contract); packs never intercepted; per-pack
+   title-strip toggle persisted as `PackLayout.packFirst` (default ON). 8 gametests
+   (`packFirst*`), 53 total green. Trap note: the handler takes `Player`, not `ServerPlayer` —
+   mock players aren't ServerPlayers and the narrow gate silently disabled the feature in tests.
+
 6. **The ladder redesigned + tier 6 renamed SCULKHIDE (SapperSquad's calls, second ring pass).**
    "Recipes look good" but he re-cut the materials and pivoted tier 6 off the dragon:
    Studded = copper/iron, Reinforced = gold/DIAMOND, Runed = diamond/NETHERITE, tier 6 =

@@ -65,7 +65,7 @@ legal stacks. Then slot brass **trinkets** into it:
 
 | Fitting | |
 |---|---|
-| Lodestone Charm | pulls loose items nearby into the pack |
+| Lodestone Charm | pulls loose items nearby into the pack — and files what you mine straight into its compartments |
 | Restock Strap | refills your hotbar from pack stock |
 | Repair Kit | slowly mends worn and held gear |
 | Bottomless Lining | more slots, never voided |

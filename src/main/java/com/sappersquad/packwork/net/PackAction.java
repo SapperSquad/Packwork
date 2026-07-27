@@ -50,7 +50,9 @@ public enum PackAction {
     /** s1 = custom tab id, arg = index into the tab's stored rule list. Ledger-gated too. */
     REMOVE_TAB_RULE,
     /** s1 = tab id: flip that compartment between Tidy (auto-arranged) and Keep-my-layout. */
-    TOGGLE_TAB_MODE;
+    TOGGLE_TAB_MODE,
+    /** flip whether a fitted Lodestone routes fileable pickups straight into this pack. */
+    TOGGLE_PACK_FIRST;
 
     private static final PackAction[] VALUES = values();
 

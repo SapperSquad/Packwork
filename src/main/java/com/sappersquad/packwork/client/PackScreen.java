@@ -70,6 +70,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private final List<LedgerEntry> craftable = new ArrayList<>();    // the searched view of it
     private int browserRecomputeIn = 0;
     private boolean hasKitCached = false; // trinket reads stream a component; refresh per tick, not per frame
+    private boolean hasLodestoneCached = false; // gates the pack-first pickup toggle
     private net.minecraft.world.item.crafting.RecipeHolder<?> ghost = null;
     private net.minecraft.world.item.crafting.Ingredient[] ghostGrid =
             new net.minecraft.world.item.crafting.Ingredient[9];
@@ -197,6 +198,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
         // The ledger lives and dies with the tool roll; refresh its list as stock shifts.
         hasKitCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
+        hasLodestoneCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.LODESTONE);
         if (!menu.rollActive() && (browserOpen || ghost != null)) {
             closeBrowser();
         }
@@ -601,7 +603,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         this.renderTooltip(g, mouseX, mouseY);
     }
 
-    // Title-strip buttons: ledger + tool roll (only with a kit fitted), flatten, tidy up, new tab.
+    // Title-strip buttons: pickup toggle (with a Lodestone), ledger + tool roll (with a kit),
+    // flatten, tidy up, new tab.
+    private int pickupBtnX() { return leftPos + 88; }
     private int bookBtnX() { return leftPos + 102; }
     private int rollBtnX() { return leftPos + 116; }
     private int flatBtnX() { return leftPos + 130; }
@@ -896,6 +900,17 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
         // glyphs (brass on the plate)
         int gl = 0xFFEAD9A6;
+        if (hasLodestoneCached) { // pack-first pickup: only means anything with a Lodestone fitted
+            boolean on = menu.packFirst();
+            drawPlate(g, pickupBtnX(), btnY(), inRect(mouseX, mouseY, pickupBtnX(), btnY(), BTN, BTN), on);
+            // an arrow diving into the pack's open mouth
+            g.fill(pickupBtnX() + 5, btnY() + 2, pickupBtnX() + 7, btnY() + 6, gl);      // shaft
+            g.fill(pickupBtnX() + 4, btnY() + 5, pickupBtnX() + 8, btnY() + 6, gl);      // head base
+            g.fill(pickupBtnX() + 5, btnY() + 6, pickupBtnX() + 7, btnY() + 7, gl);      // head tip
+            g.fill(pickupBtnX() + 2, btnY() + 8, pickupBtnX() + 4, btnY() + 10, gl);     // bag mouth
+            g.fill(pickupBtnX() + 8, btnY() + 8, pickupBtnX() + 10, btnY() + 10, gl);
+            g.fill(pickupBtnX() + 2, btnY() + 9, pickupBtnX() + 10, btnY() + 10, 0xFF8A6A28);
+        }
         if (hasKit()) {   // the tool-roll latch appears only once a Tinker's Kit is fitted
             drawPlate(g, rollBtnX(), btnY(), inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN), menu.rollActive());
             g.fill(rollBtnX() + 2, btnY() + 4, rollBtnX() + 10, btnY() + 6, gl);   // the rolled leather
@@ -1168,7 +1183,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
             return;
         }
-        if (hasKit() && menu.rollActive() && inRect(mouseX, mouseY, bookBtnX(), btnY(), BTN, BTN)) {
+        if (hasLodestoneCached && inRect(mouseX, mouseY, pickupBtnX(), btnY(), BTN, BTN)) {
+            boolean on = menu.packFirst();
+            List<Component> lines = new ArrayList<>();
+            lines.add(Component.translatable(on ? "packwork.ui.pickup_on" : "packwork.ui.pickup_off"));
+            lines.add(Component.translatable(on ? "packwork.ui.pickup_on_hint" : "packwork.ui.pickup_off_hint")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+        } else if (hasKit() && menu.rollActive() && inRect(mouseX, mouseY, bookBtnX(), btnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable("packwork.ui.ledger_btn"));
             lines.add(Component.translatable("packwork.ui.ledger_btn_hint")
@@ -1221,6 +1243,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         // title buttons
         if (button == 0) {
+            if (hasLodestoneCached && inRect((int) mx, (int) my, pickupBtnX(), btnY(), BTN, BTN)) {
+                PackClientActions.togglePackFirst(menu);
+                return true;
+            }
             if (!menu.flatten() && !menu.rollActive()
                     && inRect((int) mx, (int) my, modeBtnX(), perTabBtnY(), BTN, BTN)) {
                 PackClientActions.toggleTabMode(menu, menu.activeTab());

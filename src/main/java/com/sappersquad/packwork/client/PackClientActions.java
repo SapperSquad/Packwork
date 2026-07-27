@@ -112,6 +112,10 @@ public final class PackClientActions {
         send(menu, PackAction.TOGGLE_TAB_MODE, 0, tabId, "");
     }
 
+    public static void togglePackFirst(PackMenu menu) {
+        send(menu, PackAction.TOGGLE_PACK_FIRST, 0, "", "");
+    }
+
     public static PackMenu openMenu() {
         return Minecraft.getInstance().player != null
                 && Minecraft.getInstance().player.containerMenu instanceof PackMenu m ? m : null;

@@ -788,7 +788,19 @@ public class PackMenu extends AbstractContainerMenu {
             case ADD_TAB_RULE -> applyAddTabRule(s1, arg, s2);
             case REMOVE_TAB_RULE -> applyRemoveTabRule(s1, arg);
             case TOGGLE_TAB_MODE -> applyToggleTabMode(s1);
+            case TOGGLE_PACK_FIRST -> applyTogglePackFirst();
         }
+    }
+
+    /** Flip pack-first pickup for THIS pack (the Lodestone's route-what-files behaviour). */
+    public void applyTogglePackFirst() {
+        PackLayout cur = currentLayout();
+        saveLayout(cur.withPackFirst(!cur.packFirst()));
+    }
+
+    /** Is pack-first pickup on for this pack? (Only meaningful with a Lodestone fitted.) */
+    public boolean packFirst() {
+        return layout.packFirst();
     }
 
     /**
@@ -1216,7 +1228,7 @@ public class PackMenu extends AbstractContainerMenu {
         customs.add(def);
         List<String> order = ensureOrder(cur);
         order.add(id);
-        saveLayout(new PackLayout(order, customs, cur.pins(), cur.voidList(), cur.manual()));
+        saveLayout(new PackLayout(order, customs, cur.pins(), cur.voidList(), cur.manual(), cur.packFirst()));
         this.activeTab = id;
         this.flatten = false;
         rebuildView();
@@ -1233,7 +1245,7 @@ public class PackMenu extends AbstractContainerMenu {
         for (var p : cur.pins()) if (!p.tabId().equals(id)) pins.add(p);
         List<PackLayout.ManualTab> manual = new ArrayList<>();
         for (var m : cur.manual()) if (!m.tabId().equals(id)) manual.add(m);
-        saveLayout(new PackLayout(order, customs, pins, cur.voidList(), manual));
+        saveLayout(new PackLayout(order, customs, pins, cur.voidList(), manual, cur.packFirst()));
         if (activeTab.equals(id)) activeTab = firstRealTab();
         rebuildView();
     }

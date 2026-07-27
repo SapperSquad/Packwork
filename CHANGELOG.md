@@ -4,6 +4,18 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ## Unreleased — playtest polish
 
+### Added — the Lodestone files what you mine (pack-first pickup)
+- **Mined cobble goes straight in the pack now.** With a Lodestone Charm fitted (carried
+  or worn), anything you pick up that the pack knows where to put — it sorts to a
+  compartment, it's pinned somewhere, or the pack already holds some — routes **pack-first**
+  and files itself under the right tab, with the usual pickup flourish. New, unknown finds
+  still land in your pockets, so nothing ever vanishes into the bag unseen.
+- **A small switch in the title strip** (it appears with the Lodestone) turns pack-first
+  pickup on or off per pack; it remembers per pack. If the pack is full for an item, it
+  takes what fits and the rest reaches your pockets — never the void. Items on a Compass
+  Rose's void list are binned on pickup, exactly as the magnet already does. Packs are
+  never swallowed into packs.
+
 ### Changed — every upgrade is a full ring around the pack
 - **The recipe is a picture now.** Set your pack in the MIDDLE of the bench and build the
   next tier around it — all nine cells filled, the tier's bulk material on the four
