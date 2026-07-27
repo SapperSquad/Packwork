@@ -40,16 +40,23 @@ import java.util.List;
  * <p>Two jobs:
  * <ul>
  *   <li><b>Real recipes for the ladder.</b> {@code packwork:pack_upgrade} is a custom
- *   crafting recipe, and without help JEI has nothing to draw for it - which left "how do I
- *   make each pack" showing lore instead of a craft. The {@link PackUpgradeExtension} below
- *   teaches JEI's own crafting category the layout: previous-tier pack + its material cells
- *   in, next-tier pack out, with the contents-preserving behaviour spelled out on the
- *   result's tooltip. Canvas and every trinket/handbook recipe are plain vanilla recipe
- *   JSONs, which JEI renders with no help.</li>
+ *   crafting recipe; TWO pieces make it render. (1) The recipe carries an honest
+ *   {@code getIngredients()} list - JEI's own scan ({@code VanillaRecipes} +
+ *   {@code CategoryRecipeValidator}, verified in the 19.21.1.312 sources) silently DROPS
+ *   any non-special crafting recipe with an empty ingredient list before any extension is
+ *   consulted, which is exactly the "info pages but no recipes" failure seen in the field.
+ *   (2) The {@link PackUpgradeExtension} below teaches JEI's crafting category the layout:
+ *   previous-tier pack + its material cells in, next-tier pack out, with the
+ *   contents-preserving behaviour spelled out on the result's tooltip. Canvas and every
+ *   trinket/handbook recipe are plain vanilla recipe JSONs, which JEI renders with no
+ *   help.</li>
  *   <li><b>Info pages as supplements</b> for every pack tier, every trinket, and the
  *   handbook. The tier numbers come straight from {@link PackTier}, and the trinket blurbs
  *   reuse their tooltip lang keys.</li>
  * </ul>
+ *
+ * <p>{@link #registerRecipes} logs one greppable INFO line ("Packwork JEI: ...") so plugin
+ * discovery and the upgrade-recipe count are provable from any log, no pixels needed.
  */
 @JeiPlugin
 public class PackworkJeiPlugin implements IModPlugin {
@@ -131,6 +138,21 @@ public class PackworkJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration reg) {
+        // The discovery proof: one greppable line. Counts the upgrade recipes exactly as
+        // JEI's own scan sees them (the client RecipeManager), so a 0 here means the
+        // ladder will NOT render and points straight at recipe loading.
+        long upgrades = 0;
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level != null) {
+            upgrades = level.getRecipeManager()
+                    .getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING)
+                    .stream().filter(h -> h.value() instanceof PackUpgradeRecipe).count();
+        }
+        Packwork.LOGGER.info(
+                "Packwork JEI: plugin discovered; {} pack-upgrade recipes carry ingredients for the "
+                        + "crafting category; info pages for {} packs + {} trinkets",
+                upgrades, PackTier.values().length, TrinketType.values().length);
+
         Component packInfo = Component.translatable("packwork.jei.pack.info");
         for (PackTier tier : PackTier.values()) {
             reg.addItemStackInfo(new ItemStack(ModItems.pack(tier).get()),

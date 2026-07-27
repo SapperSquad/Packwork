@@ -110,6 +110,35 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, List<SizedIngredient
         return width * height >= cells;
     }
 
+    /**
+     * The honest cell-by-cell ingredient list: the previous tier's pack, then one entry
+     * per material CELL. This is not decorative - JEI's recipe scan
+     * ({@code CategoryRecipeValidator.hasValidInputsAndOutputs}, verified in the
+     * 19.21.1.312 sources) silently drops any non-special crafting recipe whose
+     * ingredient list is empty ("Skipping Recipe because it has no inputs", DEBUG-only),
+     * so with the default empty list the upgrade never reached our JEI extension and the
+     * ladder showed info pages instead of crafts. It also matches how {@code matches()}
+     * counts and how crafting consumes: one item per cell.
+     *
+     * <p>Deliberately harmless elsewhere: vanilla's recipe book only shows unlocked
+     * recipes (we award none), and the pack's own Recipe Ledger will not list an
+     * upgrade from pack stock because a pack cannot contain a pack (nesting is
+     * blocked) - {@code StackedContents.canCraft} says no, and the all-or-nothing
+     * lay-out can never cover the pack cell from stock. (A pack laid on the tool roll
+     * by hand already crafted its upgrade before this change - the roll goes through
+     * {@code matches()}, not this list.)
+     */
+    @Override
+    public net.minecraft.core.NonNullList<net.minecraft.world.item.crafting.Ingredient> getIngredients() {
+        net.minecraft.core.NonNullList<net.minecraft.world.item.crafting.Ingredient> list =
+                net.minecraft.core.NonNullList.create();
+        list.add(net.minecraft.world.item.crafting.Ingredient.of(ModItems.pack(from).get()));
+        for (SizedIngredient m : materials) {
+            for (int i = 0; i < m.count(); i++) list.add(m.ingredient());
+        }
+        return list;
+    }
+
     @Override
     public ItemStack getResultItem(HolderLookup.Provider registries) {
         return new ItemStack(ModItems.pack(to).get());

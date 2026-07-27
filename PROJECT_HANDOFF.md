@@ -80,18 +80,30 @@ that as pixels too.
    deletes — pause, never punish) and tabs fall back to stamp+pins. Pins beat everything.
    Trinket desc, JEI info, Handbook (Sorting + Trinkets) all rewritten to match.
 
-1. **JEI renders the pack ladder as REAL recipes (bug).** The compat plugin only registered
-   info pages, so "how do I make each pack" showed lore. `PackworkJeiPlugin` now registers an
-   `ICraftingCategoryExtension<PackUpgradeRecipe>` (via `registerVanillaCategoryExtensions`,
-   verified against the pinned JEI 19.21.1.312 API jar): previous-tier pack + material cells
-   in, next pack out, shapeless-marked, and the result's tooltip notes that contents/layout/
-   trinkets/name/stores all carry up. Trinket + handbook + Canvas recipes are plain JSONs and
-   always rendered. Info pages stay as supplements. **Found under this: the upgrade could be
-   UNDERPAID** — `matches()` summed item counts but vanilla crafting consumes one item per
-   grid cell (`ResultSlot.onTake`), so 4 shells stacked in one cell bought the craft for 1.
-   Materials now count per CELL, exact (`found[m] == count`), `canCraftInDimensions` demands
-   1 + total cells, and the JEI layout is literally the gesture. Gametests updated (spread
-   inputs; a stacked input is pinned as NOT matching).
+1. **JEI renders the pack ladder as REAL recipes (bug; field-tested twice).** The compat
+   plugin only registered info pages, so "how do I make each pack" showed lore.
+   `PackworkJeiPlugin` registers an `ICraftingCategoryExtension<PackUpgradeRecipe>` (via
+   `registerVanillaCategoryExtensions`, verified against the pinned JEI 19.21.1.312 API jar):
+   previous-tier pack + material cells in, next pack out, shapeless-marked, and the result's
+   tooltip notes that contents/layout/trinkets/name/stores all carry up. **SapperSquad's field test
+   showed the extension alone was NOT enough** — root cause verified in the JEI runtime
+   sources: `VanillaRecipes.getCraftingRecipes` runs every crafting recipe through
+   `CategoryRecipeValidator.hasValidInputsAndOutputs`, which silently drops (DEBUG-only log)
+   any non-special recipe whose `getIngredients()` is empty — before `isHandled`/extensions
+   are ever consulted. `PackUpgradeRecipe.getIngredients()` now returns the honest
+   cell-by-cell list (pack first, one entry per material cell), so JEI's own scan accepts and
+   indexes the recipes; harmless elsewhere (vanilla book shows only unlocked recipes — we
+   award none; the Recipe Ledger still can't list upgrades from stock since packs can't nest).
+   The plugin logs one greppable line — grep **`Packwork JEI:`** — reporting the upgrade
+   count, so discovery + display eligibility are provable from any log. Gametest
+   `upgradeRecipesCarryDisplayableIngredients` mirrors the validator's exact checks.
+   Trinket + handbook + Canvas recipes are plain JSONs and always rendered. Info pages stay
+   as supplements. **Also found under this: the upgrade could be UNDERPAID** — `matches()`
+   summed item counts but vanilla crafting consumes one item per grid cell
+   (`ResultSlot.onTake`), so 4 shells stacked in one cell bought the craft for 1. Materials
+   now count per CELL, exact (`found[m] == count`), `canCraftInDimensions` demands 1 + total
+   cells, and the JEI layout is literally the gesture. Gametests updated (spread inputs; a
+   stacked input is pinned as NOT matching).
 2. **Pinning is legible (SapperSquad: "I don't understand what it means").** Three layers:
    (a) tooltip copy in plain words ("[P] Keep in this tab — auto-sort won't move it");
    (b) feedback — a stitched parchment note over the panel names the tab on every pin/unpin;
