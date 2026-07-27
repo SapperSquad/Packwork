@@ -307,16 +307,16 @@ public class PackworkGameTests {
 
         var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
                 PackTier.LEATHER, PackTier.STUDDED,
-                List.of(net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.IRON_INGOT, 4)),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.LEATHER),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.CUT_COPPER),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
-        // a 3x3 crafting input: the pack + 4 iron ingots, one per cell (crafting consumes
-        // one item per cell, so the recipe demands the honest spread)
+        // the full ring: pack centered, leather on the edges, cut-copper studs on the corners
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.IRON_INGOT), new ItemStack(Items.IRON_INGOT),
-                new ItemStack(Items.IRON_INGOT), new ItemStack(Items.IRON_INGOT), ItemStack.EMPTY,
-                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
-        helper.assertTrue(recipe.matches(input, helper.getLevel()), "recipe should match pack + 4 iron");
+                new ItemStack(Items.CUT_COPPER), new ItemStack(Items.LEATHER), new ItemStack(Items.CUT_COPPER),
+                new ItemStack(Items.LEATHER), pack, new ItemStack(Items.LEATHER),
+                new ItemStack(Items.CUT_COPPER), new ItemStack(Items.LEATHER), new ItemStack(Items.CUT_COPPER)));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full studded ring matches");
 
         ItemStack out = recipe.assemble(input, reg);
         helper.assertTrue(out.getItem() == ModItems.pack(PackTier.STUDDED).get(), "result is a Studded pack");
@@ -1226,32 +1226,40 @@ public class PackworkGameTests {
 
         var recipe = new com.sappersquad.packwork.pack.PackUpgradeRecipe(
                 PackTier.RUNED, PackTier.DRAGONHIDE,
-                List.of(net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.SHULKER_SHELL, 4),
-                        net.neoforged.neoforge.common.crafting.SizedIngredient.of(Items.DRAGON_BREATH, 4)),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.SHULKER_SHELL),
+                net.minecraft.world.item.crafting.Ingredient.of(Items.DRAGON_BREATH),
                 net.minecraft.world.item.crafting.CraftingBookCategory.EQUIPMENT);
 
-        // materials spread ONE PER CELL - the only layout crafting can charge honestly
+        // the full ring: pack centered, shell armor on the edges, breath at the corners
         var input = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
-                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
-                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.DRAGON_BREATH),
-                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.DRAGON_BREATH)));
-        helper.assertTrue(recipe.matches(input, helper.getLevel()), "runed + shells + breath matches");
+                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH),
+                new ItemStack(Items.SHULKER_SHELL), pack, new ItemStack(Items.SHULKER_SHELL),
+                new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH)));
+        helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full dragonhide ring matches");
 
-        // stacked into one cell must NOT match: taking the craft only consumes ONE item per
-        // grid cell, so a stacked cell would buy the upgrade at a quarter of its price
+        // cramming the materials into two stacked cells must NOT match: all nine cells or
+        // nothing, so the price can never be concentrated (the old underpay exploit)
         var stacked = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
                 pack, new ItemStack(Items.SHULKER_SHELL, 4), new ItemStack(Items.DRAGON_BREATH, 4),
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY,
                 ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
         helper.assertTrue(!recipe.matches(stacked, helper.getLevel()),
-                "stacked materials must not match - crafting would underpay");
+                "a gapped, stacked layout must not match - crafting would underpay");
 
-        // missing the second material must NOT match - the End gate is real
+        // a ring with the roles SWAPPED (breath on edges, shells at corners) must NOT
+        // match: the picture is the recipe - positions matter, only rotations are free
+        var swapped = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
+                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL),
+                new ItemStack(Items.DRAGON_BREATH), pack, new ItemStack(Items.DRAGON_BREATH),
+                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.DRAGON_BREATH), new ItemStack(Items.SHULKER_SHELL)));
+        helper.assertTrue(!recipe.matches(swapped, helper.getLevel()),
+                "edges and corners are not interchangeable");
+
+        // shells alone (no breath corners) must NOT match - the End gate is real
         var half = net.minecraft.world.item.crafting.CraftingInput.of(3, 3, java.util.List.of(
-                pack, new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
-                new ItemStack(Items.SHULKER_SHELL), new ItemStack(Items.SHULKER_SHELL),
-                ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY, ItemStack.EMPTY));
+                ItemStack.EMPTY, new ItemStack(Items.SHULKER_SHELL), ItemStack.EMPTY,
+                new ItemStack(Items.SHULKER_SHELL), pack, new ItemStack(Items.SHULKER_SHELL),
+                ItemStack.EMPTY, new ItemStack(Items.SHULKER_SHELL), ItemStack.EMPTY));
         helper.assertTrue(!recipe.matches(half, helper.getLevel()), "shells alone are not enough");
 
         ItemStack out = recipe.assemble(input, reg);
@@ -1477,14 +1485,12 @@ public class PackworkGameTests {
                     h.id() + ": result is the " + r.to() + " pack (JEI indexes lookups by it)");
             helper.assertTrue(!r.isSpecial(), h.id() + ": not special");
             var ingredients = r.getIngredients();
-            int cells = 1;
-            for (var m : r.materials()) cells += m.count();
             helper.assertTrue(!ingredients.isEmpty(),
                     h.id() + ": has ingredients - JEI silently drops empty-ingredient crafts");
-            helper.assertTrue(ingredients.size() == cells && cells <= 9,
-                    h.id() + ": one cell per item, fits a 3x3 (got " + ingredients.size() + ")");
-            helper.assertTrue(ingredients.get(0).test(new ItemStack(ModItems.pack(r.from()).get())),
-                    h.id() + ": leads with the previous tier's pack");
+            helper.assertTrue(ingredients.size() == 9,
+                    h.id() + ": the full ring fills all nine cells, got " + ingredients.size());
+            helper.assertTrue(ingredients.get(4).test(new ItemStack(ModItems.pack(r.from()).get())),
+                    h.id() + ": the previous tier's pack sits in the CENTER cell");
             for (var ing : ingredients) {
                 helper.assertTrue(ing.getItems().length > 0, h.id() + ": every ingredient resolves");
             }

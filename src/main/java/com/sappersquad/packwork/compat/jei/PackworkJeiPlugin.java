@@ -25,7 +25,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.neoforged.neoforge.common.crafting.SizedIngredient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -111,29 +110,40 @@ public class PackworkJeiPlugin implements IModPlugin {
 
     /**
      * Draws a {@code packwork:pack_upgrade} in JEI's standard crafting category exactly the
-     * way it is placed at a bench: the previous tier's pack plus one cell per material item
-     * (a material's {@code count} is a number of CELLS - crafting consumes one item per
-     * occupied cell, and {@link PackUpgradeRecipe#matches} demands the same). Laid out
-     * shapeless, because the real recipe accepts the cells in any arrangement.
+     * way it is placed at a bench: the previous tier's pack in the CENTER, the tier's bulk
+     * material on the four edges, its fittings on the four corners - the same full-ring
+     * picture {@link PackUpgradeRecipe#matches} demands (all nine cells, positions matter,
+     * rotations free). Drawn shaped (3x3), so no shapeless marker.
      */
     private static class PackUpgradeExtension implements ICraftingCategoryExtension<PackUpgradeRecipe> {
         @Override
         public void setRecipe(RecipeHolder<PackUpgradeRecipe> holder, IRecipeLayoutBuilder builder,
                               ICraftingGridHelper helper, IFocusGroup focuses) {
             PackUpgradeRecipe r = holder.value();
-            List<List<ItemStack>> inputs = new ArrayList<>();
-            inputs.add(List.of(new ItemStack(ModItems.pack(r.from()).get())));
-            for (SizedIngredient m : r.materials()) {
-                List<ItemStack> options = Arrays.asList(m.ingredient().getItems());
-                for (int i = 0; i < m.count(); i++) inputs.add(options);
+            List<ItemStack> pack = List.of(new ItemStack(ModItems.pack(r.from()).get()));
+            List<ItemStack> edge = Arrays.asList(r.edges().getItems());
+            List<ItemStack> corner = Arrays.asList(r.corners().getItems());
+            List<List<ItemStack>> inputs = new ArrayList<>(9);
+            for (int cell = 0; cell < 9; cell++) {
+                if (cell == PackUpgradeRecipe.CENTER_CELL) inputs.add(pack);
+                else inputs.add(cell % 2 == 1 ? edge : corner);
             }
-            helper.createAndSetInputs(builder, inputs, 0, 0); // 0x0 = shapeless 3x3 fill
+            helper.createAndSetInputs(builder, inputs, 3, 3); // positioned: the ring as drawn
             helper.createAndSetOutputs(builder, List.of(new ItemStack(ModItems.pack(r.to()).get())))
                     .addRichTooltipCallback((view, tooltip) -> tooltip.add(
                             Component.translatable("packwork.jei.upgrade.preserves")
                                     .withStyle(ChatFormatting.DARK_GREEN)));
         }
-        // getWidth/getHeight keep their 0 defaults, so JEI shows its shapeless marker.
+
+        @Override
+        public int getWidth(RecipeHolder<PackUpgradeRecipe> holder) {
+            return 3; // shaped: the ring has positions, so no shapeless marker
+        }
+
+        @Override
+        public int getHeight(RecipeHolder<PackUpgradeRecipe> holder) {
+            return 3;
+        }
     }
 
     @Override

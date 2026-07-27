@@ -46,11 +46,14 @@ tab). Depth stays inside the pack: your cursor, a hopper, a fitting drawing from
 all pull one legal stack at a time. (Extra slots stay the Bottomless Lining's job —
 depth is the tier's, so the two never double-dip.)
 
-**The ladder is a chain:** sew a Canvas pack from wool and string, then every later tier
-is crafted *from the pack before it* plus that tier's materials — leather, iron, copper,
-amethyst + echo shards, and finally shulker shells + dragon's breath for Dragonhide. The
-upgrade craft carries **everything** up: contents, compartments, pins, trinkets, name,
-and every store. There is no recipe anywhere that can eat a filled pack.
+**The ladder is a chain of rings:** sew a Canvas pack — a chest wrapped in wool, corners
+tied with string — then every later tier is crafted *around the pack before it*: set it
+in the middle of the bench and fill all nine cells, the tier's hide or plating on the
+edges, its fittings on the corners. Leather ringed with copper buckles, Studded's
+cut-copper studs, Reinforced iron plates cornered with diamonds, Runed amethyst with
+echo shards, and Dragonhide shulker shells with dragon's breath. The upgrade craft
+carries **everything** up: contents, compartments, pins, trinkets, name, and every
+store. There is no recipe anywhere that can eat a filled pack.
 
 **Trinkets** slot into the brass sockets on the right rail:
 
