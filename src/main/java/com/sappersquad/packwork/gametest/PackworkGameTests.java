@@ -1716,6 +1716,135 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    // =====================================================================
+    //  2026-07-26 batch: opening the pack straight from the Curios back slot.
+    //  All gated on -Pcurios; without it each succeeds trivially and the
+    //  suite proves the no-Curios build never classloads the compat.
+    // =====================================================================
+
+    /**
+     * The worn binding binds: a pack equipped in the back slot opens as a menu whose grid
+     * lists the pack's real contents, read live through the Curios slot (never a copy -
+     * the equipped stack and the menu's stack are the same instance).
+     */
+    @GameTest(template = "empty")
+    public static void wornOpenBindsAndListsGated(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackInventory(() -> pack, PackTier.STUDDED)
+                .insertItem(0, new ItemStack(Items.COBBLESTONE, 7), false);
+
+        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+                "the mock player has a back slot and it takes the pack");
+        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player) == pack,
+                "the equipped stack is the SAME instance, not a copy");
+
+        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        helper.assertTrue(host != null, "a worn pack resolves a menu host");
+        var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
+                60, player.getInventory(), host, PackTier.STUDDED);
+        helper.assertTrue(menu.stillValid(player), "the worn menu is valid while the pack is worn");
+
+        menu.applyFlatten(true);
+        boolean seen = false;
+        for (int i = 0; i < PackTier.VIEW_SLOTS; i++) {
+            ItemStack s = menu.getSlot(i).getItem();
+            if (s.is(Items.COBBLESTONE) && s.getCount() == 7) seen = true;
+        }
+        helper.assertTrue(seen, "the worn pack's contents show in the grid");
+        helper.succeed();
+    }
+
+    /**
+     * Writes through the worn binding land on the equipped stack: a shift-click insert
+     * moves the pocket stack into the pack (conserving exactly), and a pin written via
+     * the network entry point sticks in the equipped stack's layout component.
+     */
+    @GameTest(template = "empty")
+    public static void wornWritesPersistToEquippedStackGated(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+                "the pack equips");
+        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
+                61, player.getInventory(), host, PackTier.STUDDED);
+
+        // Insert: shift-click the first main-inventory slot (menu index VIEW_SLOTS) into the pack.
+        player.getInventory().setItem(9, new ItemStack(Items.OAK_PLANKS, 12));
+        menu.quickMoveStack(player, PackTier.VIEW_SLOTS);
+        helper.assertTrue(player.getInventory().getItem(9).isEmpty(),
+                "the pocket stack moved (not copied) into the pack");
+        ItemStack equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
+        int planks = equipped.getOrDefault(ModComponents.PACK_CONTENTS.get(), ItemContainerContents.EMPTY)
+                .nonEmptyStream().filter(s -> s.is(Items.OAK_PLANKS)).mapToInt(ItemStack::getCount).sum();
+        helper.assertTrue(planks == 12, "the equipped curios stack holds the 12 planks, got " + planks);
+
+        // Pin, through the same network entry the GUI uses.
+        menu.handleAction(com.sappersquad.packwork.net.PackAction.PIN_ITEM.ordinal(), 0,
+                menu.activeTab(), "minecraft:oak_planks");
+        equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
+        PackLayout layout = equipped.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        boolean pinned = layout.pins().stream().anyMatch(p ->
+                p.item().equals(ResourceLocation.parse("minecraft:oak_planks")));
+        helper.assertTrue(pinned, "the pin persisted to the equipped curios stack");
+        helper.succeed();
+    }
+
+    /**
+     * Unequipping while the menu is open closes it gracefully with no dupe window: the
+     * live supplier collapses to EMPTY, stillValid flips false (the server's container
+     * tick then closes it), and every mutation path refuses - nothing writes onto the
+     * departed stack, nothing conjures items from it, and the close path never strands.
+     */
+    @GameTest(template = "empty")
+    public static void wornUnequipClosesWithoutDupeGated(GameTestHelper helper) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+            helper.succeed();
+            return;
+        }
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackInventory(() -> pack, PackTier.STUDDED)
+                .insertItem(0, new ItemStack(Items.COBBLESTONE, 7), false);
+        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+                "the pack equips");
+        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
+                62, player.getInventory(), host, PackTier.STUDDED);
+        helper.assertTrue(menu.stillValid(player), "valid while worn");
+
+        // Unequip mid-session (the Curios slot empties under the open menu).
+        com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, ItemStack.EMPTY);
+        helper.assertTrue(!menu.stillValid(player),
+                "stillValid flips false the moment the pack leaves the slot");
+
+        // A racing shift-click must refuse: the pocket stack stays put, nothing enters the pack.
+        player.getInventory().setItem(9, new ItemStack(Items.OAK_PLANKS, 5));
+        ItemStack moved = menu.quickMoveStack(player, PackTier.VIEW_SLOTS);
+        helper.assertTrue(moved.isEmpty(), "no shift-move through a dead binding");
+        helper.assertTrue(player.getInventory().getItem(9).getCount() == 5,
+                "the pocket stack never left");
+
+        // A racing GUI verb must refuse too - and the departed stack stays exactly as it was.
+        menu.handleAction(com.sappersquad.packwork.net.PackAction.TIDY_UP.ordinal(), 0, "", "");
+        int cobble = pack.getOrDefault(ModComponents.PACK_CONTENTS.get(), ItemContainerContents.EMPTY)
+                .nonEmptyStream().filter(s -> s.is(Items.COBBLESTONE)).mapToInt(ItemStack::getCount).sum();
+        helper.assertTrue(cobble == 7, "the departed pack is untouched, got " + cobble + " cobble");
+
+        // The close path (menu.removed -> roll cleanup) is safe with the host gone.
+        menu.removed(player);
+        helper.succeed();
+    }
+
     private static void assertRoute(GameTestHelper helper, List<TabView> tabs, PackLayout layout,
                                     net.minecraft.world.item.Item item, String expectedTab) {
         String got = SortEngine.route(new ItemStack(item), tabs, layout);

@@ -31,16 +31,24 @@ public final class PackworkNetwork {
         });
     }
 
+    /** Gate every touch of the Curios compat class so its imports never classload without the mod. */
+    private static final boolean CURIOS_LOADED = net.neoforged.fml.ModList.get().isLoaded("curios");
+
     private static void onOpen(OpenPackPayload payload, IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
             Player player = ctx.player();
+            // Shift-B: the worn back-slot pack first, explicitly.
+            if (payload.worn() && tryOpenWorn(player)) {
+                return;
+            }
             int hint = payload.hintSlot();
             if (hint >= 0 && hint < player.getInventory().getContainerSize()
                     && player.getInventory().getItem(hint).getItem() instanceof PackItem) {
                 PackItem.openPack(player, hint);
                 return;
             }
-            // scan for the first pack the player is carrying
+            // scan for the first pack the player is carrying - pockets first, then the worn
+            // back slot, the same order the pack-first pickup routing scans
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 ItemStack s = player.getInventory().getItem(i);
                 if (s.getItem() instanceof PackItem) {
@@ -48,7 +56,15 @@ public final class PackworkNetwork {
                     return;
                 }
             }
+            tryOpenWorn(player);
         });
+    }
+
+    /** Open the pack worn in the Curios back slot, if Curios is here and one is worn. */
+    private static boolean tryOpenWorn(Player player) {
+        return CURIOS_LOADED
+                && player instanceof net.minecraft.server.level.ServerPlayer sp
+                && com.sappersquad.packwork.compat.curios.CuriosCompat.openWornPack(sp);
     }
 
     private PackworkNetwork() {}

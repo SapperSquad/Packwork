@@ -1047,11 +1047,7 @@ public final class DevAutoShot {
                 sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
                                 (id, inv, pl) -> PackMenu.serverForBlock(id, inv, be),
                                 be.getPackStack().getHoverName()),
-                        buf -> {
-                            buf.writeBoolean(true);
-                            buf.writeBlockPos(pos);
-                            buf.writeVarInt(be.getTier().ordinal());
-                        });
+                        buf -> PackItem.writeBlockHost(buf, pos, be.getTier()));
             }
         });
     }

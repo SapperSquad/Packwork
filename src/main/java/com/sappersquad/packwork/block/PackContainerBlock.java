@@ -113,13 +113,9 @@ public class PackContainerBlock extends BaseEntityBlock {
                 return PackMenu.serverForBlock(id, playerInv, be);
             }
         };
-        // Mirror PackItem.openPack's extra data: a flag (block vs slot), the pos, and the
-        // tier so the client builds the SAME trinket-socket count before anything syncs.
-        player.openMenu(provider, buf -> {
-            buf.writeBoolean(true);
-            buf.writeBlockPos(pos);
-            buf.writeVarInt(be.getTier().ordinal());
-        });
+        // Mirror PackItem.openPack's extra data: the host kind, the pos, and the tier so
+        // the client builds the SAME trinket-socket count before anything syncs.
+        player.openMenu(provider, buf -> PackItem.writeBlockHost(buf, pos, be.getTier()));
         return InteractionResult.CONSUME;
     }
 

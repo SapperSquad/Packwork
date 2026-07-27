@@ -128,24 +128,72 @@ public class PackItem extends Item {
         // mismatch there overruns the container-content packet and drops the player.
         PackTier tier = tierOf(player.getInventory().getItem(slot));
         player.openMenu(provider, buf -> {
-            buf.writeBoolean(false); // carried pack, not a placed one
+            buf.writeByte(HOST_CARRIED);
             buf.writeVarInt(slot);
             buf.writeVarInt(tier.ordinal());
         });
     }
 
     /**
-     * Client menu factory: a flag says whether this is a placed pack (bind to the block at
-     * the given pos) or a carried one (bind to the inventory slot); the tier rides along so
-     * the client builds the same slot count as the server before anything syncs.
+     * Open the organizer for the pack worn in the Curios back slot. The host container
+     * comes ready-built from the gated compat class (its getter live-resolves the worn
+     * stack every access), so this class - and the menu - never import curios.
+     */
+    public static void openWornPack(net.minecraft.server.level.ServerPlayer player,
+                                    PackStackSlotContainer host) {
+        ItemStack worn = host.getPack();
+        if (!(worn.getItem() instanceof PackItem)) return;
+        PackTier tier = tierOf(worn);
+        MenuProvider provider = new MenuProvider() {
+            @Override
+            public Component getDisplayName() {
+                return host.getPack().getHoverName();
+            }
+
+            @Override
+            public AbstractContainerMenu createMenu(int id, Inventory playerInv, Player p) {
+                return PackMenu.serverForWorn(id, playerInv, host, tier);
+            }
+        };
+        // Same contract as the other hosts: the tier rides so the client builds the same
+        // trinket-socket count as the server before the hidden host slot syncs.
+        player.openMenu(provider, buf -> {
+            buf.writeByte(HOST_WORN);
+            buf.writeVarInt(tier.ordinal());
+        });
+    }
+
+    // The open packet's host kind: which of the menu's three bindings the client builds.
+    private static final int HOST_CARRIED = 0;
+    private static final int HOST_BLOCK = 1;
+    private static final int HOST_WORN = 2;
+
+    /** The block's open path writes its kind through here so the three writers and the one
+     *  reader can never drift. */
+    public static void writeBlockHost(net.minecraft.network.RegistryFriendlyByteBuf buf,
+                                      net.minecraft.core.BlockPos pos, PackTier tier) {
+        buf.writeByte(HOST_BLOCK);
+        buf.writeBlockPos(pos);
+        buf.writeVarInt(tier.ordinal());
+    }
+
+    /**
+     * Client menu factory: a host-kind byte says whether this is a placed pack (bind to the
+     * block at the given pos), a worn one (bind to the synced host slot), or a carried one
+     * (bind to the inventory slot); the tier rides along so the client builds the same slot
+     * count as the server before anything syncs.
      */
     public static final IContainerFactory<PackMenu> CLIENT_FACTORY =
             (id, playerInv, buf) -> {
-                boolean isBlock = buf.readBoolean();
-                if (isBlock) {
+                int kind = buf.readByte();
+                if (kind == HOST_BLOCK) {
                     net.minecraft.core.BlockPos pos = buf.readBlockPos();
                     PackTier tier = PackTier.values()[buf.readVarInt()];
                     return PackMenu.clientForBlock(id, playerInv, pos, tier);
+                }
+                if (kind == HOST_WORN) {
+                    PackTier tier = PackTier.values()[buf.readVarInt()];
+                    return PackMenu.clientForWorn(id, playerInv, tier);
                 }
                 int slot = buf.readVarInt();
                 PackTier tier = PackTier.values()[buf.readVarInt()];
