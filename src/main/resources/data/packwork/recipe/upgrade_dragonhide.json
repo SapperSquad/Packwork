@@ -1,3 +1,0 @@
-{ "type": "packwork:pack_upgrade", "from": "runed", "to": "dragonhide",
-  "edges":   { "item": "minecraft:shulker_shell" },
-  "corners": { "item": "minecraft:dragon_breath" } }

@@ -12,7 +12,7 @@ import net.minecraft.util.StringRepresentable;
  *
  * <p><b>Depth vs. breadth:</b> the tier ladder grows slots wide (capacity) AND deep
  * ({@link #depthMultiplier()}: every slot holds that many vanilla stacks - Canvas 64
- * of a 64-item, Leather 128, up to Dragonhide 384). The Bottomless Lining trinket
+ * of a 64-item, Leather 128, up to Sculkhide 384). The Bottomless Lining trinket
  * adds BREADTH only (extra slots); tiers own depth. One axis each, so they never
  * double-dip.
  */
@@ -22,8 +22,8 @@ public enum PackTier implements StringRepresentable {
     STUDDED("studded", 162, 2, 0),
     REINFORCED("reinforced", 216, 3, 0),
     RUNED("runed", 256, 4, 8),
-    /** The endgame hide: slain-dragon flavored, gated behind End materials. */
-    DRAGONHIDE("dragonhide", 256, 5, 11);
+    /** The endgame hide: cured in the Deep Dark, ringed in amethyst and echo shards. */
+    SCULKHIDE("sculkhide", 256, 5, 11);
 
     /** Columns of item slots shown in the pack grid. */
     public static final int VIEW_COLS = 9;
@@ -65,7 +65,7 @@ public enum PackTier implements StringRepresentable {
 
     /**
      * How many vanilla stacks each slot holds at this tier: Canvas 1 (64 of a
-     * 64-stackable), Leather 2 (128), ... Dragonhide 6 (384). Sixteen-stackables
+     * 64-stackable), Leather 2 (128), ... Sculkhide 6 (384). Sixteen-stackables
      * scale by the same multiplier (pearls: 16, 32, ...); unstackables never stack.
      */
     public int depthMultiplier() {
@@ -77,7 +77,7 @@ public enum PackTier implements StringRepresentable {
         return itemMaxStack <= 1 ? 1 : itemMaxStack * step();
     }
 
-    /** Block light a placed pack of this tier gives off (the Runed glyphs, the Dragonhide gem). */
+    /** Block light a placed pack of this tier gives off (the Runed glyphs, the Sculkhide echo-gem). */
     public int lightLevel() {
         return lightLevel;
     }

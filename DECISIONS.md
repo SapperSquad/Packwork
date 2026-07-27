@@ -269,7 +269,9 @@ one can be flipped later without unpicking the rest:
   *(SUPERSEDED 2026-07-26 by the upgrade-ring rework: the recipe is shaped now with plain
   `edges`/`corners` Ingredients, and the sized-material machinery is gone.)*
 - **The 6th tier is DRAGONHIDE** (flag for Alex - veto welcome; alternatives considered:
-  Wyrmhide, Drakeskin). End-gated: Runed pack + 4 shulker shells + 4 dragon's breath. The
+  Wyrmhide, Drakeskin). *(SUPERSEDED 2026-07-26 — Alex pivoted the tier to the Deep Dark:
+  it is the SCULKHIDE Pack now, ringed in amethyst and echo shards; see the ladder-redesign
+  entry above.)* End-gated: Runed pack + 4 shulker shells + 4 dragon's breath. The
   Runed upgrade also picked up 2 echo shards as material2, preserving the deleted raw recipe's
   Deep Dark gate. Numbers: 256 slots (the component cap - the top tiers grow DEEP, not wide),
   5 sockets, depth x6, stores at 6x (48-bucket waterskin, 30k XP, 600k FE, 96k mB), light 11
@@ -304,6 +306,36 @@ one can be flipped later without unpicking the rest:
   upgrades) are refused on both sides.
 - **Recompute cadence:** on open, on search change, and every 40 ticks while visible - the
   same order of work vanilla's book does per inventory change.
+
+## 2026-07-26 — the ladder redesigned + tier 6 is SCULKHIDE (Alex's calls; supersedes the ring table below)
+
+- **Alex redesigned the ring materials and pivoted tier 6 away from the dragon.** Locked:
+  Studded = COPPER edges / IRON corners; Reinforced = GOLD edges / DIAMOND corners; Runed =
+  DIAMOND edges / NETHERITE corners; tier 6 = AMETHYST edges / ECHO-SHARD corners (the old
+  Runed ring) and the tier is renamed. Canvas and Leather rings unchanged; ring structure
+  (all nine, pack centered, rotations free, edges ≠ corners) unchanged.
+- **The name is SCULKHIDE** — keeps the material-word + "-hide" family and points at the tier's
+  actual gate (echo shards, the Deep Dark). Proposed by the coordinator, implemented with no
+  strong reason against; **alternates flagged for Alex's veto: Echobound, Wardenhide.** The v1
+  "Dragonhide (alternatives: Wyrmhide, Drakeskin)" naming entry below is superseded.
+- **Balance, recorded as Alex's design — do not "fix":** tier 6's marginal ring
+  (amethyst/echo) is CHEAPER than tier 5's (diamond/netherite). The total cost still climbs
+  because tier 6 requires the Runed pack itself; the sixth step is gated by the journey (a
+  Deep Dark expedition on top of the whole ladder), not by the ring's sticker price.
+- **Art realignment, tier 6:** dragonbone claws + an ember-pink breath gem were incoherent on
+  an amethyst/echo pack. Kept: the near-black hide, the brick-laid plate scallops, the
+  step-above-Runed presence, the placed-block glow (light 11). Swapped: the hide ramp from
+  charcoal-plum to cold sculk-teal, the claws for **echo-cyan sculk veins** creeping in from
+  the flap shoulders (drawn strokes, glinting tips — the de-noise rule holds), and the gem to
+  **echo cyan** (`ECHOR` ramp replaces the dragonbone `BONER` ramp in `tools/GenTextures.java`).
+  Studded's studs nudged brass → iron-grey to match its iron corners; its buckle stays brass.
+  Verified at 16px/12px via `tools/pack_small_preview.png` and at 8x zoom.
+- **Rename mechanics:** registry id `dragonhide_pack` → `sculkhide_pack`, `PackTier.SCULKHIDE`
+  ("sculkhide"), item/block models + blockstate variants + textures renamed, lang, recipe
+  `upgrade_sculkhide.json`, gametests, Handbook, docs. **No migration shim** — pre-release,
+  Alex accepts dev-world Dragonhide packs not surviving (noted in CHANGELOG). Found and fixed
+  in passing: the sixth-tier pack was MISSING from the `curios:back` tag, so it could never be
+  worn.
 
 ## 2026-07-26 — the upgrade ring: nine cells, pack centered, diamonds on Reinforced (Alex's calls)
 

@@ -15,7 +15,7 @@ import java.util.List;
  * {@code ItemContainerContents.CODEC} which routes every slot through
  * {@code ItemStack.CODEC} - and that codec hard-fails on any count over 99
  * ({@code ExtraCodecs.intRange(1, 99)}, verified against the 1.21.1 sources).
- * With per-slot depth a Dragonhide slot holds up to 384, so saving through the
+ * With per-slot depth a Sculkhide slot holds up to 384, so saving through the
  * vanilla codec would corrupt the pack at world save - the single worst thing
  * this mod could do.
  *

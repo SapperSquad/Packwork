@@ -1,3 +1,3 @@
 { "type": "packwork:pack_upgrade", "from": "studded", "to": "reinforced",
-  "edges":   { "item": "minecraft:iron_ingot" },
+  "edges":   { "item": "minecraft:gold_ingot" },
   "corners": { "item": "minecraft:diamond" } }

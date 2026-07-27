@@ -6,18 +6,31 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ### Changed — every upgrade is a full ring around the pack
 - **The recipe is a picture now.** Set your pack in the MIDDLE of the bench and build the
-  next tier around it — all nine cells filled, the tier's hide or plating on the four
+  next tier around it — all nine cells filled, the tier's bulk material on the four
   edges, its fittings on the four corners. Turn the ring any way you like; swap edges and
   corners and it won't craft, because the picture is the recipe.
 - **The ladder, cell by cell:** CANVAS is a chest wrapped in wool, corners tied with
   string. LEATHER rings the canvas pack in leather with copper buckles at the corners.
-  STUDDED rings it in leather with **cut-copper studs**. REINFORCED wears **iron plates
-  cornered with diamonds**. RUNED sets **amethyst edged around echo shards** from the
-  Deep Dark. DRAGONHIDE armors the ring in **shulker shells with dragon's breath** at
-  the corners.
-- Studs are copper now and plates are iron — the recipes finally match the art on the
-  packs (the studded tier wears brass, the reinforced tier wears steel). Diamonds on
-  Reinforced are Alex's call. Everything inside still rides up untouched.
+  STUDDED rings it in **copper set with iron studs**. REINFORCED wears **gold cornered
+  with diamonds**. RUNED binds **diamond in netherite**. SCULKHIDE closes the ladder with
+  **amethyst cornered in echo shards** from the Deep Dark. Everything inside still rides
+  up untouched.
+- The sixth tier's marginal ring is deliberately cheaper than Runed's diamond-and-
+  netherite: the real gate is that it demands the Runed pack itself, so the total climb
+  still holds.
+
+### Changed — the sixth tier is the SCULKHIDE Pack
+- **Dragonhide is renamed to Sculkhide**, and the tier's whole identity moves from the
+  End to the Deep Dark: the near-black hide keeps its brick-laid plates but goes cold
+  sculk-teal, the pale dragon-bone claws are now **echo-cyan sculk veins** creeping over
+  the flap's shoulders, and the ember-pink breath gem is an **echo gem** in the buckle —
+  same glow when you set it down, colder light. The Studded pack's studs also went from
+  brass to iron-grey to match its new iron-cornered ring.
+- **Dev-world note:** this is a registry rename (`dragonhide_pack` → `sculkhide_pack`)
+  with no migration — Dragonhide packs in existing dev worlds will not survive. Nothing
+  was ever released with the old id.
+- The sixth-tier pack can now actually be worn: it was missing from the Curios back-slot
+  tag (found during the rename).
 
 ### Fixed — JEI shows the real recipes
 - **"How do I make each pack" is a recipe again, not lore.** The tier-upgrade craft is a
@@ -74,7 +87,7 @@ All notable changes, newest first. Dates are the suite's working dates.
 
 ### Added — deep slots (the headline)
 - **Every tier now deepens every slot.** A slot holds one vanilla stack per tier step: Canvas
-  64 of a common item, Leather 128, Studded 192, Reinforced 256, Runed 320, Dragonhide 384 —
+  64 of a common item, Leather 128, Studded 192, Reinforced 256, Runed 320, Sculkhide 384 —
   six whole stacks in one slot, filed under one tab. Sixteen-stackables scale the same way
   (pearls: 16 up to 96); unstackables never stack. Tidy Up merges loose stacks down into
   depth, and deep counts render as exact numbers, sized to stay inside their own cell.
@@ -86,13 +99,14 @@ All notable changes, newest first. Dates are the suite's working dates.
 - **Depth is the tier's job; slots are the Lining's.** The Bottomless Lining keeps adding
   BREADTH (more slots); the material ladder now owns DEPTH. One axis each, no double-dipping.
 
-### Added — the Dragonhide Pack (a sixth tier)
-- **Above Runed: the Dragonhide Pack**, cut from a near-black hide with brick-laid scales,
-  pale bone claws hooked over the flap, and an ember-pink breath gem in the buckle. Crafted
-  from a Runed pack plus 4 shulker shells and 4 dragon's breath — the spoils of the End.
-  Five trinket sockets, 384-deep slots, and every store at six times Canvas (a 48-bucket
-  waterskin, 30,000 XP, 600,000 FE of arcane charge, 96,000 mB of bottled vapors). Set one
-  down and its gem lights the camp brighter than a Runed pack's glyphs.
+### Added — the Sculkhide Pack (a sixth tier)
+- **Above Runed: the Sculkhide Pack**, cut from a near-black hide cured in the Deep Dark —
+  brick-laid plates gone cold sculk-teal, echo-cyan veins creeping over the flap, and an
+  echo gem set in the buckle. Crafted from a Runed pack ringed in amethyst and cornered
+  with echo shards. Five trinket sockets, 384-deep slots, and every store at six times
+  Canvas (a 48-bucket waterskin, 30,000 XP, 600,000 FE of arcane charge, 96,000 mB of
+  bottled vapors). Set one down and its gem lights the camp brighter than a Runed pack's
+  glyphs. (Shipped briefly in dev as "Dragonhide" — see the rename note above.)
 
 ### Changed — the ladder is a chain now
 - **Every tier above Canvas is crafted FROM the pack before it.** The old raw-material

@@ -34,6 +34,6 @@ public record PackChemical(String chemical, long amount) {
 
     /** Tank size in mB, tier-scaled. Dist-neutral so the gauge can read it without Mekanism. */
     public static long capacityFor(ItemStack pack) {
-        return 16_000L * PackItem.tierOf(pack).step(); // Canvas 16k mB .. Dragonhide 96k mB
+        return 16_000L * PackItem.tierOf(pack).step(); // Canvas 16k mB .. Sculkhide 96k mB
     }
 }

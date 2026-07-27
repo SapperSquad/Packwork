@@ -326,7 +326,7 @@ public final class DevAutoShot {
             }
             // ---- wave 4: a fresh full pack, then the four new behaviours as pixels ----
             case W4_GIVE -> {
-                setupAndOpen(mc);   // the Dragonhide spread again (now with a Quill & Ledger fitted)
+                setupAndOpen(mc);   // the Sculkhide spread again (now with a Quill & Ledger fitted)
                 phase = Phase.W4_OPEN; wait = 0;
             }
             case W4_OPEN -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.AUTOPIN_GIVE; wait = 0; } }
@@ -630,8 +630,8 @@ public final class DevAutoShot {
                     ? null : server.getPlayerList().getPlayers().get(0);
             if (sp == null) return;
 
-            // a Dragonhide pack (5 trinket sockets) so all four store gauges + the depth are on show
-            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.DRAGONHIDE).get());
+            // a Sculkhide pack (5 trinket sockets) so all four store gauges + the depth are on show
+            ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.SCULKHIDE).get());
             IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
@@ -659,7 +659,7 @@ public final class DevAutoShot {
 
             // fit all four store trinkets so every gauge on the right rail shows a level
             var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(
-                    () -> pack, com.sappersquad.packwork.pack.PackTier.DRAGONHIDE);
+                    () -> pack, com.sappersquad.packwork.pack.PackTier.SCULKHIDE);
             sockets.insertItem(0, new ItemStack(ModItems.trinket(
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
             sockets.insertItem(1, new ItemStack(ModItems.trinket(
@@ -819,7 +819,7 @@ public final class DevAutoShot {
             for (com.sappersquad.packwork.trinket.TrinketType tt : com.sappersquad.packwork.trinket.TrinketType.values())
                 sp.getInventory().add(new ItemStack(ModItems.trinket(tt).get()));
             sp.getInventory().add(new ItemStack(ModItems.HANDBOOK.get()));
-            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.DRAGONHIDE).get()));
+            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.SCULKHIDE).get()));
             sp.getInventory().selected = 0;
             Packwork.LOGGER.info("[autoshot] lineup handed over");
         });
