@@ -7,11 +7,16 @@ All notable changes, newest first. Dates are the suite's working dates.
 ### Fixed — JEI shows the real recipes
 - **"How do I make each pack" is a recipe again, not lore.** The tier-upgrade craft is a
   custom recipe, and JEI was never taught to draw it — every pack above Canvas showed only
-  its info page. Packwork now hands JEI the real layout in the standard crafting category:
-  the previous tier's pack plus its materials in, the next pack out, marked shapeless, with
-  the carries-everything-up behaviour spelled out on the result's tooltip. Canvas, every
-  trinket, and the handbook were plain recipes all along and render as ever; the info pages
-  stay on as supplements.
+  its info page. Two pieces were needed, and the first field test caught that the second
+  alone wasn't enough: JEI's recipe scan **silently drops** any crafting recipe whose
+  ingredient list is empty, before drawing extensions are ever consulted — so the upgrade
+  now carries its honest cell-by-cell ingredient list (the previous pack, then one cell
+  per material), and Packwork's JEI extension draws the layout in the standard crafting
+  category: previous pack + materials in, next pack out, marked shapeless, with the
+  carries-everything-up behaviour spelled out on the result's tooltip. Canvas, every
+  trinket, and the handbook were plain recipes all along and render as ever; the info
+  pages stay on as supplements. The JEI plugin also logs one "Packwork JEI:" line with the
+  upgrade-recipe count, so this working (or not) is visible in any log.
 - **The upgrade can't be underpaid anymore.** Crafting consumes exactly one item per grid
   cell when you take the result, but the upgrade recipe was counting item *totals* — so a
   stack of four shulker shells in ONE cell matched, and the craft quietly charged you one.

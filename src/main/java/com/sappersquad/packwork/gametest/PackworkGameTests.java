@@ -1450,6 +1450,48 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
+    /**
+     * Mirrors the exact checks JEI's {@code CategoryRecipeValidator} runs before a
+     * crafting recipe may display (verified in the 19.21.1.312 sources): a non-special
+     * recipe needs a non-empty result AND a non-empty ingredient list of at most 9
+     * resolvable inputs. The upgrade recipes used to fail the "no inputs" check - JEI
+     * skipped them at DEBUG level, so the ladder showed info pages but no crafts (found
+     * in the field). Also pins that the ingredient spread agrees with {@code matches()}:
+     * one pack cell plus one cell per material item, previous-tier pack leading.
+     */
+    @GameTest(template = "empty")
+    public static void upgradeRecipesCarryDisplayableIngredients(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+        var upgrades = helper.getLevel().getRecipeManager()
+                .getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING)
+                .stream()
+                .filter(h -> h.value() instanceof com.sappersquad.packwork.pack.PackUpgradeRecipe)
+                .toList();
+        helper.assertTrue(upgrades.size() == PackTier.values().length - 1,
+                "one upgrade per tier above Canvas, got " + upgrades.size());
+        for (var h : upgrades) {
+            var r = (com.sappersquad.packwork.pack.PackUpgradeRecipe) h.value();
+            ItemStack result = r.getResultItem(reg);
+            helper.assertTrue(result != null && !result.isEmpty()
+                            && result.getItem() == ModItems.pack(r.to()).get(),
+                    h.id() + ": result is the " + r.to() + " pack (JEI indexes lookups by it)");
+            helper.assertTrue(!r.isSpecial(), h.id() + ": not special");
+            var ingredients = r.getIngredients();
+            int cells = 1;
+            for (var m : r.materials()) cells += m.count();
+            helper.assertTrue(!ingredients.isEmpty(),
+                    h.id() + ": has ingredients - JEI silently drops empty-ingredient crafts");
+            helper.assertTrue(ingredients.size() == cells && cells <= 9,
+                    h.id() + ": one cell per item, fits a 3x3 (got " + ingredients.size() + ")");
+            helper.assertTrue(ingredients.get(0).test(new ItemStack(ModItems.pack(r.from()).get())),
+                    h.id() + ": leads with the previous tier's pack");
+            for (var ing : ingredients) {
+                helper.assertTrue(ing.getItems().length > 0, h.id() + ": every ingredient resolves");
+            }
+        }
+        helper.succeed();
+    }
+
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @GameTest(template = "empty")
     public static void handbookContentBuilds(GameTestHelper helper) {

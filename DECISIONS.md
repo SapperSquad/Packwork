@@ -359,6 +359,22 @@ one can be flipped later without unpicking the rest:
   moved the ladder into its own tab nobody checks. The preserving behaviour rides the result
   slot's tooltip (`packwork.jei.upgrade.preserves`). The API shapes were verified against the
   pinned 19.21.1.312 api jar via javap, not memory.
+- **An extension registered is NOT a recipe displayed — the recipe must survive JEI's scan
+  first (learned in the field, 2026-07-26).** Alex still saw only info pages. Root cause, read
+  in the JEI runtime sources (19.27.0.340 sources jar; identical classes confirmed in the
+  pinned 19.21.1.312 runtime via javap): `VanillaRecipes.getCraftingRecipes` filters every
+  crafting recipe through `CategoryRecipeValidator.hasValidInputsAndOutputs`, which drops any
+  NON-special recipe whose `getIngredients()` is empty — logged only at DEBUG ("Skipping
+  Recipe because it has no inputs"), and BEFORE `isHandled`/extensions are consulted. Fix:
+  `PackUpgradeRecipe.getIngredients()` returns the honest cell-by-cell list (previous pack
+  first, one entry per material cell — the same spread `matches()` demands), so JEI's own scan
+  accepts, indexes and hands the recipe to our extension; nothing is added manually, so
+  nothing can double-register. Checked harmless elsewhere: the vanilla recipe book shows only
+  UNLOCKED recipes and we award none; the Recipe Ledger can't list an upgrade from pack stock
+  (packs never nest, so `StackedContents.canCraft` refuses and the all-or-nothing lay-out
+  can't cover the pack cell). Gametest `upgradeRecipesCarryDisplayableIngredients` mirrors the
+  validator's exact conditions; the plugin logs a greppable `Packwork JEI:` line with the
+  upgrade count so eligibility is provable from any session log.
 - **Upgrade material counts mean CELLS, not items (supersedes the summed-count matcher).**
   Vanilla consumes exactly one item per occupied cell when a craft is taken (`ResultSlot.onTake`
   shrinks each slot by 1 — verified in the 1.21.1 sources), so counting item totals let a stacked
