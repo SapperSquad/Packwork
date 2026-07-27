@@ -258,8 +258,9 @@ public class PackMenu extends AbstractContainerMenu {
 
     private PinToast pinToast; // only ever set on the client
     private ItemStack pendingPlaced = ItemStack.EMPTY;
-    private int pendingCell = -1;         // absolute grid cell of the placement
-    private int pendingBacking = -1;      // backing slot it landed in
+    /** Every {cell, backing} the player's hand filled during this click - a quick-craft drag
+     *  places into several cells in one click, and a kept layout must remember them all. */
+    private final List<int[]> pendingCells = new ArrayList<>();
     private int pendingPickupBacking = -1; // backing slot the player emptied, or -1
 
     public void setPinToast(PinToast t) {
@@ -283,12 +284,16 @@ public class PackMenu extends AbstractContainerMenu {
             return;
         }
         pendingPlaced = now.copy();
-        pendingCell = page * visibleSlots() + p;
-        pendingBacking = slot.backingIndex();
+        pendingCells.add(new int[]{page * visibleSlots() + p, slot.backingIndex()});
     }
 
     @Override
     public void clicked(int slotId, int button, net.minecraft.world.inventory.ClickType type, Player player) {
+        // clean slate per click: if a previous click threw mid-way, its stale pendings must
+        // never leak into this one
+        pendingPlaced = ItemStack.EMPTY;
+        pendingCells.clear();
+        pendingPickupBacking = -1;
         super.clicked(slotId, button, type, player);
         flushPendingPlacement();
     }
@@ -307,16 +312,18 @@ public class PackMenu extends AbstractContainerMenu {
      */
     private void flushPendingPlacement() {
         ItemStack placed = pendingPlaced;
-        int cell = pendingCell, backing = pendingBacking, took = pendingPickupBacking;
+        List<int[]> cells = new ArrayList<>(pendingCells);
+        int took = pendingPickupBacking;
         pendingPlaced = ItemStack.EMPTY;
-        pendingCell = -1;
-        pendingBacking = -1;
+        pendingCells.clear();
         pendingPickupBacking = -1;
         if (flatten) return;
 
         if (took >= 0) rememberManualPickup(took);
         if (placed.isEmpty()) return;
-        if (search.isEmpty()) rememberManualPlacement(cell, backing);
+        if (search.isEmpty()) {
+            for (int[] c : cells) rememberManualPlacement(c[0], c[1]);
+        }
 
         String route = SortEngine.route(placed, tabs, layout);
         if (route.equals(activeTab)) return; // it belongs here already (or is pinned here)
