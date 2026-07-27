@@ -138,7 +138,8 @@ Remove any of them and Packwork carries on without it.
 
 ## ⚙️ Requirements & honest notes
 
-- **NeoForge 1.21.1** (21.1.235+). No other dependencies, ever.
+- **1.21.1 / NeoForge** (21.1.235+). No other dependencies, ever. Other loaders and
+  versions may follow based on demand.
 - Opening a worn pack's GUI straight from the Curios slot isn't wired yet — open it from
   your inventory (its trinkets work fine while worn).
 - The pack never voids anything on failure. The only trash path is the Compass Rose,

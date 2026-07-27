@@ -60,7 +60,7 @@ public final class DevAutoShot {
         JEI_SHOW, JEI_W, SHOOT_JEI, DONE,
         // ---- the promo-gallery chain (runs INSTEAD of the above under -Pgallery) ----
         G_BOOT, G_WAIT_LEVEL,
-        G_PLACE, G_WPLACE, G_SHOOT_LINEUP,
+        G_PLACE, G_WPLACE, G_HERO_W, G_SHOOT_LINEUP,
         G_OPEN, G_WOPEN, G_SHOOT_SORTING,
         G_KIT, G_KIT_W, G_UNROLL, G_UNROLL_W, G_LEDGER, G_LEDGER_W, G_CHALK, G_CHALK_W, G_SHOOT_LEDGER,
         G_PACK2, G_PACK2_W, G_TAB, G_TAB_W, G_QUILL, G_QUILL_W, G_WRITE, G_WRITE_W, G_SHOOT_RULES,
@@ -74,6 +74,7 @@ public final class DevAutoShot {
     private static int ticks = 0;
     private static int wait = 0;
     private static String customTabId = "custom:0";
+    private static net.minecraft.core.BlockPos placedFirst = null;
     private static net.minecraft.core.BlockPos placedMiddle = null;
     private static net.minecraft.core.BlockPos placedLast = null;
 
@@ -465,11 +466,19 @@ public final class DevAutoShot {
                 }
             }
             case G_PLACE -> {
-                placeBlocks(mc, 26);          // the six-tier row on a SKY pad, midday - clean backdrop
+                placeBlocks(mc, 64);          // the six-tier row on a SKY pad, midday - clean backdrop
+                                              // (64, not 26: the angled hero camera looks OVER the row,
+                                              // and one seed grew a hilltop tree into that sightline)
                 mc.options.hideGui = true;    // a clean world shot: no hotbar, no crosshair
                 phase = Phase.G_WPLACE; wait = 0;
             }
-            case G_WPLACE -> { if (++wait > 50) phase = Phase.G_SHOOT_LINEUP; }
+            case G_WPLACE -> {
+                if (++wait > 50) {
+                    heroCam(mc);              // step in close - the stand-back framing read as a test shot
+                    phase = Phase.G_HERO_W; wait = 0;
+                }
+            }
+            case G_HERO_W -> { if (++wait > 30) phase = Phase.G_SHOOT_LINEUP; }
             case G_SHOOT_LINEUP -> {
                 grab(mc, "gallery_lineup");   // (1) all SIX per-tier packs, daylight
                 mc.options.hideGui = false;
@@ -573,10 +582,15 @@ public final class DevAutoShot {
                     if (server.getPlayerList().getPlayers().isEmpty()) return;
                     ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
                     sp.serverLevel().setDayTime(18000);
-                    // step in close on the Sculkhide so its echo-gem glow carries the frame
+                    // Step in close on the Sculkhide so its echo-gem glow carries the frame.
+                    // The Sculkhide now sits at the +0 (west) end of the row, so the camera
+                    // stands on its EAST side (+1.8 past the block coord = +1.3 past centre,
+                    // the mirror of the old -1.3) and yaw mirrors to -20: the glowing pack
+                    // rides near frame-right and the row recedes left, still Canvas->Sculkhide
+                    // ascending for the viewer.
                     if (placedLast != null) {
-                        sp.connection.teleport(placedLast.getX() - 0.8, placedLast.getY(),
-                                placedLast.getZ() - 2.4, 20f, 16f);
+                        sp.connection.teleport(placedLast.getX() + 1.8, placedLast.getY(),
+                                placedLast.getZ() - 2.4, -20f, 16f);
                     }
                 });
                 mc.options.hideGui = true;
@@ -931,18 +945,41 @@ public final class DevAutoShot {
                     for (int dy = 0; dy <= 4; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
                     lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
                 }
-            // one of every tier, in ladder order, so the per-tier trim can be compared side by side
+            // One of every tier, in ladder order, so the per-tier trim can be compared side by
+            // side. The row is laid EAST-to-WEST descending (Canvas at +x, Sculkhide at +0)
+            // because the cameras face south and east is frame-LEFT: the viewer reads
+            // Canvas -> Sculkhide left-to-right, ascending — the same direction as the banner.
             com.sappersquad.packwork.pack.PackTier[] tiers =
                     com.sappersquad.packwork.pack.PackTier.values();
             for (int i = 0; i < tiers.length; i++) {
-                net.minecraft.core.BlockPos bp = base.offset(i, 0, 4);
+                net.minecraft.core.BlockPos bp = base.offset(tiers.length - 1 - i, 0, 4);
                 placePackBlock(lvl, bp, tiers[i], i == 2); // give the middle (Studded) a loadout for the GUI shot
+                if (i == 0) placedFirst = bp;              // the Canvas pack, at the +x end
                 if (i == 2) placedMiddle = bp;
-                if (i == tiers.length - 1) placedLast = bp; // the Runed one, for the break/replace check
+                if (i == tiers.length - 1) placedLast = bp; // the Sculkhide one, for the night shot + break/replace check
             }
             // stand back and centre the five-wide row
             sp.connection.teleport(base.getX() + 2.5, base.getY(), base.getZ() - 2.5, 0f, 14f);
             Packwork.LOGGER.info("[autoshot] placed {} per-tier pack blocks", tiers.length);
+        });
+    }
+
+    /**
+     * The hero framing for the daylight lineup: step in close at the Canvas end (+x) and look
+     * up the ladder, the same slightly-low slightly-angled vantage as the night shot - the
+     * near pack carries the frame and the tiers ascend left-to-right, Canvas to Sculkhide,
+     * matching the banner. The dead-on stand-back position that placeBlocks leaves the
+     * player at read as a test screenshot.
+     */
+    private static void heroCam(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null || placedFirst == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            sp.connection.teleport(placedFirst.getX() - 0.7, placedFirst.getY(),
+                    placedFirst.getZ() - 2.1, 22f, 14f);
+            Packwork.LOGGER.info("[gallery] hero camera set for the lineup");
         });
     }
 

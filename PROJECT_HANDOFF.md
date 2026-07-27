@@ -20,6 +20,33 @@ Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 > first build); bump/label at publish. **54 GameTests green** (with no optional deps AND
 > with -Pforgework -Pmekanism -Pcurios combined); jar builds clean.
 
+**2026-07-26 gallery hero reframe — the lineup re-shot close, ladder reading left-to-right.**
+Review verdict on `promo/gallery-1-lineup.png`: the dead-on stand-back framing left the six
+packs a small band mid-frame — a test screenshot, not a store hero. Re-shot rather than
+cropped (the row was only ~135px tall in the source; no 1:1 crop could make it a hero).
+- `DevAutoShot` gallery chain grew a `G_HERO_W` step: after placement, `heroCam` steps in
+  close (`placedFirst -0.7x, -2.1z, yaw 22, pitch 14`) — the same slightly-low,
+  slightly-angled vantage as the night shot. Pad rise for the gallery went 26 → 64: the
+  angled camera looks OVER the row, and one random seed grew a hilltop tree into that
+  sightline (caught as pixels on the first re-shoot).
+- **Alex's order call: tiers ascend left-to-right for the VIEWER, Canvas → Sculkhide,
+  matching the banner.** The cameras face south and east is frame-left, so `placeBlocks`
+  now lays the row east-to-west descending (Canvas at +x = `placedFirst`, Sculkhide at +0 =
+  `placedLast`); the night camera mirrored with it (`placedLast +1.8x, -2.4z, yaw -20`) so a
+  future regen of the night shot also reads ascending. Committed `gallery-7` kept as-is —
+  its old Sculkhide-near-left glow framing is the stronger image; swapping in the mirrored
+  regen is Alex's call.
+- Final frame verified as pixels at 1920x1080 (unchanged size): near Canvas carries the
+  frame, tiers ascend left-to-right, all six trims identifiable at a glance (twine / buckle
+  / studs / steel plates+band / glyphs / echo-cyan veins), backdrop pure sky. GUI shots
+  untouched — the lineup was the only distant world shot.
+- **PUBLISHING.md (Alex confirmed): 1.21.1 / NeoForge only for launch.** Requirements line
+  now reads "**1.21.1 / NeoForge** (21.1.235+). No other dependencies, ever. Other loaders
+  and versions may follow based on demand." Page audited: no other version claims, upload
+  table stays exactly `1.21.1` / `NeoForge`, no ranges. `promo/README.md` description
+  trued up; gallery captions still accurate as written ("Canvas to Sculkhide" is now
+  literally the left-to-right read).
+
 **2026-07-23 art pass 4 (backpack silhouette) — DONE & verified in-game.** Alex reviewed the
 hero packs: shading was good but the silhouette had come out too ROUND — the packs read like
 pouches/orbs (the runed one like a magic orb), not rugged backpacks. Reshaped in-pipeline,
