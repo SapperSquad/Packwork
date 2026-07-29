@@ -196,7 +196,9 @@ light up only with their mod, so don't imply they work standalone.
 
 The full internal history lives in `CHANGELOG.md`.
 
-Categories: `storage`, `game-mechanics`, `adventure`. License: Alex's call at publish.
+Categories: `storage`, `game-mechanics`, `adventure`. License: settled (Alex, 2026-07-28) —
+**All Rights Reserved** on the store listing (jar metadata matches), **MIT** LICENSE in the
+GitHub repo.
 
 ---
 
