@@ -1,0 +1,40 @@
+{
+    "schemaVersion": 1,
+    "id": "packwork",
+    "version": "${version}",
+    "name": "Packwork",
+    "description": "A humble adventurer's pack that holds far more than it should and quietly organizes itself. Stamped leather tabs run down the side of the pack; items flow into premade or hand-made compartments the moment you drop them in. A rules engine claims each item for the right tab, manual pins always win, and a Loose tab catches anything no rule claims - so nothing ever vanishes. Leather and brass, never circuits.",
+    "authors": [
+        "SapperSquad"
+    ],
+    "contact": {
+        "homepage": "https://github.com/SapperSquad/Packwork",
+        "sources": "https://github.com/SapperSquad/Packwork",
+        "issues": "https://github.com/SapperSquad/Packwork/issues"
+    },
+    "license": "All Rights Reserved",
+    "icon": "packwork_icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "com.sappersquad.packwork.Packwork"
+        ],
+        "client": [
+            "com.sappersquad.packwork.client.PackworkClient"
+        ]
+    },
+    "mixins": [
+        "packwork.mixins.json"
+    ],
+    "accessWidener": "packwork.classtweaker",
+    "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "~26.1",
+        "java": ">=25",
+        "fabric-api": "*"
+    },
+    "suggests": {
+        "trinkets": "*",
+        "jei": "*"
+    }
+}

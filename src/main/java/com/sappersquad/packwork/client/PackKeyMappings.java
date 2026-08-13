@@ -1,40 +1,36 @@
 package com.sappersquad.packwork.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.sappersquad.packwork.Packwork;
 import com.sappersquad.packwork.net.OpenPackPayload;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /**
  * The keybind that opens the pack straight from the inventory - no need to hold it.
  * Default B (for backpack); the server finds the first pack the player carries, and if
- * the pockets hold none, the one worn on the back (Curios). Shift-B asks for the WORN
- * pack first, for the player carrying spares who wants the one on their shoulders.
+ * the pockets hold none, the one worn on the back (Trinkets). <b>Shift-B</b> asks for
+ * the WORN pack first, for the player carrying spares who wants the one on their
+ * shoulders.
+ *
+ * <p>Fabric has no NeoForge-style key-modifier system, so Shift-B rides the OPEN
+ * binding itself (shift held = worn-first) - out of the box it feels identical to the
+ * NeoForge branches. OPEN_WORN still exists as its own rebindable mapping (unbound by
+ * default) for anyone who wants worn-open on a dedicated key.
  */
 public final class PackKeyMappings {
 
     public static final KeyMapping OPEN = new KeyMapping(
             "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
 
-    /**
-     * Open the pack worn in the Curios back slot, explicitly. Default Shift-B (rebindable
-     * in Controls like any mapping); NeoForge's modifier system hands Shift-B clicks to
-     * this mapping and plain-B clicks to {@link #OPEN}. Registered even without Curios -
-     * the server just falls back to the pocket scan, so the key never dead-ends.
-     */
+    /** Open the worn back-slot pack outright. Unbound by default (Shift-B covers it);
+     *  rebindable in Controls like any mapping. The server just falls back to the pocket
+     *  scan without Trinkets, so the key never dead-ends. */
     public static final KeyMapping OPEN_WORN = new KeyMapping(
-            "key.packwork.open_worn",
-            net.neoforged.neoforge.client.settings.KeyConflictContext.IN_GAME,
-            net.neoforged.neoforge.client.settings.KeyModifier.SHIFT,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
+            "key.packwork.open_worn", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN,
+            KeyMapping.Category.INVENTORY);
 
     /**
      * Pin/unpin the hovered grid item to the active tab. Only meaningful inside the pack GUI,
@@ -44,29 +40,26 @@ public final class PackKeyMappings {
     public static final KeyMapping PIN = new KeyMapping(
             "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, KeyMapping.Category.INVENTORY);
 
-    @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
-    public static final class Registrar {
-        @SubscribeEvent
-        public static void register(RegisterKeyMappingsEvent event) {
-            event.register(OPEN);
-            event.register(OPEN_WORN);
-            event.register(PIN);
-        }
-    }
+    /** Register the mappings + the tick handler (called once from the client entrypoint). */
+    public static void register() {
+        KeyMappingHelper.registerKeyMapping(OPEN);
+        KeyMappingHelper.registerKeyMapping(OPEN_WORN);
+        KeyMappingHelper.registerKeyMapping(PIN);
 
-    @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
-    public static final class Input {
-        @SubscribeEvent
-        public static void onTick(ClientTickEvent.Post event) {
-            Minecraft mc = Minecraft.getInstance();
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             if (mc.player == null || mc.screen != null) return;
             while (OPEN_WORN.consumeClick()) {
-                ClientPacketDistributor.sendToServer(new OpenPackPayload(-1, true));
+                ClientPlayNetworking.send(new OpenPackPayload(-1, true));
             }
             while (OPEN.consumeClick()) {
-                ClientPacketDistributor.sendToServer(new OpenPackPayload(-1, false));
+                // Shift-B: the worn back-slot pack first (the NeoForge branches' KeyModifier
+                // gesture, expressed as a live GLFW shift poll here - 26.1's input rework
+                // dropped Screen.hasShiftDown).
+                boolean shift = InputConstants.isKeyDown(mc.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
+                        || InputConstants.isKeyDown(mc.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT);
+                ClientPlayNetworking.send(new OpenPackPayload(-1, shift));
             }
-        }
+        });
     }
 
     private PackKeyMappings() {}

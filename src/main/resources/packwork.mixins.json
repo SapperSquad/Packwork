@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "package": "com.sappersquad.packwork.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": [
+        "FishingHookMixin",
+        "ItemEntityMixin",
+        "LivingEntityMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

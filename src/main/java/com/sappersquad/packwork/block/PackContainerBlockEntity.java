@@ -44,7 +44,8 @@ public class PackContainerBlockEntity extends BlockEntity {
         this.tier = PackItem.tierOf(stack);
         setChanged();
         if (level != null) {
-            invalidateCapabilities();
+            // (Fabric: no capability-cache invalidation needed - the API lookup provider
+            // re-derives off the live held stack on every query.)
             if (!level.isClientSide()) {
                 BlockState st = getBlockState();
                 // Keep the rendered tier (a blockstate property) in step with the stored pack.
@@ -73,12 +74,26 @@ public class PackContainerBlockEntity extends BlockEntity {
         output.store("Pack", ItemStack.OPTIONAL_CODEC, packStack);
     }
 
+    /**
+     * Reads both shapes of tag: the SERVER's saved form (a "Pack" stack) and the CLIENT's
+     * light update form (a "Tier" int only - see {@link #getUpdateTag}). Vanilla applies
+     * update packets through {@code loadWithComponents -> loadAdditional} (verified in the
+     * 26.1 ClientPacketListener sources; the NeoForge branches hook onDataPacket instead),
+     * so a tier-only tag must never blank the client tier back to the default - the tinted
+     * render's tier comes from whichever field the tag actually carries.
+     */
     @Override
     protected void loadAdditional(net.minecraft.world.level.storage.ValueInput input) {
         super.loadAdditional(input);
-        this.packStack = input.read("Pack", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
-        this.tier = PackItem.tierOf(packStack);
-        invalidateCapabilities();
+        var read = input.read("Pack", ItemStack.OPTIONAL_CODEC);
+        if (read.isPresent()) {
+            this.packStack = read.get();
+            this.tier = PackItem.tierOf(packStack);
+        } else {
+            // no Pack field: either a fresh/empty BE or the client's tier-only update tag
+            this.packStack = ItemStack.EMPTY;
+            this.tier = PackTier.values()[input.getIntOr("Tier", tier.ordinal())];
+        }
     }
 
     // ---- client render sync: TIER ONLY (never the contents) ----
@@ -91,24 +106,7 @@ public class PackContainerBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void handleUpdateTag(net.minecraft.world.level.storage.ValueInput input) {
-        this.tier = PackTier.values()[input.getIntOr("Tier", tier.ordinal())];
-    }
-
-    @Override
     public Packet<ClientGamePacketListener> getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    /**
-     * Route the block-update packet through {@link #handleUpdateTag} (tier only). The default
-     * onDataPacket calls loadAdditional, which would read a "Pack" tag we never sync here and
-     * blank the client tier back to the default - the tinted render's tier must come from the
-     * light update tag, not the (server-only) full stack.
-     */
-    @Override
-    public void onDataPacket(net.minecraft.network.Connection net,
-                             net.minecraft.world.level.storage.ValueInput input) {
-        handleUpdateTag(input);
     }
 }

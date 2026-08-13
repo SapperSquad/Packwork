@@ -1,9 +1,9 @@
 package com.sappersquad.packwork.gametest;
 
 import com.sappersquad.packwork.Packwork;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -17,17 +17,19 @@ import java.util.function.Consumer;
  * {@code packwork:contents_survive_save_load} - which must match its
  * {@code data/packwork/test_instance/contents_survive_save_load.json} (generated, see
  * {@code tools/GenTestInstances.java}).
+ *
+ * <p>Fabric: plain eager registration during mod init. The runner is fabric-api's
+ * gametest module - {@code ./gradlew runGametest} boots a headless server with
+ * {@code -Dfabric-api.gametest} that runs every loaded test instance and exits nonzero
+ * on failure, exactly what NeoForge's runGameTestServer did.
  */
 public final class PackworkTestRegistrar {
 
-    public static final DeferredRegister<Consumer<GameTestHelper>> TEST_FUNCTIONS =
-            DeferredRegister.create(Registries.TEST_FUNCTION, Packwork.MODID);
-
-    static {
+    public static void register() {
         for (Method m : PackworkGameTests.class.getDeclaredMethods()) {
             if (!m.isAnnotationPresent(PackTest.class)) continue;
             final Method method = m;
-            TEST_FUNCTIONS.register(snakeCase(m.getName()), () -> helper -> {
+            Consumer<GameTestHelper> fn = helper -> {
                 try {
                     method.invoke(null, helper);
                 } catch (InvocationTargetException e) {
@@ -38,7 +40,8 @@ public final class PackworkTestRegistrar {
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
                 }
-            });
+            };
+            Registry.register(BuiltInRegistries.TEST_FUNCTION, Packwork.id(snakeCase(m.getName())), fn);
         }
     }
 

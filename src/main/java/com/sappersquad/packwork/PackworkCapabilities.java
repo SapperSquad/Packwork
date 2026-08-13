@@ -1,100 +1,78 @@
 package com.sappersquad.packwork;
 
-import com.sappersquad.packwork.block.PackContainerBlockEntity;
+import com.sappersquad.packwork.pack.PackInventory;
 import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.reg.ModBlockEntities;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.transfer.PackTransfer;
 import com.sappersquad.packwork.trinket.TrinketAccess;
 import com.sappersquad.packwork.trinket.TrinketType;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
+import net.minecraft.world.level.ItemLike;
+import team.reborn.energy.api.EnergyStorage;
 
 /**
- * Exposes the pack's stores as standard NeoForge capabilities on the stack, so any
- * mod's automation works against a pack the same way it would any container/tank -
- * no Packwork API required (pillar 3). The item store is always present; the fluid
- * tank appears only when a Waterskin Rack is fitted (trinket-gated, pillar 2).
+ * Exposes the pack's stores through Fabric's standard API lookups, so any mod's
+ * automation works against a pack the same way it would any container/tank - no
+ * Packwork API required (pillar 3). The item store is always present; the fluid tank
+ * appears only when a Waterskin Rack is fitted, the energy face only with a Charge
+ * Crystal (trinket-gated, pillar 2). Energy speaks Team Reborn Energy - the Fabric
+ * ecosystem's standard, jar-in-jar'd so it is never a mod the player installs.
  *
- * <p><b>21.9+ transfer rework:</b> the standard tokens are {@code Capabilities.Item /
- * Fluid / Energy} now (transactional {@code ResourceHandler}s with an {@link ItemAccess}
- * context on items); the handlers live in {@link PackTransfer}, one file per NeoForge
- * drift surface.
+ * <p>Fabric API's own mixins route vanilla hoppers (and every transfer-API mod's
+ * pipes) through these same lookups, so a placed pack stays hopper-automatable
+ * exactly as it is on the NeoForge branches.
  */
 public final class PackworkCapabilities {
 
-    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
-        for (var holder : ModItems.PACKS.values()) {
-            // 26.1: PackInventory IS the native handler now - the capability and the
-            // menu/trinket internals share one implementation of the three rules.
-            event.registerItem(Capabilities.Item.ITEM,
-                    (stack, access) -> new com.sappersquad.packwork.pack.PackInventory(access, PackItem.tierOf(stack)),
-                    holder.get());
+    public static void register() {
+        ItemLike[] packLikes = ModItems.PACKS.values().stream().map(h -> (ItemLike) h.get()).toArray(ItemLike[]::new);
 
-            event.registerItem(Capabilities.Fluid.ITEM,
-                    (stack, access) -> TrinketAccess.has(stack, TrinketType.WATERSKIN)
-                            ? PackTransfer.fluid(access, stack)
-                            : null,
-                    holder.get());
+        // ---- the pack ITEM, wherever automation can reach it as a stack ----
 
-            event.registerItem(Capabilities.Energy.ITEM,
-                    (stack, access) -> TrinketAccess.has(stack, TrinketType.CHARGE_CRYSTAL)
-                            ? PackTransfer.energy(access, stack)
-                            : null,
-                    holder.get());
-        }
+        ItemStorage.ITEM.registerForItems(
+                (stack, context) -> new PackInventory(context, PackItem.tierOf(stack)).storage(),
+                packLikes);
 
-        // Mekanism gas store (optional, gated): the Flask Harness tank exposed via Mekanism's
-        // own chemical capability on each pack item. One class touches mekanism.*, never
-        // classloaded without the mod.
-        if (ModList.get().isLoaded("mekanism")) {
-            for (var holder : ModItems.PACKS.values()) {
-                com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.registerItem(event, holder);
-            }
-        }
+        FluidStorage.ITEM.registerForItems(
+                (stack, context) -> TrinketAccess.has(stack, TrinketType.WATERSKIN)
+                        ? PackTransfer.fluid(context, stack)
+                        : null,
+                packLikes);
 
-        registerBlockCaps(event);
-    }
+        EnergyStorage.ITEM.registerForItems(
+                (stack, context) -> TrinketAccess.has(stack, TrinketType.CHARGE_CRYSTAL)
+                        ? PackTransfer.energy(context, stack)
+                        : null,
+                packLikes);
 
-    /**
-     * The same stores on a PLACED pack, exposed through NeoForge's block capabilities so
-     * any mod's hoppers, pipes, and cables interact with it. Because sorting is virtual over
-     * one flat store, an item a hopper pushes in just auto-routes into the right compartment.
-     * Each store is gated by its trinket, and every write marks the block entity dirty so it
-     * persists. Standard FE is exposed here; Forgework's own Flux cap is added (gated) below.
-     */
-    private static void registerBlockCaps(RegisterCapabilitiesEvent event) {
-        // The BE-backed ItemAccess mutates the held pack stack in place on commit and
-        // marks the block entity dirty on every successful move (see PackTransfer).
-        event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.PACK.get(),
+        // ---- the same stores on a PLACED pack, via the block lookups ----
+        // Because sorting is virtual over one flat store, an item a hopper pushes in just
+        // auto-routes into the right compartment. Each store is gated by its trinket, and
+        // every committed write marks the block entity dirty (see PackTransfer.forBlockEntity).
+
+        ItemStorage.SIDED.registerForBlockEntity(
                 (be, side) -> be.isEmpty() ? null
-                        : new com.sappersquad.packwork.pack.PackInventory(PackTransfer.forBlockEntity(be),
-                                PackItem.tierOf(be.getPackStack())));
+                        : new PackInventory(PackTransfer.forBlockEntity(be), PackItem.tierOf(be.getPackStack())).storage(),
+                ModBlockEntities.PACK.get());
 
-        event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.PACK.get(),
+        FluidStorage.SIDED.registerForBlockEntity(
                 (be, side) -> !be.isEmpty() && TrinketAccess.has(be.getPackStack(), TrinketType.WATERSKIN)
                         ? PackTransfer.fluid(PackTransfer.forBlockEntity(be), be.getPackStack())
-                        : null);
+                        : null,
+                ModBlockEntities.PACK.get());
 
-        event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.PACK.get(),
+        EnergyStorage.SIDED.registerForBlockEntity(
                 (be, side) -> !be.isEmpty() && TrinketAccess.has(be.getPackStack(), TrinketType.CHARGE_CRYSTAL)
                         ? PackTransfer.energy(PackTransfer.forBlockEntity(be), be.getPackStack())
-                        : null);
+                        : null,
+                ModBlockEntities.PACK.get());
 
-        // Forgework's Flux is its OWN block capability, not standard FE, so a Forgework cable
-        // won't touch the standard energy cap above. Gated: only when Forgework is loaded do we
-        // expose FLOW_ENERGY on the placed pack (one class touches com.forgework.*, never
-        // classloaded without the mod).
-        if (ModList.get().isLoaded("forgework")) {
-            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.register(event, ModBlockEntities.PACK.get());
-        }
-
-        // Mekanism chemical cap on the placed pack (gated).
-        if (ModList.get().isLoaded("mekanism")) {
-            com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.registerBlock(event, ModBlockEntities.PACK.get());
-        }
+        // Mekanism (gas) and Forgework (Flux) are NeoForge-only mods: no Fabric artifact
+        // exists, so those gates have nothing to light here and their compat classes do
+        // not exist on this branch. The pack_chemical component still loads/saves so no
+        // vapors are ever voided (pause, never punish).
     }
 
     private PackworkCapabilities() {}

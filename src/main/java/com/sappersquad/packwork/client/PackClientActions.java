@@ -3,8 +3,8 @@ package com.sappersquad.packwork.client;
 import com.sappersquad.packwork.net.PackAction;
 import com.sappersquad.packwork.net.PackActionPayload;
 import com.sappersquad.packwork.pack.PackMenu;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * Client-side glue for the pack GUI: apply every action to the open menu
@@ -21,7 +21,7 @@ public final class PackClientActions {
         if (!action.serverAuthoritative()) {
             menu.handleAction(action.ordinal(), arg, s1 == null ? "" : s1, s2 == null ? "" : s2);
         }
-        ClientPacketDistributor.sendToServer(PackActionPayload.of(action, arg, s1, s2));
+        ClientPlayNetworking.send(PackActionPayload.of(action, arg, s1, s2));
     }
 
     public static void selectTab(PackMenu menu, String tabId) {

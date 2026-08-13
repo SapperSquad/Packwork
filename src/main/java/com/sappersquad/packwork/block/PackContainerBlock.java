@@ -101,7 +101,9 @@ public class PackContainerBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof PackContainerBlockEntity be) || be.isEmpty()) {
             return InteractionResult.PASS;
         }
-        MenuProvider provider = new MenuProvider() {
+        // Mirror PackItem.openPack's extra data: the host kind, the pos, and the tier so
+        // the client builds the SAME trinket-socket count before anything syncs.
+        player.openMenu(new net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider<com.sappersquad.packwork.net.PackOpenData>() {
             @Override
             public Component getDisplayName() {
                 return be.getPackStack().getHoverName();
@@ -111,10 +113,13 @@ public class PackContainerBlock extends BaseEntityBlock {
             public AbstractContainerMenu createMenu(int id, Inventory playerInv, Player p) {
                 return PackMenu.serverForBlock(id, playerInv, be);
             }
-        };
-        // Mirror PackItem.openPack's extra data: the host kind, the pos, and the tier so
-        // the client builds the SAME trinket-socket count before anything syncs.
-        player.openMenu(provider, buf -> PackItem.writeBlockHost(buf, pos, be.getTier()));
+
+            @Override
+            public com.sappersquad.packwork.net.PackOpenData getScreenOpeningData(
+                    net.minecraft.server.level.ServerPlayer sp) {
+                return com.sappersquad.packwork.net.PackOpenData.block(pos, be.getTier().ordinal());
+            }
+        });
         return InteractionResult.CONSUME;
     }
 

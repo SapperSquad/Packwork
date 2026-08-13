@@ -2,31 +2,35 @@ package com.sappersquad.packwork.pack;
 
 import com.sappersquad.packwork.reg.ModComponents;
 import com.sappersquad.packwork.trinket.TrinketAccess;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.transfer.ItemAccessResourceHandler;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
-import net.neoforged.neoforge.transfer.transaction.TransactionContext;
-import org.jetbrains.annotations.Nullable;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
- * The pack's item store: ONE handler, native on the NeoForge transfer API, backing the
- * standard {@code Capabilities.Item} capability AND the menu/trinkets/sorting internals.
- * (Up to 1.21.11 these were two layers - a legacy {@code ComponentItemHandler} inside,
- * a transactional wrapper outside; 26.x removed the store from vanilla's holder
- * entirely, so the layers merged here over {@link PackContents}.)
+ * The pack's item store: ONE handler, native on Fabric's transfer API, backing the
+ * standard {@code ItemStorage} lookups AND the menu/trinkets/sorting internals. (The
+ * NeoForge 26.x branch is the same design over the same-shaped API - NeoForge's
+ * transactional rework copied Fabric's - so the two implementations mirror each other
+ * rule for rule.)
  *
  * <p>One flat inventory - tabs are virtual views computed over it, never physical
  * partitions, so sorting never moves an item and can never lose one.
  *
  * <p><b>The three pack rules live here, at the native choke points:</b>
  * <ul>
- * <li><b>DEPTH</b> - {@link #getCapacity}: each slot holds the item's own max stack x
- *     the tier's multiplier ({@link PackTier#slotDepth}).</li>
- * <li><b>NESTING</b> - {@link #isValid}: no pack-in-pack, ever (see DECISIONS.md).</li>
- * <li><b>ONE-STACK EXTRACT</b> - {@link #extract}: every pull out of the pack is
+ * <li><b>DEPTH</b> - {@link PackSlot#getCapacity()}: each slot holds the item's own max
+ *     stack x the tier's multiplier ({@link PackTier#slotDepth}).</li>
+ * <li><b>NESTING</b> - {@link PackSlot#insert}: no pack-in-pack, ever (see DECISIONS.md).</li>
+ * <li><b>ONE-STACK EXTRACT</b> - {@link PackSlot#extract}: every pull out of the pack is
  *     clamped to one vanilla stack of the item, however deep the slot. Automation,
  *     cursors, and trinkets only ever see legal stacks.</li>
  * </ul>
@@ -37,89 +41,205 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Slot count is live: a Bottomless Lining trinket grows it (BREADTH), and slots past
  * the current capacity are never truncated on write - removing the Lining hides the
- * extra items rather than voiding them.
+ * extra items rather than voiding them. The context resolves the CURRENT stack on every
+ * read, so a menu built a tick before its slot syncs simply reads empty until the pack
+ * arrives (the old captured-stack silent-swallow bug cannot come back).
  */
-public class PackInventory extends ItemAccessResourceHandler<ItemResource> {
+public class PackInventory {
 
+    /** Hard ceiling on addressable slots (matches the NeoForge branches). */
+    public static final int MAX_SLOTS = 256;
+
+    private final ContainerItemContext context;
     private final PackTier tier;
+    private final NativeStorage nativeStorage = new NativeStorage();
 
     /** Fixed-stack form: commits mutate the given stack's components in place. */
     public PackInventory(ItemStack packStack, PackTier tier) {
-        this(ItemAccess.forStack(packStack), tier);
+        this(ContainerItemContext.ofSingleSlot(
+                new com.sappersquad.packwork.transfer.LiveStackStorage(packStack)), tier);
     }
 
     /** Supplier form for fixed-stack callers: resolved ONCE at construction - commits
      *  mutate that stack in place. Live multi-stack hosts (the menu) bind a real
-     *  {@link ItemAccess} instead. */
+     *  {@link ContainerItemContext} instead. */
     public PackInventory(java.util.function.Supplier<ItemStack> stack, PackTier tier) {
         this(stack.get(), tier);
     }
 
     /**
-     * Native form over any {@link ItemAccess} - the capability context, a player
-     * inventory slot, or a menu host container. The access is resolved live on every
-     * read, so a menu built a tick before its slot syncs simply reads empty until the
-     * pack arrives (the old captured-stack silent-swallow bug cannot come back).
+     * Native form over any {@link ContainerItemContext} - the standard lookup's context,
+     * a player inventory slot, or a menu host container.
      */
-    public PackInventory(ItemAccess access, PackTier tier) {
-        super(access, 256);
+    public PackInventory(ContainerItemContext context, PackTier tier) {
+        this.context = context;
         this.tier = tier;
     }
 
-    private static PackContents contentsOf(ItemResource accessResource) {
-        return accessResource.getItem() instanceof PackItem
-                ? accessResource.getOrDefault(ModComponents.PACK_CONTENTS.get(), PackContents.EMPTY)
-                : PackContents.EMPTY;
+    private ItemVariant host() {
+        return context.getItemVariant();
     }
 
-    // ---- the native ResourceHandler surface ----
+    private static PackContents contentsOf(ItemVariant host) {
+        if (!(host.getItem() instanceof PackItem)) return PackContents.EMPTY;
+        PackContents c = host.toStack().get(ModComponents.PACK_CONTENTS.get());
+        return c == null ? PackContents.EMPTY : c;
+    }
+
+    /** Write one slot's stack back onto the host pack, inside the given transaction.
+     *  Returns true when the host accepted the write (it still holds exactly one pack). */
+    private boolean writeSlot(int index, ItemStack newStack, TransactionContext tx) {
+        ItemVariant host = host();
+        if (!(host.getItem() instanceof PackItem) || context.getAmount() < 1) return false;
+        PackContents updated = contentsOf(host).withSlot(index, newStack, size());
+        ItemStack carrier = host.toStack();
+        carrier.set(ModComponents.PACK_CONTENTS.get(), updated);
+        return context.exchange(ItemVariant.of(carrier), 1, tx) == 1;
+    }
+
+    // ---- the native SlottedStorage surface ----
 
     /** Live BREADTH: a Bottomless Lining grows the slot count (and never truncates). */
-    @Override
     public int size() {
-        ItemResource r = itemAccess.getResource();
+        ItemVariant r = host();
         if (!(r.getItem() instanceof PackItem)) return 0;
-        return Math.min(256, TrinketAccess.capacity(r.toStack(1)));
+        return Math.min(MAX_SLOTS, TrinketAccess.capacity(r.toStack(1)));
     }
 
-    @Override
-    protected ItemResource getResourceFrom(ItemResource accessResource, int index) {
-        ItemStack s = contentsOf(accessResource).getStackInSlot(index);
-        return s.isEmpty() ? ItemResource.EMPTY : ItemResource.of(s);
+    /**
+     * The native transfer face - what the standard {@code ItemStorage} lookups hand to
+     * automation. A nested view (not the class itself) because the legacy-shaped
+     * {@code getSlots()} convenience below and {@code SlottedStorage}'s own default of
+     * the same name collide; the RULES all live in {@link PackSlot} either way.
+     */
+    public SlottedStorage<ItemVariant> storage() {
+        return nativeStorage;
     }
 
-    @Override
-    protected int getAmountFrom(ItemResource accessResource, int index) {
-        return contentsOf(accessResource).getStackInSlot(index).getCount();
+    private class NativeStorage implements SlottedStorage<ItemVariant> {
+
+        @Override
+        public int getSlotCount() {
+            return size();
+        }
+
+        @Override
+        public SingleSlotStorage<ItemVariant> getSlot(int index) {
+            return new PackSlot(index);
+        }
+
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            long moved = 0;
+            int n = size();
+            // merge into part-filled matching slots first, then fill empties - the same order
+            // the legacy insertAll walked, so automation and trinkets file identically
+            for (int pass = 0; pass < 2 && moved < maxAmount; pass++) {
+                for (int i = 0; i < n && moved < maxAmount; i++) {
+                    boolean empty = contentsOf(host()).getStackInSlot(i).isEmpty();
+                    if ((pass == 0) == empty) continue;
+                    moved += new PackSlot(i).insert(resource, maxAmount - moved, tx);
+                }
+            }
+            return moved;
+        }
+
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            long moved = 0;
+            int n = size();
+            for (int i = 0; i < n && moved < maxAmount; i++) {
+                moved += new PackSlot(i).extract(resource, maxAmount - moved, tx);
+            }
+            return moved;
+        }
+
+        @Override
+        public Iterator<StorageView<ItemVariant>> iterator() {
+            int n = size();
+            return new Iterator<>() {
+                private int next = 0;
+
+                @Override
+                public boolean hasNext() {
+                    return next < n;
+                }
+
+                @Override
+                public StorageView<ItemVariant> next() {
+                    if (next >= n) throw new NoSuchElementException();
+                    return new PackSlot(next++);
+                }
+            };
+        }
     }
 
-    @Override
-    @Nullable
-    protected ItemResource update(ItemResource accessResource, int index, ItemResource newResource, int newAmount) {
-        PackContents updated = contentsOf(accessResource).withSlot(index, newResource.toStack(newAmount), size());
-        return (ItemResource) accessResource.with(ModComponents.PACK_CONTENTS, updated);
-    }
+    /** One slot of the pack, all reads live off the host's current component state. */
+    private class PackSlot implements SingleSlotStorage<ItemVariant> {
 
-    /** No pack-in-pack, ever - blocks the dupe/lag surface. (Also refuses to answer for
-     *  a non-pack access item, e.g. after the bound slot's stack was swapped out.) */
-    @Override
-    public boolean isValid(int index, ItemResource resource) {
-        if (resource.getItem() instanceof PackItem) return false;
-        return itemAccess.getResource().getItem() instanceof PackItem;
-    }
+        private final int index;
 
-    /** Per-slot DEPTH: the item's own max stack x the tier's multiplier. */
-    @Override
-    protected int getCapacity(int index, ItemResource resource) {
-        return resource.isEmpty()
-                ? tier.slotDepth(Item.DEFAULT_MAX_STACK_SIZE)
-                : tier.slotDepth(resource.getMaxStackSize());
-    }
+        PackSlot(int index) {
+            this.index = index;
+        }
 
-    /** Every pull out of the pack is at most ONE vanilla stack of the item. */
-    @Override
-    public int extract(int index, ItemResource resource, int amount, TransactionContext tx) {
-        return super.extract(index, resource, Math.min(amount, resource.getMaxStackSize()), tx);
+        private ItemStack current() {
+            return contentsOf(host()).getStackInSlot(index);
+        }
+
+        @Override
+        public boolean isResourceBlank() {
+            return current().isEmpty();
+        }
+
+        @Override
+        public ItemVariant getResource() {
+            ItemStack s = current();
+            return s.isEmpty() ? ItemVariant.blank() : ItemVariant.of(s);
+        }
+
+        @Override
+        public long getAmount() {
+            return current().getCount();
+        }
+
+        /** Per-slot DEPTH: the item's own max stack x the tier's multiplier. */
+        @Override
+        public long getCapacity() {
+            ItemStack s = current();
+            return s.isEmpty()
+                    ? tier.slotDepth(Item.DEFAULT_MAX_STACK_SIZE)
+                    : tier.slotDepth(s.getMaxStackSize());
+        }
+
+        @Override
+        public long insert(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            if (resource.isBlank() || maxAmount <= 0) return 0;
+            // NESTING: no pack-in-pack, ever; and refuse to answer for a non-pack host
+            if (resource.getItem() instanceof PackItem) return 0;
+            if (!(host().getItem() instanceof PackItem)) return 0;
+            ItemStack cur = current();
+            if (!cur.isEmpty() && !resource.matches(cur)) return 0;
+            int depth = tier.slotDepth(resource.toStack().getMaxStackSize());
+            int room = depth - cur.getCount();
+            if (room <= 0) return 0;
+            int moved = (int) Math.min(maxAmount, room);
+            ItemStack updated = resource.toStack(cur.getCount() + moved);
+            return writeSlot(index, updated, tx) ? moved : 0;
+        }
+
+        /** Every pull out of the pack is at most ONE vanilla stack of the item. */
+        @Override
+        public long extract(ItemVariant resource, long maxAmount, TransactionContext tx) {
+            if (resource.isBlank() || maxAmount <= 0) return 0;
+            ItemStack cur = current();
+            if (cur.isEmpty() || !resource.matches(cur)) return 0;
+            int clamp = (int) Math.min(maxAmount, resource.toStack().getMaxStackSize());
+            int moved = Math.min(clamp, cur.getCount());
+            if (moved <= 0) return 0;
+            ItemStack updated = cur.copyWithCount(cur.getCount() - moved);
+            return writeSlot(index, updated.isEmpty() ? ItemStack.EMPTY : updated, tx) ? moved : 0;
+        }
     }
 
     // ---- legacy-shaped conveniences (the menu/trinkets/sorting/test surface) ----
@@ -130,50 +250,48 @@ public class PackInventory extends ItemAccessResourceHandler<ItemResource> {
 
     /** A fresh copy of the slot's stack, deep count intact. */
     public ItemStack getStackInSlot(int slot) {
-        return contentsOf(itemAccess.getResource()).getStackInSlot(slot);
+        return contentsOf(host()).getStackInSlot(slot);
     }
 
     /** Insert up to the tier's depth; returns what did not fit (EMPTY when all did). */
     public ItemStack insertItem(int slot, ItemStack toInsert, boolean simulate) {
         if (toInsert.isEmpty()) return ItemStack.EMPTY;
-        try (Transaction tx = Transaction.openRoot()) {
-            int moved = insert(slot, ItemResource.of(toInsert), toInsert.getCount(), tx);
+        try (Transaction tx = Transaction.openOuter()) {
+            long moved = new PackSlot(slot).insert(ItemVariant.of(toInsert), toInsert.getCount(), tx);
             if (!simulate && moved > 0) tx.commit();
             return moved >= toInsert.getCount() ? ItemStack.EMPTY
-                    : toInsert.copyWithCount(toInsert.getCount() - moved);
+                    : toInsert.copyWithCount(toInsert.getCount() - (int) moved);
         }
     }
 
     /** Extract - clamped to one vanilla stack by the native rule above. */
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
         if (amount <= 0) return ItemStack.EMPTY;
-        ItemResource r = getResource(slot);
-        if (r.isEmpty()) return ItemStack.EMPTY;
-        try (Transaction tx = Transaction.openRoot()) {
-            int moved = extract(slot, r, amount, tx);
+        PackSlot s = new PackSlot(slot);
+        ItemVariant r = s.getResource();
+        if (r.isBlank()) return ItemStack.EMPTY;
+        try (Transaction tx = Transaction.openOuter()) {
+            long moved = s.extract(r, amount, tx);
             if (!simulate && moved > 0) tx.commit();
-            return moved <= 0 ? ItemStack.EMPTY : r.toStack(moved);
+            return moved <= 0 ? ItemStack.EMPTY : r.toStack((int) moved);
         }
     }
 
     /**
      * Arbitrary slot write (the view-slot set and Tidy Up's rewrite) - not an
-     * insert/extract, so it goes through the access exchange directly. A silent no-op
-     * when the access holds no pack (the old live-resolve contract).
+     * insert/extract, so it goes through the host exchange directly. A silent no-op
+     * when the host holds no pack (the old live-resolve contract).
      */
     public void setStackInSlot(int slot, ItemStack stack) {
-        ItemResource accessResource = itemAccess.getResource();
-        if (!(accessResource.getItem() instanceof PackItem)) return;
-        PackContents updated = contentsOf(accessResource).withSlot(slot, stack, size());
-        ItemResource newResource = (ItemResource) accessResource.with(ModComponents.PACK_CONTENTS, updated);
-        try (Transaction tx = Transaction.openRoot()) {
-            itemAccess.exchange(newResource, itemAccess.getAmount(), tx);
-            tx.commit();
+        if (!(host().getItem() instanceof PackItem)) return;
+        try (Transaction tx = Transaction.openOuter()) {
+            if (writeSlot(slot, stack, tx)) tx.commit();
         }
     }
 
     public boolean isItemValid(int slot, ItemStack stack) {
-        return isValid(slot, ItemResource.of(stack));
+        if (stack.getItem() instanceof PackItem) return false;
+        return host().getItem() instanceof PackItem;
     }
 
     /** Empty-slot ceiling for generic consumers: the depth of an ordinary 64-stackable. */
