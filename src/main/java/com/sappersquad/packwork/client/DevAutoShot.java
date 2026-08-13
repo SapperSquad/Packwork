@@ -90,7 +90,7 @@ public final class DevAutoShot {
                     // Grow the dev window and force GUI scale 3 (what players actually use) so the
                     // search text + slots can be judged at real size, not the tiny default scale.
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1120, 900);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1120, 900);
                         mc.options.guiScale().set(3);
                         mc.resizeDisplay();
                         Packwork.LOGGER.info("[autoshot] window 1120x900 @ guiScale 3");
@@ -441,7 +441,7 @@ public final class DevAutoShot {
             case G_BOOT -> {
                 if (ticks == 5) {
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1920, 1080);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1920, 1080);
                         mc.options.guiScale().set(3);
                         mc.resizeDisplay();
                         Packwork.LOGGER.info("[gallery] window 1920x1080 @ guiScale 3");
@@ -729,7 +729,7 @@ public final class DevAutoShot {
     private static void parkCursor(Minecraft mc) {
         double px = 4, py = mc.getWindow().getHeight() - 4;
         try {
-            org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().handle(), px, py);
+            org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), px, py);
         } catch (Throwable ignored) {
         }
         try {
@@ -756,11 +756,8 @@ public final class DevAutoShot {
             Packwork.LOGGER.warn("[autoshot] no target for {}", what);
             return;
         }
-        // 1.21.9+ input events: press/release carry MouseButtonEvent records now
-        var press = new net.minecraft.client.input.MouseButtonEvent(c[0], c[1],
-                new net.minecraft.client.input.MouseButtonInfo(0, 0));
-        ps.mouseClicked(press, false);
-        ps.mouseReleased(press);
+        ps.mouseClicked(c[0], c[1], 0);
+        ps.mouseReleased(c[0], c[1], 0);
         Packwork.LOGGER.info("[autoshot] clicked {} at ({},{})", what, c[0], c[1]);
     }
 
@@ -1131,7 +1128,7 @@ public final class DevAutoShot {
             if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive() && s.hasItem()) {
                 pinSlotIndex = i;
                 double scale = mc.getWindow().getGuiScale();
-                org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().handle(),
+                org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(),
                         (ps.getGuiLeft() + s.x + 8) * scale, (ps.getGuiTop() + s.y + 8) * scale);
                 var key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
                 Packwork.LOGGER.info("[autoshot] grid item {} at menu slot {} ({},{})", key, i, s.x, s.y);
@@ -1147,8 +1144,7 @@ public final class DevAutoShot {
     private static void pressPin(Minecraft mc) {
         if (mc.screen == null) return;
         int scan = org.lwjgl.glfw.GLFW.glfwGetKeyScancode(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
-        boolean handled = mc.screen.keyPressed(
-                new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0));
+        boolean handled = mc.screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0);
         Packwork.LOGGER.info("[autoshot] dispatched real keyPressed(P) -> handled={}", handled);
     }
 

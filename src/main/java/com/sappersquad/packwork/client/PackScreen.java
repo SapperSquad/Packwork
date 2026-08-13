@@ -9,8 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -161,7 +159,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + 13, 0xFFC8B892);            // parchment
         g.fill(x, y, x + w, y + 1, 0xFFE2D6AE);             // lit top edge
         g.fill(x, y + 12, x + w, y + 13, 0xFFA89A74);       // shaded bottom edge
-        g.submitOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
+        g.renderOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
         g.drawString(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
     }
 
@@ -251,7 +249,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + h, 0xFF3D2A16);                    // dark oiled leather, distinct from the panel
         g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF6A4A2A);        // lit top roll
         g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF241708);
-        g.submitOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
+        g.renderOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
 
         // a canvas working field behind the 3x3 - the tool pockets are sewn onto it
         int cx = leftPos + PackMenu.ROLL_GRID_X - 4, cy = topPos + PackMenu.ROLL_Y - 3;
@@ -286,7 +284,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         for (int i = 0; i < 4; i++) g.fill(ax + 8 + i, ay - 3 + i, ax + 9 + i, ay + 5 - i, 0xFFE7CC82);
 
         slotWell(g, leftPos + PackMenu.ROLL_RESULT_X, topPos + PackMenu.ROLL_RESULT_Y);
-        g.submitOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
+        g.renderOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
                 20, 20, 0xFFC9A24B);
     }
 
@@ -355,7 +353,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.submitOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
@@ -463,7 +461,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int railH = n * PackMenu.TRINKET_PITCH + 6;
         // a strip of stitched brass backing the sockets
         g.fill(railX - 1, railY - 1, railX + 24, railY + railH, 0xFF3E2A18);
-        g.submitOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
+        g.renderOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
         for (int i = 0; i < n; i++) {
             int x = leftPos + PackMenu.TRINKET_X - 1;
             int y = topPos + PackMenu.TRINKET_Y0 + i * PackMenu.TRINKET_PITCH - 1;
@@ -747,7 +745,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.submitOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
@@ -781,7 +779,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             int bx = x + w - 14;
             boolean hov = inRect(mouseX, mouseY, bx, ry, 9, 9);
             g.fill(bx, ry, bx + 9, ry + 9, hov ? 0xFF8A3A2A : 0xFF6B4A2F);
-            g.submitOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
+            g.renderOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
             g.fill(bx + 2, ry + 4, bx + 7, ry + 5, 0xFFEAD9A6); // the strike
             if (hov) {
                 g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_remove"),
@@ -826,17 +824,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                                 boolean hover, boolean on) {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         g.fill(x, y, x + w, y + 10, base);
-        g.submitOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
+        g.renderOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
         String s = this.font.plainSubstrByWidth(label.getString(), w - 4);
         g.drawString(this.font, s, x + (w - this.font.width(s)) / 2, y + 1, 0xFFEAD9A6, false);
     }
 
     /** Clicks inside the rule sheet: focus the box, add or strike rules, or just be swallowed. */
-    private boolean handleRulesClick(MouseButtonEvent event, boolean doubleClick) {
-        double mx = event.x(), my = event.y();
-        int button = event.button();
+    private boolean handleRulesClick(double mx, double my, int button) {
         if (!overRules((int) mx, (int) my)) return false;
-        if (ruleValueBox.mouseClicked(event, doubleClick)) {
+        if (ruleValueBox.mouseClicked(mx, my, button)) {
             setFocused(ruleValueBox);
             return true;
         }
@@ -1067,7 +1063,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private void gaugeFrame(GuiGraphics g, int x, int y, int w, int h, int glass) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF3E2A18);
-        g.submitOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
+        g.renderOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
         g.fill(x, y, x + w, y + h, glass);
     }
 
@@ -1078,10 +1074,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (!fs.isEmpty() && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
             IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fs.getFluid());
-            // 1.21.5+: sprites resolve through the AtlasManager via a Material, and the
-            // tint rides the blitSprite color arg (setShaderColor is gone).
-            TextureAtlasSprite sprite = Minecraft.getInstance().getAtlasManager()
-                    .get(net.neoforged.neoforge.client.ClientHooks.getBlockMaterial(ext.getStillTexture(fs)));
+            // 1.21.8 still resolves sprites through Minecraft.getTextureAtlas; the tint
+            // rides the blitSprite color arg (setShaderColor is gone since 1.21.5).
+            TextureAtlasSprite sprite = Minecraft.getInstance()
+                    .getTextureAtlas(net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS)
+                    .apply(ext.getStillTexture(fs));
             int tint = 0xFF000000 | (ext.getTintColor(fs) & 0xFFFFFF);
             for (int yy = 0; yy < filled; yy += 16) {
                 int hh = Math.min(16, filled - yy);
@@ -1108,7 +1105,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         int edge = hover ? 0xFFE7CC82 : 0xFFC9A24B;
         g.fill(x, y, x + BTN, y + BTN, base);
-        g.submitOutline(x, y, BTN, BTN, edge);
+        g.renderOutline(x, y, BTN, BTN, edge);
     }
 
     private void drawPageNav(GuiGraphics g, int mouseX, int mouseY) {
@@ -1230,18 +1227,16 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     // ---------- input ----------
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mx = event.x(), my = event.y();
-        int button = event.button();
+    public boolean mouseClicked(double mx, double my, int button) {
         if (renaming) {
-            if (renameBox.mouseClicked(event, doubleClick)) return true;
+            if (renameBox.mouseClicked(mx, my, button)) return true;
             commitRename();
         }
         // the Recipe Ledger and the rule sheet each swallow every click inside their sheet
-        if (ledgerVisible() && handleBrowserClick(event, doubleClick)) {
+        if (ledgerVisible() && handleBrowserClick(mx, my, button)) {
             return true;
         }
-        if (rulesVisible() && handleRulesClick(event, doubleClick)) {
+        if (rulesVisible() && handleRulesClick(mx, my, button)) {
             return true;
         }
         // title buttons
@@ -1307,7 +1302,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 return true;
             }
             if (xpGaugeRect != null && inRect((int) mx, (int) my, xpGaugeRect[0], xpGaugeRect[1], xpGaugeRect[2], xpGaugeRect[3])) {
-                if (event.hasShiftDown()) PackClientActions.xpPour(menu);
+                if (hasShiftDown()) PackClientActions.xpPour(menu);
                 else PackClientActions.xpSiphon(menu);
                 return true;
             }
@@ -1333,7 +1328,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             }
             return true;
         }
-        return super.mouseClicked(event, doubleClick);
+        return super.mouseClicked(mx, my, button);
     }
 
     /**
@@ -1347,9 +1342,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * press and the release both.
      */
     @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop) {
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
         if (isOverRail((int) mouseX, (int) mouseY)) return false;
-        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop);
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
     }
 
     /** Everything the pack draws beyond the panel edges: the tab rail left, the fittings rail
@@ -1367,11 +1362,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** Clicks inside the ledger sheet: focus the search, chalk a recipe, or just be swallowed. */
-    private boolean handleBrowserClick(MouseButtonEvent event, boolean doubleClick) {
-        double mx = event.x(), my = event.y();
-        int button = event.button();
+    private boolean handleBrowserClick(double mx, double my, int button) {
         if (!overLedger((int) mx, (int) my)) return false;
-        if (browserSearch.mouseClicked(event, doubleClick)) {
+        if (browserSearch.mouseClicked(mx, my, button)) {
             setFocused(browserSearch);
             return true;
         }
@@ -1418,25 +1411,24 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        int key = event.key();
+    public boolean keyPressed(int key, int scan, int mods) {
         if (renaming) {
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) { commitRename(); return true; }
             if (key == GLFW.GLFW_KEY_ESCAPE) { renaming = false; renameBox.setVisible(false); return true; }
-            return renameBox.keyPressed(event) || renameBox.canConsumeInput() || super.keyPressed(event);
+            return renameBox.keyPressed(key, scan, mods) || renameBox.canConsumeInput() || super.keyPressed(key, scan, mods);
         }
         if (searchBox != null && searchBox.isFocused()) {
-            return super.keyPressed(event);
+            return super.keyPressed(key, scan, mods);
         }
         if (ruleValueBox != null && ruleValueBox.isFocused()) {
-            return super.keyPressed(event);
+            return super.keyPressed(key, scan, mods);
         }
         Slot hovered = this.hoveredSlot;
         boolean overGrid = hovered instanceof PackViewSlot && hovered.hasItem();
 
         // Pin/unpin the hovered item to the active tab. Rebindable keybind (default P), so it
         // reads the mapping rather than a hardcoded key and shows up in vanilla Controls.
-        if (PackKeyMappings.PIN.matches(event) && overGrid && !menu.flatten()) {
+        if (PackKeyMappings.PIN.matches(key, scan) && overGrid && !menu.flatten()) {
             ItemStack held = hovered.getItem();
             ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
             String pinned = menu.layout().pinnedTab(itemKey);
@@ -1471,7 +1463,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             case GLFW.GLFW_KEY_RIGHT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), 1); return true; }
             default -> {}
         }
-        return super.keyPressed(event);
+        return super.keyPressed(key, scan, mods);
     }
 
     /**
