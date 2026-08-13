@@ -589,7 +589,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     @Override
     protected void extractLabels(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         if (!renaming) {
-            g.text(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xE8DCC0, false);
+            g.text(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xFFE8DCC0, false);
         }
     }
 
@@ -1132,7 +1132,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         triangle(g, lx, y, true, lh);
         triangle(g, rx, y, false, rh);
         String p = (menu.page() + 1) + "/" + menu.pageCount();
-        g.text(this.font, p, leftPos + 88 - this.font.width(p) / 2, y, 0xE8DCC0, false);
+        g.text(this.font, p, leftPos + 88 - this.font.width(p) / 2, y, 0xFFE8DCC0, false);
     }
 
     private void triangle(GuiGraphicsExtractor g, int x, int y, boolean left, boolean hover) {
