@@ -1,7 +1,7 @@
 package com.sappersquad.packwork.sort;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 
@@ -20,16 +20,16 @@ public final class AutoTabs {
 
     public static final String LOOSE_ID = "loose";
 
-    private static Identifier vanilla(String path) {
-        return Identifier.withDefaultNamespace(path);
+    private static ResourceLocation vanilla(String path) {
+        return ResourceLocation.withDefaultNamespace(path);
     }
 
-    private static Identifier self(String path) {
-        return Identifier.fromNamespaceAndPath("packwork", path);
+    private static ResourceLocation self(String path) {
+        return ResourceLocation.fromNamespaceAndPath("packwork", path);
     }
 
     /** Item tags owned by Packwork that datapacks fill in. */
-    public static Identifier sortTag(String name) {
+    public static ResourceLocation sortTag(String name) {
         return self("sorting/" + name);
     }
 
@@ -46,9 +46,9 @@ public final class AutoTabs {
      * compartment with ONE entry in this table (plus its tag JSON and a lang key): the
      * Cartographer's Sleeve and the Angler's Creel each pay for themselves in sorting.
      */
-    public record Auto(String id, String langKey, Identifier icon, int color,
+    public record Auto(String id, String langKey, ResourceLocation icon, int color,
                        List<SortRule> rules, com.sappersquad.packwork.trinket.TrinketType gate) {
-        public Auto(String id, String langKey, Identifier icon, int color, List<SortRule> rules) {
+        public Auto(String id, String langKey, ResourceLocation icon, int color, List<SortRule> rules) {
             this(id, langKey, icon, color, rules, null);
         }
     }

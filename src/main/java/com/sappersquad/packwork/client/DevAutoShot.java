@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -357,7 +357,7 @@ public final class DevAutoShot {
             case AUTOPIN_W2 -> { if (++wait > 12) phase = Phase.SHOOT_AUTOPIN; }
             case SHOOT_AUTOPIN -> {
                 withMenu(mc, m -> Packwork.LOGGER.info("[autoshot][autopin] bread pinnedTab={} (want auto:ores)",
-                        m.layout().pinnedTab(net.minecraft.resources.Identifier.withDefaultNamespace("bread"))));
+                        m.layout().pinnedTab(net.minecraft.resources.ResourceLocation.withDefaultNamespace("bread"))));
                 grab(mc, "packwork_autopin");     // bread in Ores + red ribbon + the parchment note
                 phase = Phase.RULES_TAB; wait = 0;
             }
@@ -1118,11 +1118,11 @@ public final class DevAutoShot {
         }
     }
 
-    private static net.minecraft.resources.Identifier pinItemKey = null;
+    private static net.minecraft.resources.ResourceLocation pinItemKey = null;
     private static int pinSlotIndex = -1;
 
     /** Find the first grid item, record its menu-slot index + key, and move the real cursor over it. */
-    private static net.minecraft.resources.Identifier hoverFirstGridItem(Minecraft mc) {
+    private static net.minecraft.resources.ResourceLocation hoverFirstGridItem(Minecraft mc) {
         pinSlotIndex = -1;
         if (!(mc.screen instanceof PackScreen ps)) return null;
         var slots = ps.getMenu().slots;

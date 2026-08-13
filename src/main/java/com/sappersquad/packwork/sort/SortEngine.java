@@ -2,7 +2,7 @@ package com.sappersquad.packwork.sort;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -145,7 +145,7 @@ public final class SortEngine {
      * authored rules and pins). Order matters - the most specific kinds are tested first
      * so a stamped item claims one category.
      */
-    public static SortRule iconRule(Identifier icon) {
+    public static SortRule iconRule(ResourceLocation icon) {
         var item = BuiltInRegistries.ITEM.getOptional(icon).orElse(null);
         if (item == null) return null;
         ItemStack probe = new ItemStack(item);
@@ -163,7 +163,7 @@ public final class SortEngine {
      */
     public static String route(ItemStack stack, List<TabView> tabs, PackLayout layout) {
         if (stack.isEmpty()) return AutoTabs.LOOSE_ID;
-        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         String pinned = layout.pinnedTab(itemId);
         if (pinned != null && tabExists(pinned, tabs)) return pinned;
 

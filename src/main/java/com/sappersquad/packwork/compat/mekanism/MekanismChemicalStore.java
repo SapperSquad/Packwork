@@ -13,7 +13,7 @@ import mekanism.api.chemical.Chemical;
 import mekanism.api.chemical.ChemicalStack;
 import mekanism.api.chemical.IChemicalHandler;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.capabilities.BlockCapability;
@@ -41,8 +41,8 @@ public final class MekanismChemicalStore {
 
     private MekanismChemicalStore() {}
 
-    private static final Identifier CHEMICAL_HANDLER =
-            Identifier.fromNamespaceAndPath("mekanism", "chemical_handler");
+    private static final ResourceLocation CHEMICAL_HANDLER =
+            ResourceLocation.fromNamespaceAndPath("mekanism", "chemical_handler");
 
     public static final ItemCapability<IChemicalHandler, Void> ITEM =
             ItemCapability.createVoid(CHEMICAL_HANDLER, IChemicalHandler.class);
@@ -82,7 +82,7 @@ public final class MekanismChemicalStore {
         public ChemicalStack getChemicalInTank(int tank) {
             PackChemical pc = live.get().getOrDefault(ModComponents.PACK_CHEMICAL.get(), PackChemical.EMPTY);
             if (pc.isEmpty()) return ChemicalStack.EMPTY;
-            Identifier id = Identifier.tryParse(pc.chemical());
+            ResourceLocation id = ResourceLocation.tryParse(pc.chemical());
             if (id == null) return ChemicalStack.EMPTY;
             Chemical chem = MekanismAPI.CHEMICAL_REGISTRY.getOptional(id).orElse(null);
             return chem == null ? ChemicalStack.EMPTY : new ChemicalStack(chem, pc.amount());
@@ -140,7 +140,7 @@ public final class MekanismChemicalStore {
             if (chem == null || amount <= 0) {
                 s.set(ModComponents.PACK_CHEMICAL.get(), PackChemical.EMPTY);
             } else {
-                Identifier id = MekanismAPI.CHEMICAL_REGISTRY.getKey(chem);
+                ResourceLocation id = MekanismAPI.CHEMICAL_REGISTRY.getKey(chem);
                 s.set(ModComponents.PACK_CHEMICAL.get(),
                         new PackChemical(id == null ? "" : id.toString(), Math.min(amount, capacity)));
             }

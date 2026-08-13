@@ -29,7 +29,7 @@ public final class PackworkTestRegistrar {
             final Method method = m;
             TEST_FUNCTIONS.register(snakeCase(m.getName()), () -> helper -> {
                 try {
-                    method.invoke(null, helper);
+                    method.invoke(null, new PackHelper(helper.testInfo));
                 } catch (InvocationTargetException e) {
                     // unwrap so a GameTestAssertException still reads as the test's own failure
                     if (e.getCause() instanceof RuntimeException re) throw re;

@@ -16,7 +16,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
@@ -36,7 +36,7 @@ public class PackworkGameTests {
 
     /** A pack's contents must survive the exact save/load a relog or drop performs. */
     @PackTest
-    public static void contentsSurviveSaveLoad(GameTestHelper helper) {
+    public static void contentsSurviveSaveLoad(PackHelper helper) {
         HolderLookup.Provider reg = helper.getLevel().registryAccess();
 
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
@@ -62,7 +62,7 @@ public class PackworkGameTests {
 
     /** Packs never accept packs: no nesting in v1. */
     @PackTest
-    public static void packRejectsNesting(GameTestHelper helper) {
+    public static void packRejectsNesting(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
         IItemHandler h = itemCap(pack);
         ItemStack another = new ItemStack(ModItems.leatherPack().get());
@@ -74,7 +74,7 @@ public class PackworkGameTests {
 
     /** The auto-tabs claim the items they promise; unclaimed items fall to Loose. */
     @PackTest
-    public static void autoTabsRouteCorrectly(GameTestHelper helper) {
+    public static void autoTabsRouteCorrectly(PackHelper helper) {
         List<TabView> tabs = SortEngine.tabsFor(PackLayout.EMPTY);
         assertRoute(helper, tabs, PackLayout.EMPTY, Items.BREAD, "auto:food");
         assertRoute(helper, tabs, PackLayout.EMPTY, Items.COOKED_BEEF, "auto:food");
@@ -95,13 +95,13 @@ public class PackworkGameTests {
      * rules only claim items while a Quill &amp; Ledger is fitted - benched otherwise.
      */
     @PackTest
-    public static void pinsAlwaysWinLedgerGatesRules(GameTestHelper helper) {
-        Identifier breadId = BuiltInRegistries.ITEM.getKey(Items.BREAD);
+    public static void pinsAlwaysWinLedgerGatesRules(PackHelper helper) {
+        ResourceLocation breadId = BuiltInRegistries.ITEM.getKey(Items.BREAD);
 
         // Custom tab that claims sticks by a written name rule, plus a pin sending bread
         // to it. Its stamp (a stick icon) has no category, so only the written rule counts.
         TabDef custom = new TabDef("custom:0", "Bits",
-                Identifier.withDefaultNamespace("stick"), 0,
+                ResourceLocation.withDefaultNamespace("stick"), 0,
                 List.of(SortRule.name("stick")));
         List<String> order = new ArrayList<>(AutoTabs.defaultOrder());
         order.add("custom:0");
@@ -129,7 +129,7 @@ public class PackworkGameTests {
      * written rules.
      */
     @PackTest
-    public static void stampFilesAlwaysLedgerGatesWrittenRules(GameTestHelper helper) {
+    public static void stampFilesAlwaysLedgerGatesWrittenRules(PackHelper helper) {
         TabDef custom = new TabDef("custom:0", "Kit",
                 BuiltInRegistries.ITEM.getKey(Items.IRON_PICKAXE), 0,
                 List.of(SortRule.name("stick")));
@@ -154,7 +154,7 @@ public class PackworkGameTests {
      * Junk input (bad type, blank value, bogus predicate) is refused server-side.
      */
     @PackTest
-    public static void ruleEditorWritesAndStrikesLedgerGated(GameTestHelper helper) {
+    public static void ruleEditorWritesAndStrikesLedgerGated(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
         player.getInventory().setItem(0, pack);
@@ -208,7 +208,7 @@ public class PackworkGameTests {
 
     /** Tidy Up merges partial stacks and never loses a count. */
     @PackTest
-    public static void tidyMergesAndConserves(GameTestHelper helper) {
+    public static void tidyMergesAndConserves(PackHelper helper) {
         List<ItemStack> source = List.of(
                 new ItemStack(Items.COBBLESTONE, 40),
                 new ItemStack(Items.BREAD, 5),
@@ -232,7 +232,7 @@ public class PackworkGameTests {
 
     /** A brand-new pack starts empty with no persisted layout (EMPTY default). */
     @PackTest
-    public static void freshPackIsEmptyAndDefault(GameTestHelper helper) {
+    public static void freshPackIsEmptyAndDefault(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
         ItemContainerContents c = pack.get(ModComponents.PACK_CONTENTS.get());
         helper.assertTrue(c == null || c.nonEmptyStream().findAny().isEmpty(), "fresh pack holds nothing");
@@ -244,7 +244,7 @@ public class PackworkGameTests {
 
     /** A Bottomless Lining grows the pack's slot count; the extra slots are real. */
     @PackTest
-    public static void bottomlessGrowsCapacity(GameTestHelper helper) {
+    public static void bottomlessGrowsCapacity(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
         int before = com.sappersquad.packwork.trinket.TrinketAccess.capacity(pack);
         helper.assertTrue(before == PackTier.LEATHER.capacity(), "leather pack starts at tier capacity");
@@ -264,7 +264,7 @@ public class PackworkGameTests {
 
     /** Trinket sockets take one of each fitting and refuse non-fittings. */
     @PackTest
-    public static void socketsRejectNonTrinketsAndDupes(GameTestHelper helper) {
+    public static void socketsRejectNonTrinketsAndDupes(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.STUDDED);
         ItemStack strap = new ItemStack(ModItems.trinket(
@@ -280,9 +280,9 @@ public class PackworkGameTests {
 
     /** The void list is opt-in and exact; it starts empty on a fresh pack. */
     @PackTest
-    public static void voidListIsOptInAndExact(GameTestHelper helper) {
-        Identifier dirt = BuiltInRegistries.ITEM.getKey(Items.DIRT);
-        Identifier stone = BuiltInRegistries.ITEM.getKey(Items.STONE);
+    public static void voidListIsOptInAndExact(PackHelper helper) {
+        ResourceLocation dirt = BuiltInRegistries.ITEM.getKey(Items.DIRT);
+        ResourceLocation stone = BuiltInRegistries.ITEM.getKey(Items.STONE);
         helper.assertTrue(!PackLayout.EMPTY.voids(dirt), "fresh pack voids nothing");
         PackLayout marked = PackLayout.EMPTY.withVoidList(List.of(dirt));
         helper.assertTrue(marked.voids(dirt) && !marked.voids(stone), "only the marked item is voided");
@@ -291,7 +291,7 @@ public class PackworkGameTests {
 
     /** A tier upgrade carries the pack's contents and trinkets over - never eats them. */
     @PackTest
-    public static void upgradePreservesContents(GameTestHelper helper) {
+    public static void upgradePreservesContents(PackHelper helper) {
         net.minecraft.core.HolderLookup.Provider reg = helper.getLevel().registryAccess();
 
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
@@ -325,7 +325,7 @@ public class PackworkGameTests {
 
     /** The fluid tank is trinket-gated, respects capacity, and drains back exactly. */
     @PackTest
-    public static void waterskinTankGatedAndConserves(GameTestHelper helper) {
+    public static void waterskinTankGatedAndConserves(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
         // no Waterskin yet -> no fluid capability
         helper.assertTrue(fluidCap(pack) == null,
@@ -354,7 +354,7 @@ public class PackworkGameTests {
      * to {@code FluidUtil}'s single-container result and quietly ate the remainder.)
      */
     @PackTest
-    public static void fluidInteractConservesACarriedStack(GameTestHelper helper) {
+    public static void fluidInteractConservesACarriedStack(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = waterskinPack();
         player.getInventory().setItem(0, pack);
@@ -383,7 +383,7 @@ public class PackworkGameTests {
 
     /** A single bucket empties into the tank and the EMPTY bucket stays on the cursor - never the floor. */
     @PackTest
-    public static void fluidInteractKeepsSingleBucketOnCursor(GameTestHelper helper) {
+    public static void fluidInteractKeepsSingleBucketOnCursor(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = waterskinPack();
         player.getInventory().setItem(0, pack);
@@ -408,7 +408,7 @@ public class PackworkGameTests {
 
     /** Filling FROM the tank with a stack of empties spends one and stows one filled - no loss, no dupe. */
     @PackTest
-    public static void fluidInteractFillsOneOfAStack(GameTestHelper helper) {
+    public static void fluidInteractFillsOneOfAStack(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = waterskinPack();
         new com.sappersquad.packwork.pack.PackFluidHandler(pack,
@@ -452,7 +452,7 @@ public class PackworkGameTests {
 
     /** The Soul Vial siphons and pours XP without losing a point, and stops at capacity. */
     @PackTest
-    public static void soulVialConservesXp(GameTestHelper helper) {
+    public static void soulVialConservesXp(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
         int cap = com.sappersquad.packwork.pack.PackXpStore.capacityFor(pack);
         helper.assertTrue(com.sappersquad.packwork.pack.PackXpStore.stored(pack) == 0, "fresh vial is empty");
@@ -473,7 +473,7 @@ public class PackworkGameTests {
 
     /** The Charge Crystal is trinket-gated, respects capacity + transfer, and never dupes. */
     @PackTest
-    public static void chargeCrystalGatedAndConserves(GameTestHelper helper) {
+    public static void chargeCrystalGatedAndConserves(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         helper.assertTrue(energyCap(pack) == null,
                 "no Charge Crystal -> no energy capability");
@@ -498,7 +498,7 @@ public class PackworkGameTests {
      * refill never mints a duplicate.
      */
     @PackTest
-    public static void quickDrawPullsOneAndNeverDupes(GameTestHelper helper) {
+    public static void quickDrawPullsOneAndNeverDupes(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
         PackInventory store = new PackInventory(pack, PackTier.LEATHER);
         store.insertItem(0, new ItemStack(Items.IRON_PICKAXE), false);
@@ -525,7 +525,7 @@ public class PackworkGameTests {
      * Forgework terminal 1 Flux = 1 FE, conserving exactly.
      */
     @PackTest
-    public static void forgeworkFluxBridgeGatedAndConserves(GameTestHelper helper) {
+    public static void forgeworkFluxBridgeGatedAndConserves(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
         new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
                 new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
@@ -543,7 +543,7 @@ public class PackworkGameTests {
 
         // Forgework present: a Portable Ender Terminal fills from the crystal, 1:1.
         var terminalItem = BuiltInRegistries.ITEM.getOptional(
-                Identifier.parse("forgework:portable_ender_terminal")).orElseThrow();
+                ResourceLocation.parse("forgework:portable_ender_terminal")).orElseThrow();
         ItemStack terminal = new ItemStack(terminalItem);
         int before = crystal.getEnergyStored();
         int moved = com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.chargeItem(terminal, crystal, 5_000);
@@ -559,7 +559,7 @@ public class PackworkGameTests {
      * render-only, the drop comes from the block entity's stack.
      */
     @PackTest
-    public static void placedTierDrivesBlockstateAndDrop(GameTestHelper helper) {
+    public static void placedTierDrivesBlockstateAndDrop(PackHelper helper) {
         net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
         var world = helper.absolutePos(p);
         helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get()); // bare place = default (leather)
@@ -594,7 +594,7 @@ public class PackworkGameTests {
      * exactly that stack.)
      */
     @PackTest
-    public static void placedPackRoundTripsLossless(GameTestHelper helper) {
+    public static void placedPackRoundTripsLossless(PackHelper helper) {
         net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
 
         // build a fully-loaded Reinforced pack: items, three trinkets, fluid, XP, energy, a pin
@@ -645,7 +645,7 @@ public class PackworkGameTests {
      * pack can be nested inside another.
      */
     @PackTest
-    public static void placedPackItemCapInsertsAndBlocksNesting(GameTestHelper helper) {
+    public static void placedPackItemCapInsertsAndBlocksNesting(PackHelper helper) {
         net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
         helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
         helper.getBlockEntity(p, com.sappersquad.packwork.block.PackContainerBlockEntity.class)
@@ -677,7 +677,7 @@ public class PackworkGameTests {
      * pack could not do.
      */
     @PackTest
-    public static void placedPackEnergyAndForgeworkFluxGated(GameTestHelper helper) {
+    public static void placedPackEnergyAndForgeworkFluxGated(PackHelper helper) {
         net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(1, 1, 1);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
         new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
@@ -711,7 +711,7 @@ public class PackworkGameTests {
      * gas store never drags Mekanism into an always-loaded class.
      */
     @PackTest
-    public static void flaskHarnessGatedChemicalComponent(GameTestHelper helper) {
+    public static void flaskHarnessGatedChemicalComponent(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         PackTrinketInventory sockets = new PackTrinketInventory(() -> pack, PackTier.STUDDED);
         helper.assertTrue(sockets.insertItem(0,
@@ -740,7 +740,7 @@ public class PackworkGameTests {
      * Mekanism the branch is never entered, so the compat class never classloads.
      */
     @PackTest
-    public static void mekanismChemicalStoreGated(GameTestHelper helper) {
+    public static void mekanismChemicalStoreGated(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
         new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
                 new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false);
@@ -754,7 +754,7 @@ public class PackworkGameTests {
         helper.assertTrue(cap.getChemicalTankCapacity(0)
                 == com.sappersquad.packwork.pack.PackChemical.capacityFor(pack), "tier-scaled capacity");
         var hydrogen = mekanism.api.MekanismAPI.CHEMICAL_REGISTRY.getOptional(
-                net.minecraft.resources.Identifier.fromNamespaceAndPath("mekanism", "hydrogen")).orElse(null);
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("mekanism", "hydrogen")).orElse(null);
         if (hydrogen == null) { helper.succeed(); return; }
         var stack = new mekanism.api.chemical.ChemicalStack(hydrogen, 3000L);
         var leftover = cap.insertChemical(0, stack, mekanism.api.Action.EXECUTE);
@@ -770,7 +770,7 @@ public class PackworkGameTests {
      * classloads. Verifies the wear WIRING headlessly (Curios is light enough to stage).
      */
     @PackTest
-    public static void curiosBackSlotGated(GameTestHelper helper) {
+    public static void curiosBackSlotGated(PackHelper helper) {
         if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
             helper.succeed();
             return;
@@ -795,7 +795,7 @@ public class PackworkGameTests {
      * Planks in must equal planks out (counting 4 per crafting table) at every step.
      */
     @PackTest
-    public static void tinkersKitCraftsFromPackAndConserves(GameTestHelper helper) {
+    public static void tinkersKitCraftsFromPackAndConserves(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
@@ -839,7 +839,7 @@ public class PackworkGameTests {
 
     /** Rolling the kit back up - or closing the pack - returns every laid-out ingredient. */
     @PackTest
-    public static void toolRollReturnsEverythingWhenRolledUp(GameTestHelper helper) {
+    public static void toolRollReturnsEverythingWhenRolledUp(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
@@ -872,7 +872,7 @@ public class PackworkGameTests {
 
     /** The Field Furnace cooks raw ore on pack fuel, spends the right embers, and conserves. */
     @PackTest
-    public static void fieldFurnaceCooksAndConserves(GameTestHelper helper) {
+    public static void fieldFurnaceCooksAndConserves(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
         PackInventory store = new PackInventory(pack, PackTier.LEATHER);
         store.insertItem(0, new ItemStack(Items.RAW_IRON, 8), false);
@@ -898,7 +898,7 @@ public class PackworkGameTests {
 
     /** The Provisioner's Pouch eats the CHEAPEST safe thing, exactly one, and keeps the bowl. */
     @PackTest
-    public static void provisionerEatsCheapestAndConserves(GameTestHelper helper) {
+    public static void provisionerEatsCheapestAndConserves(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         player.getFoodData().setFoodLevel(3);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
@@ -925,7 +925,7 @@ public class PackworkGameTests {
 
     /** The Herbalist's Bundle spends exactly one seed out of your own stock, or none at all. */
     @PackTest
-    public static void herbalistSpendsOneSeedOrNone(GameTestHelper helper) {
+    public static void herbalistSpendsOneSeedOrNone(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
         PackInventory store = new PackInventory(pack, PackTier.LEATHER);
         store.insertItem(0, new ItemStack(Items.WHEAT_SEEDS, 4), false);
@@ -946,7 +946,7 @@ public class PackworkGameTests {
 
     /** The Angler's Creel stows the catch and leaves behind only what genuinely wouldn't fit. */
     @PackTest
-    public static void anglersCreelStowsTheCatchLosingNothing(GameTestHelper helper) {
+    public static void anglersCreelStowsTheCatchLosingNothing(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
         PackInventory store = new PackInventory(pack, PackTier.CANVAS);
 
@@ -970,7 +970,7 @@ public class PackworkGameTests {
 
     /** Charts and Catch only exist while their fitting does - and they out-rank the tabs they'd lose to. */
     @PackTest
-    public static void gatedCompartmentsFollowTheirFittings(GameTestHelper helper) {
+    public static void gatedCompartmentsFollowTheirFittings(PackHelper helper) {
         var none = SortEngine.tabsFor(PackLayout.EMPTY, java.util.Set.<com.sappersquad.packwork.trinket.TrinketType>of());
         helper.assertTrue(!hasTab(none, "auto:charts") && !hasTab(none, "auto:catch"),
                 "a bare pack shows neither gated compartment");
@@ -1048,7 +1048,7 @@ public class PackworkGameTests {
 
     /** Depth: each tier deepens every slot by x64; unstackables never stack; inserts cap at depth. */
     @PackTest
-    public static void depthDeepensByTier(GameTestHelper helper) {
+    public static void depthDeepensByTier(PackHelper helper) {
         // Canvas = vanilla depth: one stack per slot
         ItemStack canvas = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
         PackInventory canvasStore = new PackInventory(canvas, PackTier.CANVAS);
@@ -1090,7 +1090,7 @@ public class PackworkGameTests {
      * OLD pre-depth format must still load via the codec's legacy fallback.
      */
     @PackTest
-    public static void deepContentsSurviveEveryRoundTrip(GameTestHelper helper) {
+    public static void deepContentsSurviveEveryRoundTrip(PackHelper helper) {
         HolderLookup.Provider reg = helper.getLevel().registryAccess();
 
         // (a) relog: ItemStack.save -> parse with 384 cobble + 96 pearls + a sword aboard
@@ -1143,7 +1143,7 @@ public class PackworkGameTests {
      * a time, conserving exactly across the whole drain.
      */
     @PackTest
-    public static void oversizedStacksNeverEscape(GameTestHelper helper) {
+    public static void oversizedStacksNeverEscape(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
         PackInventory store = new PackInventory(pack, PackTier.SCULKHIDE);
         for (int i = 0; i < 6; i++) store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
@@ -1182,7 +1182,7 @@ public class PackworkGameTests {
 
     /** Tidy Up merges loose stacks down INTO depth: fewer, deeper stacks, count conserved. */
     @PackTest
-    public static void tidyMergesIntoDepth(GameTestHelper helper) {
+    public static void tidyMergesIntoDepth(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get()); // depth x2 = 128
         PackInventory store = new PackInventory(pack, PackTier.LEATHER);
         List<ItemStack> source = List.of(
@@ -1208,7 +1208,7 @@ public class PackworkGameTests {
      * cornered with echo shards = Sculkhide.
      */
     @PackTest
-    public static void upgradeChainPreservesEverythingIncludingDepth(GameTestHelper helper) {
+    public static void upgradeChainPreservesEverythingIncludingDepth(PackHelper helper) {
         HolderLookup.Provider reg = helper.getLevel().registryAccess();
 
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
@@ -1279,7 +1279,7 @@ public class PackworkGameTests {
 
     /** Everything keyed off the tier enum scales to Sculkhide: sockets, stores, depth. */
     @PackTest
-    public static void sculkhideScalesEverything(GameTestHelper helper) {
+    public static void sculkhideScalesEverything(PackHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
         helper.assertTrue(PackTier.SCULKHIDE.trinketSlots() == 5, "five trinket sockets");
         helper.assertTrue(PackTier.SCULKHIDE.depthMultiplier() == 6, "depth x6 (384 of a 64-stackable)");
@@ -1308,7 +1308,7 @@ public class PackworkGameTests {
      * cover moves NOTHING, and the laid-out pattern crafts and refills as normal.
      */
     @PackTest
-    public static void ghostLayOutPullsFromPackAllOrNothing(GameTestHelper helper) {
+    public static void ghostLayOutPullsFromPackAllOrNothing(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(0,
@@ -1365,7 +1365,7 @@ public class PackworkGameTests {
      * dropping an item where it already belongs pins nothing. Conservation holds throughout.
      */
     @PackTest
-    public static void droppingIntoForeignTabAutoPins(GameTestHelper helper) {
+    public static void droppingIntoForeignTabAutoPins(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
         player.getInventory().setItem(0, pack);
@@ -1400,7 +1400,7 @@ public class PackworkGameTests {
      * is view-only over the one flat store, so conservation holds at every step.
      */
     @PackTest
-    public static void keepMyLayoutHoldsCellsAndConserves(GameTestHelper helper) {
+    public static void keepMyLayoutHoldsCellsAndConserves(PackHelper helper) {
         HolderLookup.Provider reg = helper.getLevel().registryAccess();
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
@@ -1468,7 +1468,7 @@ public class PackworkGameTests {
      * every cell resolving to a real item.
      */
     @PackTest
-    public static void upgradeRecipesCarryDisplayableIngredients(GameTestHelper helper) {
+    public static void upgradeRecipesCarryDisplayableIngredients(PackHelper helper) {
         var level = helper.getLevel();
         var upgrades = level.getServer().getRecipeManager().recipeMap()
                 .byType(net.minecraft.world.item.crafting.RecipeType.CRAFTING)
@@ -1538,7 +1538,7 @@ public class PackworkGameTests {
 
     /** Mined cobble goes STRAIGHT into the pack: it routes to Blocks, so the pack files it. */
     @PackTest
-    public static void packFirstFilesMinedDrops(GameTestHelper helper) {
+    public static void packFirstFilesMinedDrops(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         player.getInventory().setItem(0, pack);
@@ -1553,7 +1553,7 @@ public class PackworkGameTests {
 
     /** A new, unknown find (routes to Loose, not held, not pinned) goes to the pockets - vanilla. */
     @PackTest
-    public static void packFirstLeavesNewFindsAlone(GameTestHelper helper) {
+    public static void packFirstLeavesNewFindsAlone(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         player.getInventory().setItem(0, pack);
@@ -1566,7 +1566,7 @@ public class PackworkGameTests {
 
     /** The pack already holds the item: pickups top it up even though it would route Loose. */
     @PackTest
-    public static void packFirstTopsUpWhatItHolds(GameTestHelper helper) {
+    public static void packFirstTopsUpWhatItHolds(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         new PackInventory(pack, PackTier.LEATHER).insertItem(0, new ItemStack(Items.STICK, 5), false);
@@ -1581,7 +1581,7 @@ public class PackworkGameTests {
 
     /** A pinned item counts as filed, wherever it's pinned. */
     @PackTest
-    public static void packFirstRespectsPins(GameTestHelper helper) {
+    public static void packFirstRespectsPins(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         pack.set(ModComponents.PACK_LAYOUT.get(), new PackLayout(List.of(), List.of(),
@@ -1597,7 +1597,7 @@ public class PackworkGameTests {
 
     /** Rose + void list: a marked pickup is binned outright - the magnet's trash-collector contract. */
     @PackTest
-    public static void packFirstVoidsByTheRoseContract(GameTestHelper helper) {
+    public static void packFirstVoidsByTheRoseContract(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.STUDDED); // two sockets: Lodestone + Rose
         new PackTrinketInventory(() -> pack, PackTier.STUDDED).insertItem(1,
@@ -1615,7 +1615,7 @@ public class PackworkGameTests {
 
     /** A pack full for the item takes what fits; the remainder goes to the pockets. Conserved. */
     @PackTest
-    public static void packFirstPartialFitLeavesTheRest(GameTestHelper helper) {
+    public static void packFirstPartialFitLeavesTheRest(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         PackInventory inv = new PackInventory(pack, PackTier.LEATHER);
@@ -1635,7 +1635,7 @@ public class PackworkGameTests {
 
     /** Toggle off = pure vanilla; no Lodestone = pure vanilla. */
     @PackTest
-    public static void packFirstToggleOffIsPureVanilla(GameTestHelper helper) {
+    public static void packFirstToggleOffIsPureVanilla(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY.withPackFirst(false));
@@ -1658,7 +1658,7 @@ public class PackworkGameTests {
 
     /** A pack on the ground is never intercepted - nesting stays blocked at pickup too. */
     @PackTest
-    public static void packFirstNeverSwallowsPacks(GameTestHelper helper) {
+    public static void packFirstNeverSwallowsPacks(PackHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = lodestonePack(PackTier.LEATHER);
         player.getInventory().setItem(0, pack);
@@ -1682,7 +1682,7 @@ public class PackworkGameTests {
      * uncraftable-in-practice recipe that still "exists").
      */
     @PackTest
-    public static void everyItemIsCraftableOrExcepted(GameTestHelper helper) {
+    public static void everyItemIsCraftableOrExcepted(PackHelper helper) {
         var level = helper.getLevel();
         var manager = level.getServer().getRecipeManager();
         var ctx = net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(level);
@@ -1696,7 +1696,7 @@ public class PackworkGameTests {
                     if (!result.isEmpty()) producible.add(result.getItem());
                 }
             }
-            if (holder.id().identifier().getNamespace().equals("packwork")) {
+            if (holder.id().location().getNamespace().equals("packwork")) {
                 packworkRecipes++;
                 for (var ing : holder.value().placementInfo().ingredients()) {
                     helper.assertTrue(ing.items().findAny().isPresent(),
@@ -1709,7 +1709,7 @@ public class PackworkGameTests {
         helper.assertTrue(packworkRecipes == expected,
                 "all packwork recipes loaded, want " + expected + ", got " + packworkRecipes);
         for (var entry : BuiltInRegistries.ITEM.entrySet()) {
-            Identifier id = entry.getKey().identifier();
+            ResourceLocation id = entry.getKey().location();
             if (!id.getNamespace().equals("packwork")) continue;
             if (!mekanism && id.getPath().equals("flask_harness")) continue; // gated recipe, documented
             helper.assertTrue(producible.contains(entry.getValue()),
@@ -1720,7 +1720,7 @@ public class PackworkGameTests {
 
     /** The Outfitter's Handbook content model builds (every chapter has entries) and the item is registered. */
     @PackTest
-    public static void handbookContentBuilds(GameTestHelper helper) {
+    public static void handbookContentBuilds(PackHelper helper) {
         var chapters = com.sappersquad.packwork.guide.HandbookContent.CHAPTERS;
         helper.assertTrue(!chapters.isEmpty(), "the handbook has chapters");
         for (var ch : chapters) {
@@ -1742,7 +1742,7 @@ public class PackworkGameTests {
      * the equipped stack and the menu's stack are the same instance).
      */
     @PackTest
-    public static void wornOpenBindsAndListsGated(GameTestHelper helper) {
+    public static void wornOpenBindsAndListsGated(PackHelper helper) {
         if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
             helper.succeed();
             return;
@@ -1779,7 +1779,7 @@ public class PackworkGameTests {
      * the network entry point sticks in the equipped stack's layout component.
      */
     @PackTest
-    public static void wornWritesPersistToEquippedStackGated(GameTestHelper helper) {
+    public static void wornWritesPersistToEquippedStackGated(PackHelper helper) {
         if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
             helper.succeed();
             return;
@@ -1808,7 +1808,7 @@ public class PackworkGameTests {
         equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
         PackLayout layout = equipped.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         boolean pinned = layout.pins().stream().anyMatch(p ->
-                p.item().equals(Identifier.parse("minecraft:oak_planks")));
+                p.item().equals(ResourceLocation.parse("minecraft:oak_planks")));
         helper.assertTrue(pinned, "the pin persisted to the equipped curios stack");
         helper.succeed();
     }
@@ -1820,7 +1820,7 @@ public class PackworkGameTests {
      * departed stack, nothing conjures items from it, and the close path never strands.
      */
     @PackTest
-    public static void wornUnequipClosesWithoutDupeGated(GameTestHelper helper) {
+    public static void wornUnequipClosesWithoutDupeGated(PackHelper helper) {
         if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
             helper.succeed();
             return;
@@ -1859,7 +1859,7 @@ public class PackworkGameTests {
         helper.succeed();
     }
 
-    private static void assertRoute(GameTestHelper helper, List<TabView> tabs, PackLayout layout,
+    private static void assertRoute(PackHelper helper, List<TabView> tabs, PackLayout layout,
                                     net.minecraft.world.item.Item item, String expectedTab) {
         String got = SortEngine.route(new ItemStack(item), tabs, layout);
         helper.assertTrue(expectedTab.equals(got),

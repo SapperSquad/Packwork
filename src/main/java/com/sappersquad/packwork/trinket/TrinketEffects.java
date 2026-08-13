@@ -142,7 +142,7 @@ public final class TrinketEffects {
      */
     public static final net.minecraft.tags.TagKey<Item> FURNACE_FUEL =
             net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
-                    net.minecraft.resources.Identifier.fromNamespaceAndPath("packwork", "furnace_fuel"));
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "furnace_fuel"));
 
     /** Burn one piece of proper fuel out of the pack; its container (a bucket, say) goes back in. */
     private static int stokeEmbers(PackInventory pack, net.minecraft.world.level.block.entity.FuelValues fuels) {
@@ -219,7 +219,7 @@ public final class TrinketEffects {
      */
     public static final net.minecraft.tags.TagKey<Item> NEVER_AUTO_EAT =
             net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
-                    net.minecraft.resources.Identifier.fromNamespaceAndPath("packwork", "never_auto_eat"));
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "never_auto_eat"));
 
     private static boolean isRations(ItemStack stack) {
         // 1.21.2+ moved consume effects off FoodProperties onto the CONSUMABLE component.

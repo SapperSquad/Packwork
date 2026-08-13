@@ -6,7 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
@@ -73,16 +73,16 @@ public record SortRule(Type type, String value) {
         if (stack.isEmpty()) return false;
         return switch (type) {
             case TAG -> {
-                Identifier loc = Identifier.tryParse(value);
+                ResourceLocation loc = ResourceLocation.tryParse(value);
                 if (loc == null) yield false;
                 yield stack.is(TagKey.create(Registries.ITEM, loc));
             }
             case MODID -> {
-                Identifier id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+                ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
                 yield id.getNamespace().equalsIgnoreCase(value);
             }
             case NAME -> {
-                Identifier id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+                ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
                 yield id.getPath().toLowerCase(Locale.ROOT).contains(value.toLowerCase(Locale.ROOT));
             }
             case PREDICATE -> {
