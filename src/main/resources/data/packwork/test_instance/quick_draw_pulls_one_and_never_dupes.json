@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:quick_draw_pulls_one_and_never_dupes",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

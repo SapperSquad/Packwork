@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:upgrade_chain_preserves_everything_including_depth",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:placed_pack_energy_and_forgework_flux_gated",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

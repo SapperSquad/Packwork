@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:pack_rejects_nesting",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

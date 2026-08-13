@@ -21,6 +21,18 @@ public final class PackworkNetwork {
         PayloadRegistrar registrar = event.registrar("1");
         registrar.playToServer(PackActionPayload.TYPE, PackActionPayload.STREAM_CODEC, PackworkNetwork::onAction);
         registrar.playToServer(OpenPackPayload.TYPE, OpenPackPayload.STREAM_CODEC, PackworkNetwork::onOpen);
+        // (1.21.11 port) the Recipe Ledger's data comes DOWN now - recipes stopped syncing
+        // to clients in 1.21.2, so the craftable list and the chalk arrangement are
+        // server-computed. Handlers defer into the client hooks class inside enqueueWork,
+        // so nothing client-only classloads on a dedicated server.
+        registrar.playToClient(com.sappersquad.packwork.net.LedgerSyncPayload.TYPE,
+                com.sappersquad.packwork.net.LedgerSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.sappersquad.packwork.client.PackClientActions.handleLedgerSync(payload)));
+        registrar.playToClient(com.sappersquad.packwork.net.GhostSyncPayload.TYPE,
+                com.sappersquad.packwork.net.GhostSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.sappersquad.packwork.client.PackClientActions.handleGhostSync(payload)));
     }
 
     private static void onAction(PackActionPayload payload, IPayloadContext ctx) {

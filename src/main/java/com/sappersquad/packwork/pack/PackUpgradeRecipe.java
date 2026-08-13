@@ -6,7 +6,6 @@ import com.sappersquad.packwork.reg.ModComponents;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.reg.ModRecipes;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -18,8 +17,8 @@ import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.PlacementInfo;
 import net.minecraft.world.item.crafting.RecipeSerializer;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
 /**
@@ -41,10 +40,11 @@ import net.minecraft.world.level.Level;
  * occupied, so the full price is always paid; payment can never be concentrated into a
  * stacked cell (the old summed-count matcher allowed exactly that underpay).
  *
- * <p>{@link #getIngredients} is load-bearing, not decorative: JEI's recipe scan
- * ({@code CategoryRecipeValidator}, verified in the 19.21.1.312 sources) silently drops
- * any non-special crafting recipe whose ingredient list is empty, before drawing
- * extensions are consulted. The row-major 3x3 list here is what lets the ladder render.
+ * <p><b>1.21.11 port:</b> {@code getIngredients()} (the old JEI-validator hook) is gone
+ * from the Recipe interface; its honest row-major role is carried by BOTH successors -
+ * {@link #placementInfo()} (the same nine cells, so nothing reports this recipe as
+ * unplaceable-special) and {@link #display()} (a real positioned
+ * {@code ShapedCraftingRecipeDisplay}, which is what recipe viewers consume now).
  */
 public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, Ingredient corners,
                                 CraftingBookCategory category) implements CraftingRecipe {
@@ -94,25 +94,18 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
         if (v != null) dst.set(comp, v);
     }
 
-    @Override
-    public boolean canCraftInDimensions(int width, int height) {
-        return width >= 3 && height >= 3; // the full ring needs the whole bench
-    }
-
     /**
      * The honest row-major 3x3: corner, edge, corner / edge, PACK, edge / corner, edge,
-     * corner. Exactly what {@link #matches} accepts and what JEI draws - and the reason
-     * JEI's validator accepts the recipe at all (see the class doc).
+     * corner. Exactly what {@link #matches} accepts and what the display draws.
      *
      * <p>Deliberately harmless elsewhere: vanilla's recipe book only shows unlocked
      * recipes (we award none), and the pack's own Recipe Ledger will not list an upgrade
-     * from pack stock because a pack cannot contain a pack (nesting is blocked) -
-     * {@code StackedContents.canCraft} says no, and the all-or-nothing lay-out can never
-     * cover the pack cell from stock.
+     * from pack stock because a pack cannot contain a pack (nesting is blocked) - the
+     * stacked-contents check says no, and the all-or-nothing lay-out can never cover the
+     * pack cell from stock.
      */
-    @Override
-    public NonNullList<Ingredient> getIngredients() {
-        NonNullList<Ingredient> list = NonNullList.create();
+    public java.util.List<Ingredient> ringCells() {
+        java.util.List<Ingredient> list = new java.util.ArrayList<>(9);
         Ingredient pack = Ingredient.of(ModItems.pack(from).get());
         for (int cell = 0; cell < 9; cell++) {
             if (cell == CENTER_CELL) list.add(pack);
@@ -122,18 +115,31 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
         return list;
     }
 
-    @Override
-    public ItemStack getResultItem(HolderLookup.Provider registries) {
+    /** The bare next-tier pack (display only - {@link #assemble} carries the components). */
+    public ItemStack resultStack() {
         return new ItemStack(ModItems.pack(to).get());
     }
 
     @Override
-    public RecipeType<?> getType() {
-        return RecipeType.CRAFTING;
+    public PlacementInfo placementInfo() {
+        return PlacementInfo.create(ringCells());
     }
 
     @Override
-    public RecipeSerializer<?> getSerializer() {
+    public java.util.List<net.minecraft.world.item.crafting.display.RecipeDisplay> display() {
+        return java.util.List.of(new net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay(
+                3, 3,
+                ringCells().stream()
+                        .map(Ingredient::display)
+                        .map(d -> (net.minecraft.world.item.crafting.display.SlotDisplay) d)
+                        .toList(),
+                new net.minecraft.world.item.crafting.display.SlotDisplay.ItemStackSlotDisplay(resultStack()),
+                new net.minecraft.world.item.crafting.display.SlotDisplay.ItemSlotDisplay(
+                        net.minecraft.world.item.Items.CRAFTING_TABLE)));
+    }
+
+    @Override
+    public RecipeSerializer<? extends CraftingRecipe> getSerializer() {
         return ModRecipes.PACK_UPGRADE.get();
     }
 
@@ -141,8 +147,8 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
         private static final MapCodec<PackUpgradeRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("from").forGetter(PackUpgradeRecipe::from),
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("to").forGetter(PackUpgradeRecipe::to),
-                Ingredient.CODEC_NONEMPTY.fieldOf("edges").forGetter(PackUpgradeRecipe::edges),
-                Ingredient.CODEC_NONEMPTY.fieldOf("corners").forGetter(PackUpgradeRecipe::corners),
+                Ingredient.CODEC.fieldOf("edges").forGetter(PackUpgradeRecipe::edges),
+                Ingredient.CODEC.fieldOf("corners").forGetter(PackUpgradeRecipe::corners),
                 CraftingBookCategory.CODEC.optionalFieldOf("category", CraftingBookCategory.EQUIPMENT)
                         .forGetter(PackUpgradeRecipe::category)
         ).apply(inst, PackUpgradeRecipe::new));

@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:oversized_stacks_never_escape",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

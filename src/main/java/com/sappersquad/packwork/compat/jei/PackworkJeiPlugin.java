@@ -22,7 +22,7 @@ import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
@@ -61,7 +61,7 @@ import java.util.List;
 public class PackworkJeiPlugin implements IModPlugin {
 
     @Override
-    public ResourceLocation getPluginUid() {
+    public Identifier getPluginUid() {
         return Packwork.id("jei");
     }
 
@@ -116,20 +116,23 @@ public class PackworkJeiPlugin implements IModPlugin {
      * rotations free). Drawn shaped (3x3), so no shapeless marker.
      */
     private static class PackUpgradeExtension implements ICraftingCategoryExtension<PackUpgradeRecipe> {
+        /** JEI 27's one REQUIRED hook: the row-major ring as SlotDisplays - the same nine
+         *  cells {@code matches()} demands and {@code PackUpgradeRecipe.display()} draws. */
+        @Override
+        public List<net.minecraft.world.item.crafting.display.SlotDisplay> getIngredients(
+                RecipeHolder<PackUpgradeRecipe> holder) {
+            return holder.value().ringCells().stream()
+                    .map(net.minecraft.world.item.crafting.Ingredient::display)
+                    .map(d -> (net.minecraft.world.item.crafting.display.SlotDisplay) d)
+                    .toList();
+        }
+
         @Override
         public void setRecipe(RecipeHolder<PackUpgradeRecipe> holder, IRecipeLayoutBuilder builder,
                               ICraftingGridHelper helper, IFocusGroup focuses) {
             PackUpgradeRecipe r = holder.value();
-            List<ItemStack> pack = List.of(new ItemStack(ModItems.pack(r.from()).get()));
-            List<ItemStack> edge = Arrays.asList(r.edges().getItems());
-            List<ItemStack> corner = Arrays.asList(r.corners().getItems());
-            List<List<ItemStack>> inputs = new ArrayList<>(9);
-            for (int cell = 0; cell < 9; cell++) {
-                if (cell == PackUpgradeRecipe.CENTER_CELL) inputs.add(pack);
-                else inputs.add(cell % 2 == 1 ? edge : corner);
-            }
-            helper.createAndSetInputs(builder, inputs, 3, 3); // positioned: the ring as drawn
-            helper.createAndSetOutputs(builder, List.of(new ItemStack(ModItems.pack(r.to()).get())))
+            helper.createAndSetIngredientsFromDisplays(builder, getIngredients(holder), 3, 3);
+            helper.createAndSetOutputs(builder, List.of(r.resultStack()))
                     .addRichTooltipCallback((view, tooltip) -> tooltip.add(
                             Component.translatable("packwork.jei.upgrade.preserves")
                                     .withStyle(ChatFormatting.DARK_GREEN)));
@@ -148,20 +151,14 @@ public class PackworkJeiPlugin implements IModPlugin {
 
     @Override
     public void registerRecipes(IRecipeRegistration reg) {
-        // The discovery proof: one greppable line. Counts the upgrade recipes exactly as
-        // JEI's own scan sees them (the client RecipeManager), so a 0 here means the
-        // ladder will NOT render and points straight at recipe loading.
-        long upgrades = 0;
-        var level = net.minecraft.client.Minecraft.getInstance().level;
-        if (level != null) {
-            upgrades = level.getRecipeManager()
-                    .getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING)
-                    .stream().filter(h -> h.value() instanceof PackUpgradeRecipe).count();
-        }
+        // The discovery proof: one greppable line. (1.21.11 port: the old client-side
+        // upgrade-recipe count is gone with client recipe sync - JEI 27 receives recipes
+        // through its own server channel, and the ladder's eligibility now rides on
+        // PackUpgradeRecipe.display()/placementInfo() plus the extension's getIngredients.)
         Packwork.LOGGER.info(
-                "Packwork JEI: plugin discovered; {} pack-upgrade recipes carry ingredients for the "
+                "Packwork JEI: plugin discovered; pack-upgrade extension registered for the "
                         + "crafting category; info pages for {} packs + {} trinkets",
-                upgrades, PackTier.values().length, TrinketType.values().length);
+                PackTier.values().length, TrinketType.values().length);
 
         Component packInfo = Component.translatable("packwork.jei.pack.info");
         for (PackTier tier : PackTier.values()) {

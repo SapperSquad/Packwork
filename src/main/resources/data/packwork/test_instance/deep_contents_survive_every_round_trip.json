@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:deep_contents_survive_every_round_trip",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

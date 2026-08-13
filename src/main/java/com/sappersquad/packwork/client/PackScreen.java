@@ -1,6 +1,5 @@
 package com.sappersquad.packwork.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.sappersquad.packwork.Packwork;
 import com.sappersquad.packwork.pack.PackMenu;
 import com.sappersquad.packwork.pack.PackViewSlot;
@@ -10,10 +9,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
@@ -32,8 +34,8 @@ import java.util.List;
  */
 public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
-    private static final ResourceLocation BG = Packwork.id("textures/gui/pack.png");
-    private static final ResourceLocation TAB = Packwork.id("textures/gui/tab.png");
+    private static final Identifier BG = Packwork.id("textures/gui/pack.png");
+    private static final Identifier TAB = Packwork.id("textures/gui/tab.png");
 
     // rail geometry
     private static final int TAB_W = 26;
@@ -58,10 +60,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private static final int BR_W = 96;
     private static final int BR_COLS = 4;
 
-    /** One ledger row: the recipe plus its result + name, resolved ONCE per recompute so
-     *  neither the per-frame draw nor the sort re-derives them. */
-    private record LedgerEntry(net.minecraft.world.item.crafting.RecipeHolder<?> holder,
-                               ItemStack result, String lowerName) {}
+    /** One ledger row: recipe id + its result + name. (1.21.11 port: the client can no
+     *  longer hold RecipeHolders - recipes stopped syncing in 1.21.2 - so the SERVER
+     *  computes the craftable list and ships these via {@code LedgerSyncPayload}.) */
+    private record LedgerEntry(String recipeId, ItemStack result, String lowerName) {}
 
     private boolean browserOpen = false;
     private EditBox browserSearch;
@@ -71,9 +73,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private int browserRecomputeIn = 0;
     private boolean hasKitCached = false; // trinket reads stream a component; refresh per tick, not per frame
     private boolean hasLodestoneCached = false; // gates the pack-first pickup toggle
-    private net.minecraft.world.item.crafting.RecipeHolder<?> ghost = null;
-    private net.minecraft.world.item.crafting.Ingredient[] ghostGrid =
-            new net.minecraft.world.item.crafting.Ingredient[9];
+    // the chalked recipe: id + promised result + per-cell display stacks, all server-supplied
+    private String ghostId = null;
+    private ItemStack ghostResult = ItemStack.EMPTY;
+    private List<List<ItemStack>> ghostCells = null;
 
     // ---- the Rule Editor: the Quill & Ledger's parchment sheet for a custom tab's filters ----
     private static final int RU_W = 112;
@@ -153,14 +156,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int w = this.font.width(pinNote) + 12;
         int x = leftPos + (imageWidth - w) / 2;
         int y = topPos + 141;
-        g.pose().pushPose();
-        g.pose().translate(0, 0, 350); // above items, ribbons, and the page nav
+        // (1.21.6+ renderer: layering follows submission order - this draws late in
+        // render(), so it lands above items and ribbons without a z translate)
         g.fill(x, y, x + w, y + 13, 0xFFC8B892);            // parchment
         g.fill(x, y, x + w, y + 1, 0xFFE2D6AE);             // lit top edge
         g.fill(x, y + 12, x + w, y + 13, 0xFFA89A74);       // shaded bottom edge
         g.renderOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
         g.drawString(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
-        g.pose().popPose();
     }
 
     /**
@@ -199,7 +201,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // The ledger lives and dies with the tool roll; refresh its list as stock shifts.
         hasKitCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.TINKERS_KIT);
         hasLodestoneCached = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.LODESTONE);
-        if (!menu.rollActive() && (browserOpen || ghost != null)) {
+        if (!menu.rollActive() && (browserOpen || ghostId != null)) {
             closeBrowser();
         }
         if (browserOpen && --browserRecomputeIn <= 0) {
@@ -215,15 +217,21 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private void closeBrowser() {
         browserOpen = false;
-        ghost = null;
-        java.util.Arrays.fill(ghostGrid, null);
+        clearGhost();
         if (browserSearch != null) browserSearch.setVisible(false);
         repositionForBrowser();
     }
 
+    private void clearGhost() {
+        ghostId = null;
+        ghostResult = ItemStack.EMPTY;
+        ghostCells = null;
+    }
+
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        g.blit(BG, leftPos, topPos, 0f, 0f, imageWidth, imageHeight, imageWidth, imageHeight);
+        g.blit(RenderPipelines.GUI_TEXTURED, BG, leftPos, topPos, 0f, 0f,
+                imageWidth, imageHeight, imageWidth, imageHeight);
         drawTabRail(g, mouseX, mouseY);
         drawTrinketRail(g);
         drawToolRoll(g);
@@ -291,34 +299,40 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private int browserRows() { return (browserH() - 40) / 18; }
 
     /**
-     * Everything the pack could make RIGHT NOW: every 3x3-able crafting recipe checked
-     * against the pack's own stock (at full depth) plus what's already on the roll. Runs
-     * client-side over synced data - the same check vanilla's book runs against the player
-     * inventory, pointed at the pack instead. Recomputed on open and every couple of
-     * seconds while stock shifts; each entry caches its result + name once so the sort,
-     * the search, and the per-frame draw never re-derive them. A search keystroke only
-     * re-filters this list ({@link #applyLedgerFilter}) - it never rescans the recipes.
+     * Everything the pack could make RIGHT NOW - every 3x3-layable crafting recipe checked
+     * against the pack's own stock (at full depth) plus what's already on the roll.
+     *
+     * <p>(1.21.11 port) The check itself runs on the SERVER now - 1.21.2 stopped syncing
+     * recipes to clients, so there is nothing local to scan. This just asks
+     * (LEDGER_REFRESH); {@link #applyLedgerSync} lands the answer. Cadence is unchanged:
+     * on open and every couple of seconds while stock shifts. A search keystroke still
+     * only re-filters the cached list ({@link #applyLedgerFilter}) - it never re-asks.
      */
     private void recomputeCraftable() {
         browserRecomputeIn = 40;
+        PackClientActions.ledgerRefresh(menu);
+    }
+
+    /** The server's LEDGER_REFRESH answer: rebuild the cached craftable list. */
+    public void applyLedgerSync(com.sappersquad.packwork.net.LedgerSyncPayload payload) {
         allCraftable.clear();
-        var level = Minecraft.getInstance().level;
-        if (level == null) return;
-        var contents = new net.minecraft.world.entity.player.StackedContents();
-        menu.fillPackStacked(contents);
-        for (var holder : level.getRecipeManager().getAllRecipesFor(
-                net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
-            var r = holder.value();
-            if (!r.canCraftInDimensions(3, 3)) continue;
-            if (r.getIngredients().isEmpty()) continue;   // special recipes have no layable shape
-            ItemStack result = r.getResultItem(level.registryAccess());
-            if (result.isEmpty()) continue;
-            if (!contents.canCraft(r, null)) continue;
-            allCraftable.add(new LedgerEntry(holder, result,
-                    result.getHoverName().getString().toLowerCase(java.util.Locale.ROOT)));
+        for (var e : payload.entries()) {
+            allCraftable.add(new LedgerEntry(e.recipeId(), e.result(),
+                    e.result().getHoverName().getString().toLowerCase(java.util.Locale.ROOT)));
         }
         allCraftable.sort(java.util.Comparator.comparing(LedgerEntry::lowerName));
         applyLedgerFilter();
+    }
+
+    /** The server's REQUEST_GHOST answer: chalk the arrangement (or clear, on empty id). */
+    public void applyGhostSync(com.sappersquad.packwork.net.GhostSyncPayload payload) {
+        if (payload.recipeId().isEmpty()) {
+            clearGhost();
+            return;
+        }
+        ghostId = payload.recipeId();
+        ghostResult = payload.result();
+        ghostCells = payload.cells();
     }
 
     /** Narrow the cached list by the search text - cheap enough to run per keystroke. */
@@ -362,7 +376,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             LedgerEntry entry = craftable.get(i);
             int cx = cellX(rIdx), cy = cellY(rIdx);
             boolean hovered = inRect(mouseX, mouseY, cx - 1, cy - 1, 18, 18);
-            boolean selected = ghost != null && ghost.id().equals(entry.holder().id());
+            boolean selected = ghostId != null && ghostId.equals(entry.recipeId());
             if (selected) {
                 g.fill(cx - 1, cy - 1, cx + 17, cy + 17, 0xFF8A6A28);
             } else if (hovered) {
@@ -379,7 +393,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                     tip.add(Component.translatable("packwork.ui.ghost_hint")
                             .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
                 }
-                g.renderComponentTooltip(this.font, tip, mouseX, mouseY);
+                g.setComponentTooltipForNextFrame(this.font, tip, mouseX, mouseY);
             }
         }
         // scroll hint: a thin brass track when there's more than fits
@@ -394,53 +408,41 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     /** Ghost the chalked recipe into the roll's EMPTY cells - paint only, items never move here. */
     private void drawGhost(GuiGraphics g) {
-        if (ghost == null || !menu.rollActive()) return;
+        if (ghostId == null || ghostCells == null || !menu.rollActive()) return;
         var level = Minecraft.getInstance().level;
         if (level == null) return;
         long cycle = level.getGameTime() / 30;
         for (int cell = 0; cell < 9; cell++) {
-            var ing = ghostGrid[cell];
-            if (ing == null || ing.isEmpty()) continue;
+            List<ItemStack> options = cell < ghostCells.size() ? ghostCells.get(cell) : List.of();
+            if (options.isEmpty()) continue;
             Slot slot = menu.slots.get(menu.craftStart() + cell);
             if (slot.hasItem()) continue;                      // real items win over chalk
-            ItemStack[] options = ing.getItems();
-            if (options.length == 0) continue;
-            ItemStack show = options[(int) (cycle % options.length)];
+            ItemStack show = options.get((int) (cycle % options.size()));
             ghostInto(g, show, leftPos + slot.x, topPos + slot.y);
         }
         // and the promised result, washed the same way, in the empty result well
         Slot well = menu.slots.get(menu.resultIndex());
-        if (!well.hasItem()
-                && ghost.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe cr) {
-            ItemStack result = cr.getResultItem(level.registryAccess());
-            if (!result.isEmpty()) ghostInto(g, result, leftPos + well.x, topPos + well.y);
+        if (!well.hasItem() && !ghostResult.isEmpty()) {
+            ghostInto(g, ghostResult, leftPos + well.x, topPos + well.y);
         }
     }
 
-    /** One chalked item: the fake render under a parchment wash (vanilla's own ghost pattern). */
+    /** One chalked item: the fake render under a parchment wash (vanilla's own ghost pattern;
+     *  a plain translucent fill layers over the item in the new submission-ordered renderer). */
     private static void ghostInto(GuiGraphics g, ItemStack stack, int x, int y) {
         g.renderFakeItem(stack, x, y);
-        g.fill(net.minecraft.client.renderer.RenderType.guiGhostRecipeOverlay(),
-                x, y, x + 16, y + 16, 0x80C8B892);
+        g.fill(x, y, x + 16, y + 16, 0x80C8B892);
     }
 
-    /** Chalk a recipe onto the roll (or wipe it). The 3x3 arrangement comes from the SAME
-     *  helper the server lays out with ({@link PackMenu#arrangeOn3x3}), so they cannot drift. */
-    private void setGhost(net.minecraft.world.item.crafting.RecipeHolder<?> holder) {
-        if (holder == null || ghost != null && holder.id().equals(ghost.id())
-                || !(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)) {
-            ghost = null;   // clicking the chalked recipe again wipes the chalk
-            java.util.Arrays.fill(ghostGrid, null);
+    /** Chalk a recipe onto the roll (or wipe it). The 3x3 arrangement comes from the SERVER
+     *  ({@link PackMenu#arrangeOn3x3} behind REQUEST_GHOST - the same helper LAY_OUT_GHOST
+     *  uses, so chalk and lay-out cannot drift); the answer lands in {@link #applyGhostSync}. */
+    private void setGhost(String recipeId) {
+        if (recipeId == null || recipeId.equals(ghostId)) {
+            clearGhost();   // clicking the chalked recipe again wipes the chalk
             return;
         }
-        var arranged = PackMenu.arrangeOn3x3(recipe);
-        if (arranged == null) {
-            ghost = null;
-            java.util.Arrays.fill(ghostGrid, null);
-            return;
-        }
-        ghost = holder;
-        ghostGrid = arranged;
+        PackClientActions.requestGhost(menu, recipeId);
     }
 
     /** One recessed slot well in the leather, matching the ones baked into the panel. */
@@ -488,10 +490,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             tabRects.add(new int[]{x, y, TAB_W - (active ? 1 : TAB_TUCK), th});
 
             // leather tab; inactive dimmed so the active one reads as pulled forward
-            if (active) RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-            else RenderSystem.setShaderColor(0.68f, 0.68f, 0.68f, 1f);
-            g.blit(TAB, x, y, 0f, 0f, TAB_W, th, TAB_W, 24);
-            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            // (setShaderColor is gone in 1.21.5+; the tint rides the blit's color arg)
+            int tint = active ? 0xFFFFFFFF : 0xFFADADAD;
+            g.blit(RenderPipelines.GUI_TEXTURED, TAB, x, y, 0f, 0f, TAB_W, th, TAB_W, 24, tint);
 
             // dye wash for custom tabs, plus a solid colour pip on the brass binding so
             // the dye reads even under the item icon
@@ -513,16 +514,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (menu.flatten()) return;
         String active = menu.activeTab();
         com.sappersquad.packwork.sort.PackLayout layout = menu.layout();
-        g.pose().pushPose();
-        g.pose().translate(0, 0, 300); // ride above the item sprites (item z ~150, count ~200)
+        // (1.21.6+ renderer: drawn after super.render()'s items, so the ribbons layer
+        // above the sprites by submission order - the old z-translate is gone with the 2D pose)
         for (Slot s : menu.slots) {
             if (!(s instanceof PackViewSlot vs) || !vs.isActive() || !s.hasItem()) continue;
-            ResourceLocation key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
+            Identifier key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
             if (active.equals(layout.pinnedTab(key))) {
                 drawPinRibbon(g, leftPos + s.x, topPos + s.y);
             }
         }
-        g.pose().popPose();
     }
 
     /** A folded red ribbon in the slot's top-left corner, studded with a brass tack. Big and
@@ -554,11 +554,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (slot instanceof PackViewSlot && countString == null && stack.getCount() > 99) {
             super.renderSlotContents(g, stack, slot, "");   // item + durability bar, no count
             String txt = String.valueOf(stack.getCount());
-            g.pose().pushPose();
-            g.pose().translate(slot.x + 17f, slot.y + 16f, 200f);
-            g.pose().scale(0.75f, 0.75f, 1f);
-            g.drawString(this.font, txt, -this.font.width(txt), -9, 0xFFFFFF, true);
-            g.pose().popPose();
+            g.pose().pushMatrix();                          // Matrix3x2fStack in 1.21.6+ (2D)
+            g.pose().translate(slot.x + 17f, slot.y + 16f);
+            g.pose().scale(0.75f, 0.75f);
+            g.drawString(this.font, txt, -this.font.width(txt), -9, 0xFFFFFFFF, true);
+            g.pose().popMatrix();
             return;
         }
         super.renderSlotContents(g, stack, slot, countString);
@@ -569,7 +569,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     protected List<Component> getTooltipFromContainerItem(ItemStack stack) {
         List<Component> tip = super.getTooltipFromContainerItem(stack);
         if (!menu.flatten() && this.hoveredSlot instanceof PackViewSlot && this.hoveredSlot.hasItem()) {
-            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
             boolean pinnedHere = menu.activeTab().equals(menu.layout().pinnedTab(key));
             List<Component> out = new ArrayList<>(tip);
             out.add(Component.translatable(pinnedHere ? "packwork.ui.unpin_key" : "packwork.ui.pin_key",
@@ -764,7 +764,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.drawString(this.font, this.font.plainSubstrByWidth(stampLine.getString(), w - 10),
                 x + 5, y + 28, 0xFF3A2A18, false);
         if (inRect(mouseX, mouseY, x + 3, y + 26, w - 6, 11)) {
-            g.renderTooltip(this.font, Component.translatable("packwork.ui.rules_stamp_hint"),
+            g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_stamp_hint"),
                     mouseX, mouseY);
         }
 
@@ -784,7 +784,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.renderOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
             g.fill(bx + 2, ry + 4, bx + 7, ry + 5, 0xFFEAD9A6); // the strike
             if (hov) {
-                g.renderTooltip(this.font, Component.translatable("packwork.ui.rules_remove"),
+                g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_remove"),
                         mouseX, mouseY);
             }
         }
@@ -832,9 +832,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** Clicks inside the rule sheet: focus the box, add or strike rules, or just be swallowed. */
-    private boolean handleRulesClick(double mx, double my, int button) {
+    private boolean handleRulesClick(MouseButtonEvent event, boolean doubleClick) {
+        double mx = event.x(), my = event.y();
+        int button = event.button();
         if (!overRules((int) mx, (int) my)) return false;
-        if (ruleValueBox.mouseClicked(mx, my, button)) {
+        if (ruleValueBox.mouseClicked(event, doubleClick)) {
             setFocused(ruleValueBox);
             return true;
         }
@@ -1076,16 +1078,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (!fs.isEmpty() && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
             IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fs.getFluid());
-            TextureAtlasSprite sprite = Minecraft.getInstance()
-                    .getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ext.getStillTexture(fs));
-            int tint = ext.getTintColor(fs);
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
-                    ((tint >> 16) & 0xFF) / 255f, ((tint >> 8) & 0xFF) / 255f, (tint & 0xFF) / 255f, 1f);
+            // 1.21.5+: sprites resolve through the AtlasManager via a Material, and the
+            // tint rides the blitSprite color arg (setShaderColor is gone).
+            TextureAtlasSprite sprite = Minecraft.getInstance().getAtlasManager()
+                    .get(net.neoforged.neoforge.client.ClientHooks.getBlockMaterial(ext.getStillTexture(fs)));
+            int tint = 0xFF000000 | (ext.getTintColor(fs) & 0xFFFFFF);
             for (int yy = 0; yy < filled; yy += 16) {
                 int hh = Math.min(16, filled - yy);
-                g.blit(x, y + h - yy - hh, 0, w, hh, sprite);
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y + h - yy - hh, w, hh, tint);
             }
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         }
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
@@ -1142,7 +1143,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 if (t.loose()) lines.add(Component.translatable("packwork.ui.loose_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
                 else if (t.editable()) lines.add(Component.translatable("packwork.ui.tab_edit_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
                 else lines.add(Component.translatable("packwork.ui.tab_pin_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-                g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+                g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
                 return;
             }
         }
@@ -1153,7 +1154,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             if (fs.isEmpty()) lines.add(Component.translatable("packwork.ui.tank_empty").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             else lines.add(fs.getHoverName().copy().append(" - " + fs.getAmount() + " / " + menu.fluidCapacity() + " mB").withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.tank_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         if (xpGaugeRect != null && inRect(mouseX, mouseY, xpGaugeRect[0], xpGaugeRect[1], xpGaugeRect[2], xpGaugeRect[3])) {
@@ -1162,7 +1163,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.literal(menu.xpStored() + " / " + menu.xpCapacity() + " XP")
                     .withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.vial_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         if (energyGaugeRect != null && inRect(mouseX, mouseY, energyGaugeRect[0], energyGaugeRect[1], energyGaugeRect[2], energyGaugeRect[3])) {
@@ -1171,7 +1172,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.literal(menu.energyStored() + " / " + menu.energyCapacity() + " FE")
                     .withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.crystal_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         if (flaskGaugeRect != null && inRect(mouseX, mouseY, flaskGaugeRect[0], flaskGaugeRect[1], flaskGaugeRect[2], flaskGaugeRect[3])) {
@@ -1180,7 +1181,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.literal(menu.chemicalStored() + " / " + menu.chemicalCapacity() + " mB")
                     .withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.flask_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;
         }
         if (hasLodestoneCached && inRect(mouseX, mouseY, pickupBtnX(), btnY(), BTN, BTN)) {
@@ -1189,20 +1190,20 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.translatable(on ? "packwork.ui.pickup_on" : "packwork.ui.pickup_off"));
             lines.add(Component.translatable(on ? "packwork.ui.pickup_on_hint" : "packwork.ui.pickup_off_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (hasKit() && menu.rollActive() && inRect(mouseX, mouseY, bookBtnX(), btnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable("packwork.ui.ledger_btn"));
             lines.add(Component.translatable("packwork.ui.ledger_btn_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (hasKit() && inRect(mouseX, mouseY, rollBtnX(), btnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable(menu.rollActive()
                     ? "packwork.ui.roll_up" : "packwork.ui.unroll"));
             lines.add(Component.translatable("packwork.ui.roll_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (!menu.flatten() && !menu.rollActive()
                 && inRect(mouseX, mouseY, modeBtnX(), perTabBtnY(), BTN, BTN)) {
             boolean kept = menu.activeTabManual();
@@ -1210,35 +1211,37 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             lines.add(Component.translatable(kept ? "packwork.ui.mode_btn_keep" : "packwork.ui.mode_btn_tidy"));
             lines.add(Component.translatable(kept ? "packwork.ui.mode_btn_keep_hint" : "packwork.ui.mode_btn_tidy_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (canEditRules() && !menu.rollActive()
                 && inRect(mouseX, mouseY, quillBtnX(), perTabBtnY(), BTN, BTN)) {
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable("packwork.ui.rules_btn"));
             lines.add(Component.translatable("packwork.ui.rules_btn_hint")
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            g.renderComponentTooltip(this.font, lines, mouseX, mouseY);
+            g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
         } else if (inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN))
-            g.renderTooltip(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
+            g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.flatten"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN))
-            g.renderTooltip(this.font, Component.translatable("packwork.ui.tidy"), mouseX, mouseY);
+            g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.tidy"), mouseX, mouseY);
         else if (inRect(mouseX, mouseY, newBtnX(), btnY(), BTN, BTN))
-            g.renderTooltip(this.font, Component.translatable("packwork.ui.new_tab"), mouseX, mouseY);
+            g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.new_tab"), mouseX, mouseY);
     }
 
     // ---------- input ----------
 
     @Override
-    public boolean mouseClicked(double mx, double my, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mx = event.x(), my = event.y();
+        int button = event.button();
         if (renaming) {
-            if (renameBox.mouseClicked(mx, my, button)) return true;
+            if (renameBox.mouseClicked(event, doubleClick)) return true;
             commitRename();
         }
         // the Recipe Ledger and the rule sheet each swallow every click inside their sheet
-        if (ledgerVisible() && handleBrowserClick(mx, my, button)) {
+        if (ledgerVisible() && handleBrowserClick(event, doubleClick)) {
             return true;
         }
-        if (rulesVisible() && handleRulesClick(mx, my, button)) {
+        if (rulesVisible() && handleRulesClick(event, doubleClick)) {
             return true;
         }
         // title buttons
@@ -1275,11 +1278,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 return true;
             }
             // a chalked recipe + a click on the empty result well = lay it out from stock
-            if (ghost != null && menu.rollActive()
+            if (ghostId != null && menu.rollActive()
                     && inRect((int) mx, (int) my, leftPos + PackMenu.ROLL_RESULT_X - 2,
                             topPos + PackMenu.ROLL_RESULT_Y - 2, 20, 20)
                     && !menu.slots.get(menu.resultIndex()).hasItem()) {
-                PackClientActions.layOutGhost(menu, ghost.id().toString());
+                PackClientActions.layOutGhost(menu, ghostId);
                 return true;
             }
             if (inRect((int) mx, (int) my, flatBtnX(), btnY(), BTN, BTN)) {
@@ -1304,7 +1307,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 return true;
             }
             if (xpGaugeRect != null && inRect((int) mx, (int) my, xpGaugeRect[0], xpGaugeRect[1], xpGaugeRect[2], xpGaugeRect[3])) {
-                if (hasShiftDown()) PackClientActions.xpPour(menu);
+                if (event.hasShiftDown()) PackClientActions.xpPour(menu);
                 else PackClientActions.xpSiphon(menu);
                 return true;
             }
@@ -1330,7 +1333,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             }
             return true;
         }
-        return super.mouseClicked(mx, my, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     /**
@@ -1344,9 +1347,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * press and the release both.
      */
     @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop) {
         if (isOverRail((int) mouseX, (int) mouseY)) return false;
-        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop);
     }
 
     /** Everything the pack draws beyond the panel edges: the tab rail left, the fittings rail
@@ -1364,9 +1367,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** Clicks inside the ledger sheet: focus the search, chalk a recipe, or just be swallowed. */
-    private boolean handleBrowserClick(double mx, double my, int button) {
+    private boolean handleBrowserClick(MouseButtonEvent event, boolean doubleClick) {
+        double mx = event.x(), my = event.y();
+        int button = event.button();
         if (!overLedger((int) mx, (int) my)) return false;
-        if (browserSearch.mouseClicked(mx, my, button)) {
+        if (browserSearch.mouseClicked(event, doubleClick)) {
             setFocused(browserSearch);
             return true;
         }
@@ -1375,7 +1380,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 int i = (browserScroll * BR_COLS) + rIdx;
                 if (i >= craftable.size()) break;
                 if (inRect((int) mx, (int) my, cellX(rIdx) - 1, cellY(rIdx) - 1, 18, 18)) {
-                    setGhost(craftable.get(i).holder());
+                    setGhost(craftable.get(i).recipeId());
                     return true;
                 }
             }
@@ -1413,26 +1418,27 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     @Override
-    public boolean keyPressed(int key, int scan, int mods) {
+    public boolean keyPressed(KeyEvent event) {
+        int key = event.key();
         if (renaming) {
             if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) { commitRename(); return true; }
             if (key == GLFW.GLFW_KEY_ESCAPE) { renaming = false; renameBox.setVisible(false); return true; }
-            return renameBox.keyPressed(key, scan, mods) || renameBox.canConsumeInput() || super.keyPressed(key, scan, mods);
+            return renameBox.keyPressed(event) || renameBox.canConsumeInput() || super.keyPressed(event);
         }
         if (searchBox != null && searchBox.isFocused()) {
-            return super.keyPressed(key, scan, mods);
+            return super.keyPressed(event);
         }
         if (ruleValueBox != null && ruleValueBox.isFocused()) {
-            return super.keyPressed(key, scan, mods);
+            return super.keyPressed(event);
         }
         Slot hovered = this.hoveredSlot;
         boolean overGrid = hovered instanceof PackViewSlot && hovered.hasItem();
 
         // Pin/unpin the hovered item to the active tab. Rebindable keybind (default P), so it
         // reads the mapping rather than a hardcoded key and shows up in vanilla Controls.
-        if (PackKeyMappings.PIN.matches(key, scan) && overGrid && !menu.flatten()) {
+        if (PackKeyMappings.PIN.matches(event) && overGrid && !menu.flatten()) {
             ItemStack held = hovered.getItem();
-            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
+            Identifier itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
             String pinned = menu.layout().pinnedTab(itemKey);
             if (menu.activeTab().equals(pinned)) {
                 PackClientActions.unpin(menu, itemKey.toString());
@@ -1465,7 +1471,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             case GLFW.GLFW_KEY_RIGHT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), 1); return true; }
             default -> {}
         }
-        return super.keyPressed(key, scan, mods);
+        return super.keyPressed(event);
     }
 
     /**
@@ -1539,7 +1545,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         for (int rIdx = 0; rIdx < browserRows() * BR_COLS; rIdx++) {
             int i = (browserScroll * BR_COLS) + rIdx;
             if (i >= craftable.size()) break;
-            if (craftable.get(i).holder().id().toString().equals(recipeId)) {
+            if (craftable.get(i).recipeId().equals(recipeId)) {
                 return new int[]{cellX(rIdx) + 8, cellY(rIdx) + 8};
             }
         }

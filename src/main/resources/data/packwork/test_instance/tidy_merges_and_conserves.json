@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:tidy_merges_and_conserves",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

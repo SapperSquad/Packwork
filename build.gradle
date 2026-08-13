@@ -8,7 +8,10 @@ tasks.named('wrapper', Wrapper).configure {
     distributionType = Wrapper.DistributionType.BIN
 }
 
-version = mod_version
+// Port branches carry the MC version as semver build metadata so every jar in a
+// multi-version release is distinguishable at a glance: packwork-1.0.0+mc1.21.11.jar.
+// (The 1.21.1 original stays plain packwork-1.0.0.jar on master.)
+version = "${mod_version}+mc${minecraft_version}"
 group = mod_group_id
 
 sourceSets.main.resources {
@@ -78,7 +81,9 @@ runs {
         systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
     }
 
-    data {
+    // NeoForge 21.4+ split datagen client/server; the MDK's run is `clientData` now
+    // (task: runClientData). `--all` still generates both sides' data.
+    clientData {
         arguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
     }
 }
@@ -145,7 +150,8 @@ tasks.withType(ProcessResources).configureEach {
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
-            mod_version            : mod_version,
+            // The full version (1.0.0+mc<ver>) so the jar's own mods.toml names its MC line.
+            mod_version            : project.version.toString(),
     ]
     inputs.properties replaceProperties
 
@@ -169,6 +175,7 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.compilerArgs << '-Xmaxerrs' << '2000'
 }
 
 idea {

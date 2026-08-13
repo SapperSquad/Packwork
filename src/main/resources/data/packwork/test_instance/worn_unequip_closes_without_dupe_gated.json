@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:worn_unequip_closes_without_dupe_gated",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

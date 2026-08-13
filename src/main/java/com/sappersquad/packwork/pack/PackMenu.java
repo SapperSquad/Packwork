@@ -833,7 +833,83 @@ public class PackMenu extends AbstractContainerMenu {
             case REMOVE_TAB_RULE -> applyRemoveTabRule(s1, arg);
             case TOGGLE_TAB_MODE -> applyToggleTabMode(s1);
             case TOGGLE_PACK_FIRST -> applyTogglePackFirst();
+            case LEDGER_REFRESH -> applyLedgerRefresh();
+            case REQUEST_GHOST -> applyRequestGhost(s1);
         }
+    }
+
+    // ---- the Recipe Ledger's server side (1.21.11 port) ----
+    // Recipes stopped syncing to clients in 1.21.2, so the ledger's craftable scan and the
+    // chalk arrangement both run HERE now and ship down as payloads. The check is the same
+    // one the old client ran: every 3x3-layable crafting recipe against pack stock at full
+    // depth (plus the roll), via the stacked-contents test vanilla's own book uses.
+
+    /** Compute the craftable list and send it to the viewing player. */
+    public void applyLedgerRefresh() {
+        if (isClient()) return;
+        if (!(playerInv.player instanceof net.minecraft.server.level.ServerPlayer sp)) return;
+        var level = sp.level();
+        var server = level.getServer();
+        if (server == null) return;
+        var contents = new net.minecraft.world.entity.player.StackedItemContents();
+        fillPackStacked(contents);
+        var ctx = net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(level);
+        java.util.List<com.sappersquad.packwork.net.LedgerSyncPayload.Entry> out = new java.util.ArrayList<>();
+        for (var holder : server.getRecipeManager().recipeMap()
+                .byType(net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
+            net.minecraft.world.item.crafting.CraftingRecipe r = holder.value();
+            if (arrangeOn3x3(r) == null) continue;          // no layable shape (true specials)
+            if (!contents.canCraft(r, null)) continue;
+            ItemStack result = firstDisplayResult(r, ctx);
+            if (result.isEmpty()) continue;
+            out.add(new com.sappersquad.packwork.net.LedgerSyncPayload.Entry(
+                    holder.id().identifier().toString(), result));
+        }
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp,
+                new com.sappersquad.packwork.net.LedgerSyncPayload(out));
+    }
+
+    /** Resolve one recipe's chalk arrangement and send it down (empty id = clear). */
+    public void applyRequestGhost(String recipeId) {
+        if (isClient()) return;
+        if (!(playerInv.player instanceof net.minecraft.server.level.ServerPlayer sp)) return;
+        var level = sp.level();
+        var server = level.getServer();
+        if (server == null) return;
+        net.minecraft.world.item.crafting.Ingredient[] arranged = null;
+        ItemStack result = ItemStack.EMPTY;
+        var id = net.minecraft.resources.Identifier.tryParse(recipeId);
+        if (id != null) {
+            var key = net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.RECIPE, id);
+            var holder = server.getRecipeManager().byKey(key).orElse(null);
+            if (holder != null
+                    && holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe) {
+                arranged = arrangeOn3x3(recipe);
+                result = firstDisplayResult(recipe,
+                        net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(level));
+            }
+        }
+        java.util.List<java.util.List<ItemStack>> cells = new java.util.ArrayList<>(9);
+        for (int c = 0; c < 9; c++) {
+            var ing = arranged == null ? null : arranged[c];
+            cells.add(ing == null
+                    ? java.util.List.of()
+                    : ing.items().limit(16).map(ItemStack::new).toList());
+        }
+        String okId = arranged == null ? "" : recipeId;
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp,
+                new com.sappersquad.packwork.net.GhostSyncPayload(okId, result, cells));
+    }
+
+    /** The recipe's advertised result, off its display (getResultItem is gone in 1.21.2+). */
+    private static ItemStack firstDisplayResult(net.minecraft.world.item.crafting.CraftingRecipe r,
+                                                net.minecraft.util.context.ContextMap ctx) {
+        for (var display : r.display()) {
+            ItemStack s = display.result().resolveForFirstStack(ctx);
+            if (!s.isEmpty()) return s;
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Flip pack-first pickup for THIS pack (the Lodestone's route-what-files behaviour). */
@@ -860,12 +936,16 @@ public class PackMenu extends AbstractContainerMenu {
         Player player = playerInv.player;
         var server = player.level().getServer();
         if (server == null) return;
-        var id = net.minecraft.resources.ResourceLocation.tryParse(recipeId);
+        var id = net.minecraft.resources.Identifier.tryParse(recipeId);
         if (id == null) return;
-        var holder = server.getRecipeManager().byKey(id).orElse(null);
+        // 1.21.2+: recipe lookups key by ResourceKey, and canCraftInDimensions is gone -
+        // every crafting recipe fits a 3x3 now, and arrangeOn3x3 still nulls out anything
+        // with no layable shape.
+        var key = net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.RECIPE, id);
+        var holder = server.getRecipeManager().byKey(key).orElse(null);
         if (holder == null
-                || !(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)
-                || !recipe.canCraftInDimensions(3, 3)) {
+                || !(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe recipe)) {
             return;
         }
         net.minecraft.world.item.crafting.Ingredient[] wanted = arrangeOn3x3(recipe);
@@ -946,7 +1026,7 @@ public class PackMenu extends AbstractContainerMenu {
         if (found.isPresent()) {
             // recipe-book bookkeeping only applies to a real connected player
             boolean allowed = !(player instanceof net.minecraft.server.level.ServerPlayer sp)
-                    || resultSlots.setRecipeUsed(level, sp, found.get());
+                    || resultSlots.setRecipeUsed(sp, found.get());
             if (allowed) {
                 ItemStack out = found.get().value().assemble(input, level.registryAccess());
                 if (out.isItemEnabled(level.enabledFeatures())) result = out;
@@ -1013,16 +1093,23 @@ public class PackMenu extends AbstractContainerMenu {
      */
     public static net.minecraft.world.item.crafting.Ingredient[] arrangeOn3x3(
             net.minecraft.world.item.crafting.CraftingRecipe recipe) {
-        var ingredients = recipe.getIngredients();
-        if (ingredients.isEmpty()) return null;
         net.minecraft.world.item.crafting.Ingredient[] wanted =
                 new net.minecraft.world.item.crafting.Ingredient[9];
         if (recipe instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped) {
-            for (int r = 0; r < shaped.getHeight(); r++)
-                for (int c = 0; c < shaped.getWidth(); c++)
-                    wanted[r * 3 + c] = ingredients.get(r * shaped.getWidth() + c);
+            // 1.21.2+: the shaped grid (with its gaps) lives on the pattern as Optionals.
+            var grid = shaped.pattern.ingredients();
+            int w = shaped.getWidth(), h = shaped.getHeight();
+            if (w > 3 || h > 3) return null;
+            for (int r = 0; r < h; r++)
+                for (int c = 0; c < w; c++)
+                    wanted[r * 3 + c] = grid.get(r * w + c).orElse(null);
         } else {
-            for (int i = 0; i < ingredients.size() && i < 9; i++) wanted[i] = ingredients.get(i);
+            // Everything else lays left to right off its placement list; recipes that
+            // report no placeable ingredients (true specials) have no layable shape.
+            var info = recipe.placementInfo();
+            var ingredients = info.ingredients();
+            if (ingredients.isEmpty() || ingredients.size() > 9) return null;
+            for (int i = 0; i < ingredients.size(); i++) wanted[i] = ingredients.get(i);
         }
         return wanted;
     }
@@ -1032,7 +1119,7 @@ public class PackMenu extends AbstractContainerMenu {
      * full DEPTH) plus whatever is already laid out on the roll. Client-safe - it reads the
      * synced component, so the browser computes the same answer the server would.
      */
-    public void fillPackStacked(net.minecraft.world.entity.player.StackedContents contents) {
+    public void fillPackStacked(net.minecraft.world.entity.player.StackedItemContents contents) {
         int slots = packInv.getSlots();
         for (int i = 0; i < slots; i++) {
             ItemStack s = packInv.getStackInSlot(i);
@@ -1207,10 +1294,10 @@ public class PackMenu extends AbstractContainerMenu {
 
     /** Add/remove an item from the Compass Rose discard list. */
     public void applyVoidToggle(String itemId) {
-        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
-        List<net.minecraft.resources.ResourceLocation> voids = new ArrayList<>(cur.voidList());
+        List<net.minecraft.resources.Identifier> voids = new ArrayList<>(cur.voidList());
         if (voids.contains(r)) voids.remove(r);
         else voids.add(r);
         saveLayout(cur.withVoidList(voids));
@@ -1270,7 +1357,7 @@ public class PackMenu extends AbstractContainerMenu {
         PackLayout cur = currentLayout();
         String id = cur.nextCustomId();
         com.sappersquad.packwork.sort.TabDef def = new com.sappersquad.packwork.sort.TabDef(
-                id, "New Tab", net.minecraft.resources.ResourceLocation.withDefaultNamespace("leather"),
+                id, "New Tab", net.minecraft.resources.Identifier.withDefaultNamespace("leather"),
                 0, List.of());
         List<com.sappersquad.packwork.sort.TabDef> customs = new ArrayList<>(cur.customTabs());
         customs.add(def);
@@ -1307,7 +1394,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyTabIcon(String id, String iconId) {
-        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(iconId);
+        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(iconId);
         if (r != null) mutateCustom(id, td -> td.withIcon(r));
     }
 
@@ -1324,7 +1411,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyPin(String tabId, String itemId) {
-        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
         List<PackLayout.Pin> pins = new ArrayList<>();
@@ -1334,7 +1421,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyUnpin(String itemId) {
-        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
         List<PackLayout.Pin> pins = new ArrayList<>();

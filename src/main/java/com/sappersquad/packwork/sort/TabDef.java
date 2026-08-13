@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -20,12 +20,12 @@ import java.util.List;
  * @param color  ARGB tint for the leather (0 = undyed)
  * @param rules  ordered rules; first match in tab-priority order claims an item
  */
-public record TabDef(String id, String name, ResourceLocation icon, int color, List<SortRule> rules) {
+public record TabDef(String id, String name, Identifier icon, int color, List<SortRule> rules) {
 
     public static final Codec<TabDef> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Codec.STRING.fieldOf("id").forGetter(TabDef::id),
             Codec.STRING.fieldOf("name").forGetter(TabDef::name),
-            ResourceLocation.CODEC.fieldOf("icon").forGetter(TabDef::icon),
+            Identifier.CODEC.fieldOf("icon").forGetter(TabDef::icon),
             Codec.INT.fieldOf("color").forGetter(TabDef::color),
             SortRule.CODEC.listOf().fieldOf("rules").forGetter(TabDef::rules)
     ).apply(inst, TabDef::new));
@@ -33,7 +33,7 @@ public record TabDef(String id, String name, ResourceLocation icon, int color, L
     public static final StreamCodec<RegistryFriendlyByteBuf, TabDef> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8, TabDef::id,
             ByteBufCodecs.STRING_UTF8, TabDef::name,
-            ResourceLocation.STREAM_CODEC, TabDef::icon,
+            Identifier.STREAM_CODEC, TabDef::icon,
             ByteBufCodecs.INT, TabDef::color,
             SortRule.STREAM_CODEC.apply(ByteBufCodecs.list()), TabDef::rules,
             TabDef::new);
@@ -42,7 +42,7 @@ public record TabDef(String id, String name, ResourceLocation icon, int color, L
         return new TabDef(id, newName, icon, color, rules);
     }
 
-    public TabDef withIcon(ResourceLocation newIcon) {
+    public TabDef withIcon(Identifier newIcon) {
         return new TabDef(id, name, newIcon, color, rules);
     }
 

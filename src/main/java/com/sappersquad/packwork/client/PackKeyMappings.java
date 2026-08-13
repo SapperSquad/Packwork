@@ -10,7 +10,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -22,7 +22,7 @@ import org.lwjgl.glfw.GLFW;
 public final class PackKeyMappings {
 
     public static final KeyMapping OPEN = new KeyMapping(
-            "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
+            "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
 
     /**
      * Open the pack worn in the Curios back slot, explicitly. Default Shift-B (rebindable
@@ -34,7 +34,7 @@ public final class PackKeyMappings {
             "key.packwork.open_worn",
             net.neoforged.neoforge.client.settings.KeyConflictContext.IN_GAME,
             net.neoforged.neoforge.client.settings.KeyModifier.SHIFT,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
 
     /**
      * Pin/unpin the hovered grid item to the active tab. Only meaningful inside the pack GUI,
@@ -42,9 +42,9 @@ public final class PackKeyMappings {
      * registered so it shows up (and is rebindable) in vanilla Controls; default P.
      */
     public static final KeyMapping PIN = new KeyMapping(
-            "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, "key.categories.inventory");
+            "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, KeyMapping.Category.INVENTORY);
 
-    @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+    @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
     public static final class Registrar {
         @SubscribeEvent
         public static void register(RegisterKeyMappingsEvent event) {
@@ -61,10 +61,10 @@ public final class PackKeyMappings {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || mc.screen != null) return;
             while (OPEN_WORN.consumeClick()) {
-                PacketDistributor.sendToServer(new OpenPackPayload(-1, true));
+                ClientPacketDistributor.sendToServer(new OpenPackPayload(-1, true));
             }
             while (OPEN.consumeClick()) {
-                PacketDistributor.sendToServer(new OpenPackPayload(-1, false));
+                ClientPacketDistributor.sendToServer(new OpenPackPayload(-1, false));
             }
         }
     }

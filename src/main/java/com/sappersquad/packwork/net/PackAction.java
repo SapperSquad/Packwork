@@ -52,7 +52,14 @@ public enum PackAction {
     /** s1 = tab id: flip that compartment between Tidy (auto-arranged) and Keep-my-layout. */
     TOGGLE_TAB_MODE,
     /** flip whether a fitted Lodestone routes fileable pickups straight into this pack. */
-    TOGGLE_PACK_FIRST;
+    TOGGLE_PACK_FIRST,
+    /** (1.21.11+) ask the server for the Recipe Ledger's craftable list; answered by
+     *  {@link LedgerSyncPayload}. Recipes stopped syncing to clients in 1.21.2, so the
+     *  scan the screen used to run locally lives server-side on these versions. */
+    LEDGER_REFRESH,
+    /** (1.21.11+) s1 = recipe id: ask for its 3x3 chalk arrangement; answered by
+     *  {@link GhostSyncPayload}. Empty s1 just clears (client-side wipe needs no ask). */
+    REQUEST_GHOST;
 
     private static final PackAction[] VALUES = values();
 
@@ -68,6 +75,6 @@ public enum PackAction {
      */
     public boolean serverAuthoritative() {
         return this == FLUID_INTERACT || this == XP_SIPHON || this == XP_POUR
-                || this == LAY_OUT_GHOST;
+                || this == LAY_OUT_GHOST || this == LEDGER_REFRESH || this == REQUEST_GHOST;
     }
 }
