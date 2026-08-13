@@ -80,6 +80,19 @@ public class LiveStackStorage extends SingleStackStorage {
         target.setCount(newStack.getCount());
     }
 
+    /**
+     * MUST be a copy: the base class snapshots the current stack INSTANCE (safe for its
+     * own reference-swapping ops), but this storage writes through IN PLACE - an instance
+     * snapshot would mutate along with the live stack and a rollback would restore
+     * nothing. The tell was a pair of gametest failures on the first Fabric run: the
+     * Field Furnace's simulated room-check doubled its output, and StorageUtil.move's
+     * aborted probe-extract drained the waterskin before the real move ran.
+     */
+    @Override
+    protected ItemStack createSnapshot() {
+        return getStack().copy();
+    }
+
     @Override
     protected void onFinalCommit() {
         onCommit.run();
