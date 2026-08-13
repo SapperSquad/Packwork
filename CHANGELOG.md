@@ -2,6 +2,27 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.0.0+mc1.21.8 / +mc1.21.10 / +mc1.21.11 — 2026-08-13 (version ports, wave 1)
+
+The same 1.0.0 "First Haul", ported to three more NeoForge lines so more players can
+carry one. Nothing gameplay-visible changed - the sorting, trinkets, stores, ledger,
+and worn-slot opening all behave exactly as on 1.21.1, and each port passes the same
+57-test suite (plain, with Curios, with JEI + Curios) plus a pixel-inspected GUI pass.
+
+- **New:** NeoForge **1.21.8** (21.8.54), **1.21.10** (21.10.64), and **1.21.11**
+  (21.11.45) builds, each from its own `port/` branch with the jar named
+  `packwork-1.0.0+mc<ver>.jar`.
+- Per-version soft deps: JEI and Curios light up on every line (JEI 24/26/27,
+  Curios 12/13/14). **Mekanism and Forgework stay 1.21.1-only** - neither ships for
+  the newer lines yet, so the gas store and the Flux bridge simply stay dark there
+  (no dead craftables; the Flask Harness recipe still requires Mekanism present).
+- Internal, for the curious: the newer lines rebuilt several foundations underneath
+  the same behavior - recipes are placement/display-based, the Recipe Ledger's
+  craftable scan runs server-side (clients stopped receiving recipes in 1.21.2),
+  gametests are registry entries, and on 1.21.10+ the standard capabilities are the
+  transactional transfer API. Conservation guarantees (depth clamps, no nesting,
+  one-stack pulls, pause-never-punish) are pinned by the same gametests everywhere.
+
 ## 1.0.0 "First Haul" — 2026-07-26
 
 The first public release. Everything below this header up to the internal 0.1.0

@@ -14,6 +14,102 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
+## Version ports — the reach campaign (wave 1 DONE, 2026-08-13)
+
+Downloads track version×loader coverage, not quality (measured: Pantrywork 519 @ 13
+combos vs Packwork 32 @ 1), so 1.0.0 is being spread wide. **Wave 1 (this): NeoForge
+1.21.8 / 1.21.10 / 1.21.11 — all three DONE.** Wave 2 = NeoForge 26.1/26.2; wave 3 =
+Fabric. Master stays the 1.21.1 line; each port lives on its own branch. Do NOT
+restructure to multiloader yet (coordinator's call for this campaign).
+
+### Branch layout and toolchain pins
+
+| Branch | MC | NeoForge | Parchment | JEI | Curios | Jar |
+|---|---|---|---|---|---|---|
+| `master` | 1.21.1 | 21.1.235 | 2024.11.17 | 19.21.1.312 | 9.5.1+1.21.1 | `packwork-1.0.0.jar` |
+| `port/1.21.8` | 1.21.8 | 21.8.54 | 2025.09.14 | 24.2.0.6 | 12.0.0+1.21.8 | `packwork-1.0.0+mc1.21.8.jar` |
+| `port/1.21.10` | 1.21.10 | 21.10.64 | 2025.10.12 | 26.3.0.31 | 13.0.0+1.21.10 | `packwork-1.0.0+mc1.21.10.jar` |
+| `port/1.21.11` | 1.21.11 | 21.11.45 | 2025.12.20 | 27.23.0.71 | 14.0.0+1.21.11 | `packwork-1.0.0+mc1.21.11.jar` |
+
+All four: NeoGradle userdev 7.1.38 (unchanged — the official 1.21.11 MDK still uses
+it), Gradle 9.6.1, JDK 21. **Mekanism and Forgework ship no builds past 1.21.1**
+(checked modmaven + CurseForge 2026-08-12), so on every port branch those two gates
+simply never light; their compat classes still compile against the pinned 1.21.1
+API jars. Port branches carry `version = "${mod_version}+mc${minecraft_version}"` in
+`build.gradle` and the datagen run is `runClientData` (NeoForge 21.4+ split datagen).
+Bar per branch: `compileJava` clean, `runClientData` clean, **58/58 gametests
+(57 packwork + vanilla's always_pass) × plain / -Pcurios / -Pjei -Pcurios**, jar built
+with the right name AND `version="1.0.0+mc<ver>"` inside its `neoforge.mods.toml`.
+The 1.21.11 branch additionally had its GUI verified as pixels via `-Pautoshot`.
+
+### The drift map, 1.21.1 → 1.21.11 (what broke where — wave 2 starts from this)
+
+Ported newest-first: master → `port/1.21.11` was the big climb (~330 compile errors),
+then swept backward (`port/1.21.10` from it: 3 drift categories; `port/1.21.8` from
+that: revert the 21.9-era changes). By era:
+
+- **1.21.2 (recipes/consumables):** recipe JSON ingredients are plain strings
+  (`"minecraft:string"` / `"#minecraft:wool"`), not `{"item": ...}` objects — ALL 25
+  recipe JSONs converted (the loader drops old-shape files SILENTLY; the
+  craftability-sweep gametest is what caught it). `Recipe#getIngredients` /
+  `canCraftInDimensions` / `getResultItem` are gone → `placementInfo()` + `display()`
+  (PackUpgradeRecipe carries both; the JEI-validator gametest now pins the new
+  contract). Recipe lookups key by `ResourceKey<Recipe<?>>`. **Clients stopped
+  receiving recipes** → the Recipe Ledger's craftable scan + chalk arrangement moved
+  SERVER-side (new `LEDGER_REFRESH`/`REQUEST_GHOST` verbs answered by
+  `LedgerSyncPayload`/`GhostSyncPayload`; the client is pure paint again, and
+  `PackMenu.arrangeOn3x3` is still the one shared arrangement helper). Fuel times
+  live on `level.fuelValues()`; `InteractionResultHolder` folded into
+  `InteractionResult`; `BlockEntityType.Builder` → plain constructor;
+  `DirectionProperty` → `EnumProperty<Direction>`.
+- **1.21.4 (client items):** every item needs `assets/packwork/items/<id>.json`
+  (25 added, plain `minecraft:model` wrappers).
+- **1.21.5 (items/gametests):** SwordItem/DiggerItem/ArmorItem classes dissolved →
+  `PredicateKind` reads components now, tuned to keep SapperSquad's routing (axes carry
+  WEAPON but stay Tools; swords carry TOOL but stay Combat via `#minecraft:swords`;
+  armor = humanoid slot + attribute modifiers so pumpkins/elytra don't file as
+  plate). Consume effects moved off FoodProperties onto CONSUMABLE (Provisioner).
+  `appendHoverText` takes TooltipDisplay + Consumer. **GameTests are registry
+  entries** → `@PackTest` annotation + `PackworkTestRegistrar` (scans into
+  `TEST_FUNCTION`) + one generated `data/packwork/test_instance/<name>.json` per test
+  (`tools/GenTestInstances.java` regenerates; run it after adding/renaming a test).
+- **1.21.6 (GUI/storage):** the render pipeline — `blit`/`blitSprite` take a
+  `RenderPipeline`, `pose()` is a 2D `Matrix3x2fStack` (no z-translates; layering is
+  submission order), tooltips are `set*TooltipForNextFrame`, `setShaderColor` is gone
+  (tints ride the draw calls). BlockEntity save/load is `ValueOutput`/`ValueInput`.
+  `Screenshot.grab` grew a downscale arg.
+- **1.21.9 (transfer/input):** **the capability rework** — legacy
+  `Capabilities.ItemHandler/FluidHandler/EnergyStorage` tokens REPLACED by
+  `Capabilities.Item/Fluid/Energy` on the transactional transfer API
+  (`ResourceHandler`, `ItemAccess`, `Transaction`); official word: a legacy handler
+  CANNOT be wrapped into a ResourceHandler, only the reverse (`IItemHandler.of`).
+  Packwork's answer on 1.21.10/11: `transfer/PackTransfer.java` — the ONE
+  version-specific file — extends NeoForge's `ItemAccessItemHandler` et al with the
+  pack's three rules (per-slot DEPTH capacity, nesting refusal, one-vanilla-stack
+  extract) while the menu/trinkets/sorting keep the battle-tested legacy-shaped
+  internals (`PackInventory` — deprecated interfaces, still shipped). Screen input
+  became event records (`MouseButtonEvent`/`KeyEvent`), `Inventory.selected/items`
+  went private, `PacketDistributor.sendToServer` → `ClientPacketDistributor`,
+  KeyMapping categories became typed, TriState vanillafied, `serverLevel()` folded
+  into a covariant `level()`.
+- **1.21.10 quirks:** `renderOutline` is `submitOutline` on this one version only;
+  GameTestHelper lost the String assert overloads (they return in 1.21.11) —
+  `gametest/PackHelper` (a thin GameTestHelper subclass, 1.21.8/10 branches only)
+  carries them so the 57 test bodies stay word-for-word identical on every branch.
+- **1.21.11:** `ResourceLocation` RENAMED `Identifier` (`ResourceKey.location()` →
+  `identifier()`); `GameRules` moved to `world.level.gamerules`.
+
+**Deprecation clock for wave 2 (26.x):** the whole legacy transfer layer
+(`IItemHandler`, `ComponentItemHandler`, `FluidHandlerItemStack`, `IEnergyStorage`,
+old `FluidUtil`) is deprecated-for-removal from 21.9 — Packwork's internals
+(`PackInventory`/`LiveComponentHandler`, `PackFluidHandler`, `PackEnergyStorage`,
+`PackMenu`'s FluidUtil gauge path, `ItemHandlerCopySlot`) still ride it everywhere.
+Expect 26.x to REMOVE it: wave 2's big-ticket item is rewriting the internal store
+handlers natively on the transfer API (PackTransfer is the template; the menu slots
+have `ResourceHandlerSlot` waiting). Likely also gone by 26.x: the compatibility
+String overloads and other 1.21.x grace shims. Everything else (recipes, ledger sync,
+client items, test registry, GUI pipeline) is already on the 26.x-era foundations.
+
 ## Status — 1.0.0 stamped, awaiting SapperSquad's upload
 
 > Newest first. Full source map and roadmap below. Version is **1.0.0** (SapperSquad's call,
