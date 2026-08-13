@@ -47,7 +47,7 @@ public final class PackKeyMappings {
         KeyMappingHelper.registerKeyMapping(PIN);
 
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            if (mc.player == null || mc.screen != null) return;
+            if (mc.player == null || mc.gui.screen() != null) return;
             while (OPEN_WORN.consumeClick()) {
                 ClientPlayNetworking.send(new OpenPackPayload(-1, true));
             }
