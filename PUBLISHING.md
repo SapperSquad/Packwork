@@ -24,20 +24,31 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 | `1.0.0+mc1.21.11` | `build/libs/packwork-1.0.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
 | `1.0.0+mc26.1.2` | `build/libs/packwork-1.0.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
 | `1.0.0+mc26.2` | `build/libs/packwork-1.0.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
+| `1.0.0+mc26.1-fabric` | `build/libs/packwork-1.0.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
+| `1.0.0+mc26.2-fabric` | `build/libs/packwork-1.0.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
 
+The loader column matters now — same version string, different loader tag per file.
 Needed on both sides: on servers, install on the server and every client. Each port
 branch builds its own jar (`./gradlew.bat build` on that branch); every jar's own
-`neoforge.mods.toml` carries the matching `1.0.0+mc<ver>` version, so the uploads
-are distinguishable at a glance in any launcher.
+`neoforge.mods.toml` / `fabric.mod.json` carries the matching full version, so the
+uploads are distinguishable at a glance in any launcher. The Fabric jars need
+**Fabric API** (declared in-file; every launcher resolves it) — nothing else, ever.
 
 One capability note per version, for support questions: on **1.21.10 and newer** the
 pack's stores speak NeoForge's new transfer-API capabilities (the 21.9 rework) - any
 mod's pipes and cables that target those versions use the same standard, so automation
 against a placed pack works exactly as on 1.21.1 (on 26.1.2 and 26.2 the pack's
-internals ride that API natively). The **Mekanism gas store and the Forgework Flux
-bridge light only on 1.21.1** for now - neither mod ships builds for the newer lines;
-the gates simply stay dark there (no dead craftables: the Flask Harness recipe
-requires Mekanism to be present).
+internals ride that API natively). On **Fabric** the same stores speak Fabric's
+transfer API, and the Charge Crystal's energy face is **Team Reborn Energy** (the
+Fabric ecosystem's standard, bundled inside the jar - not a mod to install; 1 E = 1
+FE, same numbers). The wear slot is **Curios on NeoForge, Trinkets on Fabric** (both
+optional; B / Shift-B work without either). The **Mekanism gas store and the
+Forgework Flux bridge light only on NeoForge 1.21.1** - neither mod ships for the
+newer lines or for Fabric; the gates simply stay dark everywhere else (no dead
+craftables: the Flask Harness recipe requires Mekanism to be present). JEI works on
+every listed version and both loaders; EMI ships no 26.x build yet - when it does,
+the pack's recipes already sync to clients with vanilla displays, but the drawn
+upgrade-ring extension is JEI's.
 
 **Migration notes for this release:** none — first release.
 
@@ -135,9 +146,10 @@ trinkets, tiers, and the stores, with every number pulled live from the code.
 
 Sneak-right-click to stand a pack in the world — leather and brass, wearing its tier's
 own trim (twine, studs, plates, glowing runes, or the Sculkhide's echo-lit hide). Break
-it and you get the pack back with everything still inside. A placed pack speaks
-NeoForge's own item, fluid, and energy capabilities, so hoppers, pipes, and cables feed
-it with no bridge block — and piped-in items auto-file into the right compartment,
+it and you get the pack back with everything still inside. A placed pack speaks your
+loader's own standard item, fluid, and energy interfaces (NeoForge capabilities;
+Fabric's transfer API with Team Reborn Energy), so hoppers, pipes, and cables feed it
+with no bridge block — and piped-in items auto-file into the right compartment,
 because the sorting is virtual over one store.
 
 ## 🤝 Needs nothing, plays with everything
@@ -146,9 +158,9 @@ because the sorting is virtual over one store.
 
 - **JEI** — every craft renders as a real recipe (the tier rings included), plus info
   pages for every pack, trinket, and the handbook.
-- **Curios** — wear the pack in the back slot and open it right off your shoulders: B
-  finds it when your pockets hold no pack, Shift-B opens the worn one outright, and its
-  trinkets keep working worn.
+- **Curios (NeoForge) / Trinkets (Fabric)** — wear the pack in the back slot and open
+  it right off your shoulders: B finds it when your pockets hold no pack, Shift-B opens
+  the worn one outright, and its trinkets keep working worn.
 - **Mekanism** — the Flask Harness becomes a real chemical tank its pipes can fill.
 - **Forgework** — Flux cables charge a placed pack, 1 Flux = 1 FE, and the Charge
   Crystal tops up carried Forgework terminals.
@@ -158,12 +170,15 @@ Remove any of them and Packwork carries on without it.
 
 ## ⚙️ Requirements & honest notes
 
-- **Now available for 1.21.1, 1.21.8, 1.21.10, 1.21.11, 26.1.2, and 26.2 on NeoForge**
-  (21.1.235+ / 21.8.54+ / 21.10.64+ / 21.11.45+ / 26.1.2.95+ / 26.2.0.59+ respectively);
-  more versions and loaders coming. No other dependencies, ever.
-- On 1.21.8+, Mekanism (the gas store) and Forgework (the Flux bridge) don't ship for
-  those Minecraft versions yet, so those two integrations light up on 1.21.1 only.
-  JEI and Curios work on every listed version.
+- **Now available on NeoForge AND Fabric.** NeoForge: 1.21.1, 1.21.8, 1.21.10,
+  1.21.11, 26.1.2, and 26.2 (21.1.235+ / 21.8.54+ / 21.10.64+ / 21.11.45+ /
+  26.1.2.95+ / 26.2.0.59+ respectively). Fabric: 26.1.x and 26.2 (loader 0.19.3+,
+  Fabric API). No other dependencies, ever — on Fabric the little energy-standard
+  library rides inside the jar.
+- On 1.21.8+ and on Fabric, Mekanism (the gas store) and Forgework (the Flux bridge)
+  don't ship for those platforms, so those two integrations light up on NeoForge
+  1.21.1 only. JEI works everywhere listed; the wear slot is Curios on NeoForge and
+  Trinkets on Fabric (both optional — B and Shift-B work without either).
 - The pack never voids anything on failure. The only trash path is the Compass Rose,
   and it's opt-in per item.
 
