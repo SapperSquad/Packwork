@@ -1,5 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": ["SLS", "LCL", "SLS"],
-  "key": { "S": { "item": "minecraft:string" }, "L": { "item": "minecraft:leather" },
-           "C": { "item": "minecraft:crafting_table" } },
+  "key": { "S": "minecraft:string", "L": "minecraft:leather",
+           "C": "minecraft:crafting_table" },
   "result": { "id": "packwork:tinkers_kit", "count": 1 } }

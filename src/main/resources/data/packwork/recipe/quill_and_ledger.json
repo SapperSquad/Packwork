@@ -1,4 +1,4 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": [" Q ", "BLB"],
-  "key": { "Q": { "item": "minecraft:feather" }, "B": { "item": "minecraft:book" }, "L": { "item": "minecraft:leather" } },
+  "key": { "Q": "minecraft:feather", "B": "minecraft:book", "L": "minecraft:leather" },
   "result": { "id": "packwork:quill_and_ledger", "count": 1 } }

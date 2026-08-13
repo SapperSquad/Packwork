@@ -1,4 +1,4 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": ["WLW", "LEL", "WLW"],
-  "key": { "W": { "item": "minecraft:phantom_membrane" }, "L": { "item": "minecraft:leather" }, "E": { "item": "minecraft:ender_pearl" } },
+  "key": { "W": "minecraft:phantom_membrane", "L": "minecraft:leather", "E": "minecraft:ender_pearl" },
   "result": { "id": "packwork:bottomless_lining", "count": 1 } }

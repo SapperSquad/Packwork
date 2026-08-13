@@ -1,4 +1,4 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": [" C ", "CLC", " R "],
-  "key": { "C": { "item": "minecraft:copper_ingot" }, "L": { "item": "minecraft:compass" }, "R": { "item": "minecraft:redstone" } },
+  "key": { "C": "minecraft:copper_ingot", "L": "minecraft:compass", "R": "minecraft:redstone" },
   "result": { "id": "packwork:compass_rose", "count": 1 } }
