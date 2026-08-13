@@ -2,6 +2,76 @@
 
 Judgment calls already made, with reasons. Reopen only with new evidence, and say so.
 
+## 2026-08-13 — the Fabric port (this branch; reach campaign wave 3)
+
+- **A parallel `fabric/26.1` branch, NOT a multiloader/Architectury refactor.** The
+  loader-coupled surface is ~15 files out of ~60; a shared-source restructure would touch
+  every file, destabilize six green NeoForge branches mid-campaign, and buy nothing until
+  a second Fabric target exists. 26.x being unobfuscated is what makes the parallel branch
+  cheap: vanilla names are identical across loaders, so the sorting engine, GUI, recipes,
+  menus, and store math carried over untouched — only the plumbing differs. Revisit if the
+  target count keeps growing and the branches start drifting on FEATURES rather than
+  plumbing.
+
+- **Energy face = Team Reborn Energy, jar-in-jar.** Fabric has no first-party energy
+  standard; Reborn Energy is the ecosystem's de facto one and is DESIGNED to be bundled
+  (its own README says `include`). This is the Fabric idiom of "standard capabilities
+  first" — the Charge Crystal gets an automation face any Fabric tech mod can talk to, and
+  the tiny API rides inside our jar so it is never a content dep the player installs. The
+  `pack_energy` component is byte-identical to the NeoForge branches; 1 E = 1 FE; tier
+  caps unchanged. NOT a hard content dependency and not a tech-tree drift — the crystal
+  stays a copper-wound crystal.
+
+- **Wear slot = Trinkets Updated (Patbox fork), gated on the `trinkets` id it provides.**
+  The original Trinkets ends at 1.21.1 and Accessories at 1.21.10 (checked Modrinth
+  2026-08-13); the fork carries the Fabric wear-slot standard on 26.x (149k downloads).
+  It ships a built-in `chest/back` slot but NO entity bindings — its loader reads
+  bindings ONLY from the `trinkets` namespace (verified in the jar's bytecode), so
+  Packwork ships `data/trinkets/entities/packwork_back.json` (player -> chest/back) plus
+  the `trinkets:chest/back` item tag admitting the packs. One importing class
+  (`compat/trinkets/TrinketsCompat`), never classloaded without the mod; B/Shift-B
+  fallthrough unchanged without it.
+
+- **Shift-B rides a live GLFW shift poll on the OPEN binding.** Fabric has no
+  NeoForge-style key-modifier system, so out of the box Shift-B = worn-first exactly as
+  on NeoForge; OPEN_WORN stays a separate rebindable mapping, unbound by default, for
+  players who want worn-open on its own key.
+
+- **Gas stays absent on Fabric — the gate stays dark, no dead craftables.** Mekanism and
+  Forgework are NeoForge-only, so their compat classes do not exist on this branch. The
+  Flask Harness recipe is `fabric:load_conditions`-gated on mekanism (never true here),
+  the creative tab hides the fitting, and the `pack_chemical` component still
+  loads/saves so nothing is ever voided (pause, never punish). The two gated gametests
+  now pin that the gates stay dark.
+
+- **Three mixins, no more** — Fabric has no event for exactly three hooks the trinkets
+  need: pack-first pickup (`ItemEntity.playerTouch` HEAD), the Angler's Creel (redirect
+  of the fishing loot roll), and Quick-Draw (`LivingEntity.onEquippedItemBroken` TAIL).
+  Everything else rides Fabric API events/lookups. One honest narrowing: NeoForge's
+  PlayerDestroyItemEvent also refilled a stack USED to nothing; the Fabric refill is
+  break-only (the trinket's core promise). One classtweaker line opens
+  `ShapedRecipe.pattern` (private in pure vanilla; NeoForge patches it) for the tool
+  roll's shaped-grid arrangement.
+
+- **JEI on Fabric needs TWO wires the NeoForge branches never did** (both found by the
+  autoshot, both invisible to the compile): (1) JEI-Fabric discovers plugins through the
+  `jei_mod_plugin` entrypoint in fabric.mod.json, not the `@JeiPlugin` annotation scan —
+  entrypoints resolve lazily, so the one-importing-class gate still holds without JEI.
+  (2) JEI-Fabric's crafting index reads the CLIENT's synced RecipeMap, and fabric-api's
+  recipe sync is OPT-IN per serializer (`RecipeSynchronization.synchronizeRecipeSerializer`)
+  — without it the pack ladder rendered as info pages but never as real recipes, the exact
+  wave-4 failure in Fabric clothes. The autoshot's index probe (`crafting index holds N
+  pack-upgrade recipes`) is now part of the harness so a regression is greppable.
+
+- **Fluid stays millibuckets in the component; droplets only at the transfer face.**
+  `pack_fluid` keeps the same serialized shape as the NeoForge branches
+  (id/amount/components, mB), so the GUI math, tier capacities, and store copy read
+  identically on both loaders. `PackFluidHandler` converts at the native face (81
+  droplets/mB) and only ever moves whole millibuckets, so rounding can neither strand
+  nor mint a droplet. Bucket moves are exact; water bottles are not fluid containers in
+  Fabric's standard (fractional 27000-droplet bottles) and the gauge click simply
+  no-ops on them, same as any non-container.
+
 - **Name: Packwork.** Chosen by SapperSquad 2026-07-23 (theme: "Explorer's Pack"), from a slate
   that included Trailkeep, Bindle, and Haversack. Renameable like other suite mods, but
   this is the pick — don't churn on it without a reason. Matches the Forgework/Pantrywork

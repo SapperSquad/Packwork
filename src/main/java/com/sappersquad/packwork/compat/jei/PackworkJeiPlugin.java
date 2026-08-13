@@ -32,9 +32,11 @@ import java.util.List;
 
 /**
  * The ONLY class in Packwork allowed to import {@code mezz.jei.*}. It is never referenced by
- * mod code - JEI discovers it by the {@link JeiPlugin} annotation and loads it only when JEI
- * itself is present, so it can't classload without the mod (the same self-gating every JEI
- * plugin relies on; no ModList check needed).
+ * mod code - on FABRIC, JEI discovers plugins through the {@code jei_mod_plugin} entrypoint
+ * in {@code fabric.mod.json} (not the annotation scan the NeoForge branches rely on; found
+ * the hard way when the autoshot's ring view stayed shut). Fabric entrypoints resolve
+ * LAZILY - only JEI ever queries that key - so without JEI the class still never classloads
+ * and the one-class gate holds. The {@link JeiPlugin} annotation stays for parity.
  *
  * <p>Two jobs:
  * <ul>
@@ -103,6 +105,13 @@ public class PackworkJeiPlugin implements IModPlugin {
             Packwork.LOGGER.warn("[autoshot][jei] runtime not available yet");
             return;
         }
+        // Index probe: how many pack upgrades does JEI's own crafting index hold?
+        long indexed = rt.getRecipeManager()
+                .createRecipeLookup(mezz.jei.api.constants.RecipeTypes.CRAFTING)
+                .get()
+                .filter(h -> h.value() instanceof PackUpgradeRecipe)
+                .count();
+        Packwork.LOGGER.info("[autoshot][jei] crafting index holds {} pack-upgrade recipes", indexed);
         rt.getRecipesGui().show(rt.getJeiHelpers().getFocusFactory().createFocus(
                 RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK,
                 new ItemStack(ModItems.pack(PackTier.STUDDED).get())));

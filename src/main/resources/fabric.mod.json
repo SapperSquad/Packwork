@@ -21,6 +21,9 @@
         ],
         "client": [
             "com.sappersquad.packwork.client.PackworkClient"
+        ],
+        "jei_mod_plugin": [
+            "com.sappersquad.packwork.compat.jei.PackworkJeiPlugin"
         ]
     },
     "mixins": [
