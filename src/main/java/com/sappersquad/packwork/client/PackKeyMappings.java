@@ -59,7 +59,7 @@ public final class PackKeyMappings {
         @SubscribeEvent
         public static void onTick(ClientTickEvent.Post event) {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.player == null || mc.screen != null) return;
+            if (mc.player == null || mc.gui.screen() != null) return;
             while (OPEN_WORN.consumeClick()) {
                 ClientPacketDistributor.sendToServer(new OpenPackPayload(-1, true));
             }
