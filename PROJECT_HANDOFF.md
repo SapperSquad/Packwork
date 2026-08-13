@@ -14,13 +14,13 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Version ports — the reach campaign (wave 1 DONE, 2026-08-13)
+## Version ports — the reach campaign (waves 1+2 DONE, 2026-08-13)
 
 Downloads track version×loader coverage, not quality (measured: Pantrywork 519 @ 13
-combos vs Packwork 32 @ 1), so 1.0.0 is being spread wide. **Wave 1 (this): NeoForge
-1.21.8 / 1.21.10 / 1.21.11 — all three DONE.** Wave 2 = NeoForge 26.1/26.2; wave 3 =
-Fabric. Master stays the 1.21.1 line; each port lives on its own branch. Do NOT
-restructure to multiloader yet (coordinator's call for this campaign).
+combos vs Packwork 32 @ 1), so 1.0.0 is being spread wide. **Wave 1: NeoForge
+1.21.8 / 1.21.10 / 1.21.11 — DONE. Wave 2: NeoForge 26.1.2 / 26.2 — DONE.**
+Wave 3 = Fabric (open). Master stays the 1.21.1 line; each port lives on its own
+branch. Do NOT restructure to multiloader yet (coordinator's call for this campaign).
 
 ### Branch layout and toolchain pins
 
@@ -30,17 +30,117 @@ restructure to multiloader yet (coordinator's call for this campaign).
 | `port/1.21.8` | 1.21.8 | 21.8.54 | 2025.09.14 | 24.2.0.6 | 12.0.0+1.21.8 | `packwork-1.0.0+mc1.21.8.jar` |
 | `port/1.21.10` | 1.21.10 | 21.10.64 | 2025.10.12 | 26.3.0.31 | 13.0.0+1.21.10 | `packwork-1.0.0+mc1.21.10.jar` |
 | `port/1.21.11` | 1.21.11 | 21.11.45 | 2025.12.20 | 27.23.0.71 | 14.0.0+1.21.11 | `packwork-1.0.0+mc1.21.11.jar` |
+| `port/26.1` | 26.1.2 | 26.1.2.95 | — (unobf) | 29.22.0.73 | 15.0.0+26.1.2 | `packwork-1.0.0+mc26.1.2.jar` |
+| `port/26.2` | 26.2 | 26.2.0.59 | — (unobf) | 30.20.0.154 | 16.0.0+26.2 | `packwork-1.0.0+mc26.2.jar` |
 
-All four: NeoGradle userdev 7.1.38 (unchanged — the official 1.21.11 MDK still uses
-it), Gradle 9.6.1, JDK 21. **Mekanism and Forgework ship no builds past 1.21.1**
-(checked modmaven + CurseForge 2026-08-12), so on every port branch those two gates
-simply never light; their compat classes still compile against the pinned 1.21.1
-API jars. Port branches carry `version = "${mod_version}+mc${minecraft_version}"` in
-`build.gradle` and the datagen run is `runClientData` (NeoForge 21.4+ split datagen).
+All six: NeoGradle userdev 7.1.38 (unchanged — the official MDKs through 26.2 still
+use it), Gradle 9.6.1. JDK: 21 through 1.21.11; **Java 25 from 26.1** (Mojang ships
+25; the foojay resolver already in settings.gradle auto-provisioned Adoptium 25 into
+`~/.gradle/jdks` — nothing to install by hand, the house daemon-JDK worry didn't
+bite on NeoForge). Parchment ends at 1.21.11: 26.x is unobfuscated, nothing to map.
+NeoForge 26.x versioning: the first THREE components are the MC version (26.1.2.95 =
+MC 26.1.2); the 26.2 line is beta-numbered on the maven but the artifact id carries
+no suffix. **Mekanism and Forgework ship no builds past 1.21.1** (re-checked modmaven
+2026-08-13), so on every port branch those two gates simply never light; their compat
+classes still compile against the pinned 1.21.1 API jars. Port branches carry
+`version = "${mod_version}+mc${minecraft_version}"` in `build.gradle` and the datagen
+run is `runClientData` (NeoForge 21.4+ split datagen).
 Bar per branch: `compileJava` clean, `runClientData` clean, **58/58 gametests
 (57 packwork + vanilla's always_pass) × plain / -Pcurios / -Pjei -Pcurios**, jar built
 with the right name AND `version="1.0.0+mc<ver>"` inside its `neoforge.mods.toml`.
-The 1.21.11 branch additionally had its GUI verified as pixels via `-Pautoshot`.
+The 1.21.11 and 26.1 branches had the full GUI verified as pixels via `-Pautoshot`
+(26.2 got a spot-check: pack GUI + placed trim, identical to 26.1's set).
+
+### The drift map, 1.21.11 → 26.2 (wave 2's findings — wave 3 starts from this)
+
+Wave 2 was far lighter than wave 1 (82 compile errors to 26.1.2, then 36 to 26.2)
+because port/1.21.11 already carried the 26.x-era foundations. What actually moved:
+
+- **26.1 vanilla, the big one — `ItemContainerContents` rebuilt on
+  `ItemStackTemplate`, and every stack-shaped read now runs `ItemStack.validateStrict`,
+  which NULLS any count past the item's own max stack size.** A 384-deep Sculkhide
+  slot stored fine and read back EMPTY — five depth gametests caught it (the compile
+  was green; only the suite saw it). The store now rides Packwork's own holder,
+  **`pack/PackContents`** (same shape, no validation on read, template wire codec with
+  raw VarInt counts); `DeepContentsCodec` kept the exact serialized form — 1.21.x-era
+  saves read intact, the pre-depth legacy fallback still works, and 26.1's
+  `ItemStackTemplate.MAP_CODEC` omits count-1 so the item field is byte-identical to
+  the old `SINGLE_ITEM_CODEC` shape.
+- **The native-transfer rewrite (the wave-2 mandate) landed with it.** `PackInventory`
+  IS the transactional `ResourceHandler` now — one implementation of the three rules
+  (per-slot DEPTH via `getCapacity`, NESTING refusal via `isValid`, ONE-VANILLA-STACK
+  extract via the `extract` clamp) shared by the standard capability, the menu,
+  trinkets, and sorting; `PackTransfer.PackItemHandler` and `LiveComponentHandler` are
+  gone. The legacy-shaped conveniences (`insertItem`/`extractItem`/`getStackInSlot`/
+  `setStackInSlot`) each run one root `Transaction` over the native path, so the
+  gametest bodies stayed word-for-word and green means the same thing. The menu binds
+  a live `ItemAccess` per host — `forPlayerSlot` (carried) / `VanillaContainerWrapper`
+  over the host container (placed, worn, client mirror) — commits restore the
+  component patch onto the ORIGINAL stack instance and fire `setChanged`, which is
+  exactly the old live-supplier contract. Trinket sockets ride `ResourceHandlerSlot`;
+  the waterskin gauge click is a native two-way `ResourceHandlerUtil.move` on a
+  one-count copy in its own holder (one container per click, conservation intact).
+  **Trap for any ItemAccess-handler subclass:** `ItemAccessItemHandler` captures its
+  access item at CONSTRUCTION (`validItem`) — a client menu builds a tick before its
+  host stack syncs, so the capture is AIR and every read is dead forever (the Phase-1
+  resolve-live lesson in native clothing; it showed as empty trinket sockets in the
+  autoshot). Override `getResourceFrom`/`getAmountFrom`/`isValid` to re-derive.
+- **26.1 vanilla, mechanical:** `GuiGraphics` → `GuiGraphicsExtractor` (same package;
+  draw verbs renamed: drawString→`text`, drawCenteredString→`centeredText`,
+  renderOutline→`outline`, renderItem→`item`, renderFakeItem→`fakeItem`,
+  renderItemDecorations→`itemDecorations`, drawWordWrap→`textWithWordWrap`; `blit`/
+  `blitSprite`/`fill`/scissor/pose survive). Screens: `render` →
+  `extractRenderState`, `renderBg` is structurally DEAD — container panels draw in
+  `extractBackground` (own stratum, composed by the frame; the old
+  renderBg-only-fires-from-renderBackground trap can't exist), `renderLabels` →
+  `extractLabels`, widgets `renderWidget` → public `extractWidgetRenderState`;
+  `imageWidth/Height` are final ctor args. **The gui renderer honours ALPHA now: a
+  0xRRGGBB color renders fully transparent** (the pack title and page indicator
+  vanished; always 0xFFRRGGBB). `ClickType` → `ContainerInput` (same constants);
+  `handleInventoryMouseClick` → `handleContainerInput`. `RecipeSerializer` is a
+  RECORD of (codec, streamCodec); `assemble` lost its registry arg;
+  `group()`/`showNotification()` went abstract; `SlotDisplay.ItemStackSlotDisplay`
+  takes `ItemStackTemplate`, `ItemSlotDisplay` takes `Holder<Item>`.
+  `registerItem/Block` third arg is a `Supplier`/`UnaryOperator` of Properties.
+  `nonEmptyStream` → `nonEmptyItemCopyStream`; `getCraftingRemainder` returns
+  nullable `ItemStackTemplate`; `ItemStack.SINGLE_ITEM_CODEC` gone (template map
+  codec is the drop-in). **Constructing an `ItemStack` in a static initializer now
+  throws "Components not bound yet"** (components bind to the registry holder after
+  freeze; `@EventBusSubscriber` classes classload during scan) — build such stacks
+  lazily. Fluid client info moved off `IClientFluidTypeExtensions` onto `FluidModel`
+  (`modelManager.getFluidStateModelSet().get(state)` → `stillMaterial().sprite()` +
+  `fluidTintSource().colorAsStack(stack)`). World time rides the CLOCK system
+  (`server.clockManager().setTotalTicks(overworldClock, t)`); `LevelSettings` folds
+  difficulty/hardcore into `DifficultySettings` and dropped GameRules;
+  `Minecraft.resizeDisplay` → `resizeGui`. NeoForge: `BlockEvent.BreakEvent` →
+  `event.level.block.BreakBlockEvent` (fires both sides; guard on ServerPlayer).
+- **26.2 (from 26.1) was ONE family:** the screen layer moved onto `Gui` —
+  `mc.screen` → `mc.gui.screen()`, `mc.setScreen` → `mc.gui.setScreen`,
+  `Options.hideGui` → `mc.gui.hud.toggle()`/`isHidden()`, `getMainRenderTarget` →
+  `gameRenderer.mainRenderTarget()`. Nothing else; zero storage/menu code changed.
+- **The deprecated legacy transfer layer still SHIPS in both 26.1.2.95 and 26.2.0.59**
+  (checked the class lists) — wave 1's "26.x removes it" expectation has not landed
+  yet. Packwork no longer cares: main code is native; the only deprecated-API riders
+  left are the gametest assertion views (`IItemHandler.of` et al), PackFluidHandler's
+  FluidAction convenience overloads (kept so test bodies stay word-for-word), and the
+  dormant 1.21.1-only compat classes.
+
+**Wave 3 (Fabric) notes:** the expensive thinking is already done. The storage
+internals are loader-agnostic in SHAPE — Fabric's transfer API is the same
+transactional design NeoForge's new one copied (`Transaction`, per-slot insert/
+extract, snapshot journals), so `PackContents` ports verbatim and `PackInventory`
+maps onto a `Storage<ItemVariant>` with the same three overrides; the legacy-shaped
+conveniences keep the menu/trinkets/sorting/test bodies identical. What Fabric has
+NO equivalent for: NeoForge data-component TYPE registration is `DeferredRegister.
+DataComponents` (Fabric registers straight into the registry), the capability
+events (Fabric uses API lookups), `ItemAccess` (Fabric's `ContainerItemContext` is
+the analogue — same idea, commit-mutates-the-source), and the config/event bus
+plumbing. Energy has no vanilla-Fabric standard: team Reborn Energy or skip the FE
+store's automation face on Fabric (the component + gauge still work). Curios ↔
+Trinkets (Fabric) is a different API with the same shape. JEI ships Fabric builds
+(same version lines). Start from `port/26.x` for MC-version drift, but expect the
+loader plumbing (registration, events, network, menus/screens host wiring) to be
+the actual cost — the GUI, sorting engine, recipes, and store math are untouched.
 
 ### The drift map, 1.21.1 → 1.21.11 (what broke where — wave 2 starts from this)
 
