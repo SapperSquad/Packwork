@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "packwork:curios_back_slot_gated",
+  "function": "packwork:trinkets_back_slot_gated",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 400

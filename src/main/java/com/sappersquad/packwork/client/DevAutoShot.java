@@ -16,19 +16,15 @@ import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
  * Dev-only visual harness. With {@code -Dpackwork.autoshot=1} the client boots a
  * throwaway creative world, fills a pack with a spread across every tab, opens it,
- * and drops screenshots into {@code run/client/screenshots/} so the GUI can be
+ * and drops screenshots into {@code run/screenshots/} so the GUI can be
  * eyeballed headlessly (the gradle dev window can't be driven by desktop tooling).
- * Never runs in production - the whole class is gated on the system property.
+ * Never runs in production - the client entrypoint only registers this class when
+ * the system property is set.
  */
-@EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
 public final class DevAutoShot {
 
     private static final boolean AUTOSHOT = System.getProperty("packwork.autoshot") != null;
@@ -77,8 +73,13 @@ public final class DevAutoShot {
     private static net.minecraft.core.BlockPos placedMiddle = null;
     private static net.minecraft.core.BlockPos placedLast = null;
 
-    @SubscribeEvent
-    public static void onTick(ClientTickEvent.Post event) {
+    /** Hook the client tick (called from the client entrypoint, property-gated). */
+    public static void register() {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                DevAutoShot::onTick);
+    }
+
+    private static void onTick(Minecraft mcTick) {
         if (!ENABLED || phase == Phase.DONE) return;
         Minecraft mc = Minecraft.getInstance();
         ticks++;
@@ -422,7 +423,7 @@ public final class DevAutoShot {
                 phase = Phase.JEI_SHOW; wait = 0;
             }
             case JEI_SHOW -> {
-                if (!net.neoforged.fml.ModList.get().isLoaded("jei")) {
+                if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("jei")) {
                     Packwork.LOGGER.info("[autoshot][jei] JEI absent - skipping the recipe shot");
                     phase = Phase.DONE;
                     Packwork.LOGGER.info("[autoshot] done - screenshots written");
@@ -604,7 +605,7 @@ public final class DevAutoShot {
                 phase = Phase.G_JEI; wait = 0;
             }
             case G_JEI -> {
-                if (!net.neoforged.fml.ModList.get().isLoaded("jei")) {
+                if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("jei")) {
                     Packwork.LOGGER.info("[gallery] JEI absent - skipping the ring shot");
                     phase = Phase.DONE;
                     Packwork.LOGGER.info("[gallery] done - shots written");
@@ -920,17 +921,15 @@ public final class DevAutoShot {
             // half-fill the waterskin so the gauge shows a fluid level
             var tank = new com.sappersquad.packwork.pack.PackFluidHandler(
                     pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
-            tank.fill(new net.neoforged.neoforge.fluids.FluidStack(
-                            net.minecraft.world.level.material.Fluids.WATER,
-                            com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) / 2),
-                    net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+            tank.fill(net.minecraft.world.level.material.Fluids.WATER,
+                    com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) / 2, false);
 
             sp.getInventory().setItem(0, pack);
             sp.getInventory().setSelectedSlot(0);
 
-            // Curios (optional): prove the pack wears in the back slot (gated; logs the result).
-            if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
-                com.sappersquad.packwork.compat.curios.CuriosCompat.devEquip(sp, pack.copy());
+            // Trinkets (optional): prove the pack wears in the back slot (gated; logs the result).
+            if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
+                com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devEquip(sp, pack.copy());
             }
 
             PackItem.openPack(sp, 0);
@@ -1072,10 +1071,24 @@ public final class DevAutoShot {
             if (sp.level().getBlockEntity(placedMiddle)
                     instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
                 net.minecraft.core.BlockPos pos = placedMiddle;
-                sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                                (id, inv, pl) -> PackMenu.serverForBlock(id, inv, be),
-                                be.getPackStack().getHoverName()),
-                        buf -> PackItem.writeBlockHost(buf, pos, be.getTier()));
+                sp.openMenu(new net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider<com.sappersquad.packwork.net.PackOpenData>() {
+                    @Override
+                    public net.minecraft.network.chat.Component getDisplayName() {
+                        return be.getPackStack().getHoverName();
+                    }
+
+                    @Override
+                    public net.minecraft.world.inventory.AbstractContainerMenu createMenu(
+                            int id, net.minecraft.world.entity.player.Inventory inv,
+                            net.minecraft.world.entity.player.Player pl) {
+                        return PackMenu.serverForBlock(id, inv, be);
+                    }
+
+                    @Override
+                    public com.sappersquad.packwork.net.PackOpenData getScreenOpeningData(ServerPlayer p) {
+                        return com.sappersquad.packwork.net.PackOpenData.block(pos, be.getTier().ordinal());
+                    }
+                });
             }
         });
     }

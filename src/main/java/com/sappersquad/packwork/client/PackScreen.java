@@ -20,8 +20,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.neoforged.neoforge.fluids.FluidStack;
+import com.sappersquad.packwork.pack.PackFluidContent;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -554,11 +553,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * ("64" + "384" read as one smear). For a pack cell holding more than two digits, draw the
      * EXACT number at 3/4 scale instead - "384" fits inside its own 16px cell with room to
      * spare, and the numbers stay exact (no "2.5K" rounding) as preferred.
+     *
+     * <p>(Fabric: {@code renderSlotContents(..., countString)} was the NeoForge-patched seam;
+     * pure vanilla's per-slot hook is {@code extractSlot}. The deep branch draws the plain
+     * item + decorations itself - only while the cursor is empty, so every quickcraft /
+     * drag state still renders through vanilla untouched.)
      */
     @Override
-    protected void renderSlotContents(GuiGraphicsExtractor g, ItemStack stack, Slot slot, String countString) {
-        if (slot instanceof PackViewSlot && countString == null && stack.getCount() > 99) {
-            super.renderSlotContents(g, stack, slot, "");   // item + durability bar, no count
+    protected void extractSlot(GuiGraphicsExtractor g, Slot slot, int mouseX, int mouseY) {
+        ItemStack stack = slot.getItem();
+        if (slot instanceof PackViewSlot && stack.getCount() > 99 && menu.getCarried().isEmpty()) {
+            g.item(stack, slot.x, slot.y, slot.x + slot.y * this.imageWidth);
+            g.itemDecorations(this.font, stack, slot.x, slot.y, "");  // durability bar, no count
             String txt = String.valueOf(stack.getCount());
             g.pose().pushMatrix();                          // Matrix3x2fStack in 1.21.6+ (2D)
             g.pose().translate(slot.x + 17f, slot.y + 16f);
@@ -567,7 +573,16 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             g.pose().popMatrix();
             return;
         }
-        super.renderSlotContents(g, stack, slot, countString);
+        super.extractSlot(g, slot, mouseX, mouseY);
+    }
+
+    // NeoForge-extension-shaped accessors the dev harness uses (leftPos/topPos are protected).
+    public int getGuiLeft() {
+        return this.leftPos;
+    }
+
+    public int getGuiTop() {
+        return this.topPos;
     }
 
     /** Append a "[P] Pin to this tab" line to a hovered grid item's tooltip, so it's discoverable. */
@@ -1019,7 +1034,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
         // Gas store: only meaningful with Mekanism, so the gauge appears only when it's loaded.
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
-                && net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
+                && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("mekanism")) {
             flaskGaugeRect = new int[]{x, y, w, h};
             drawFlaskGauge(g, x, y, w, h);
         }
@@ -1037,7 +1052,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL)) n++;
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL)) n++;
         if (menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS)
-                && net.neoforged.fml.ModList.get().isLoaded("mekanism")) n++;
+                && net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("mekanism")) n++;
         return n;
     }
 
@@ -1084,17 +1099,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private void drawFluidGauge(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         gaugeFrame(g, x, y, w, h, 0xFF20303A);
-        FluidStack fs = menu.fluidStack();
+        PackFluidContent fs = menu.fluidStack();
         int cap = menu.fluidCapacity();
         if (!fs.isEmpty() && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
-            // 26.1: fluid client info moved off IClientFluidTypeExtensions onto FluidModel
-            // (still sprite + tint source), resolved through the model manager's set.
+            // 26.1: the still sprite comes off the vanilla FluidModel set; the tint comes
+            // from Fabric's fluid-variant rendering (water's biome-free GUI color).
             var fluidModel = Minecraft.getInstance().getModelManager().getFluidStateModelSet()
                     .get(fs.getFluid().defaultFluidState());
             TextureAtlasSprite sprite = fluidModel.stillMaterial().sprite();
-            var tintSource = fluidModel.fluidTintSource();
-            int tint = 0xFF000000 | ((tintSource != null ? tintSource.colorAsStack(fs) : 0xFFFFFF) & 0xFFFFFF);
+            var variant = net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant.of(fs.getFluid(), fs.components());
+            int tint = 0xFF000000
+                    | (net.fabricmc.fabric.api.transfer.v1.client.fluid.FluidVariantRendering.getColor(variant) & 0xFFFFFF);
             for (int yy = 0; yy < filled; yy += 16) {
                 int hh = Math.min(16, filled - yy);
                 g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y + h - yy - hh, w, hh, tint);
@@ -1160,11 +1176,13 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             }
         }
         if (gaugeRect != null && inRect(mouseX, mouseY, gaugeRect[0], gaugeRect[1], gaugeRect[2], gaugeRect[3])) {
-            FluidStack fs = menu.fluidStack();
+            PackFluidContent fs = menu.fluidStack();
             List<Component> lines = new ArrayList<>();
             lines.add(Component.translatable("packwork.ui.waterskin"));
             if (fs.isEmpty()) lines.add(Component.translatable("packwork.ui.tank_empty").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
-            else lines.add(fs.getHoverName().copy().append(" - " + fs.getAmount() + " / " + menu.fluidCapacity() + " mB").withStyle(net.minecraft.ChatFormatting.GRAY));
+            else lines.add(net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariantAttributes.getName(
+                            net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant.of(fs.getFluid(), fs.components()))
+                    .copy().append(" - " + fs.getAmount() + " / " + menu.fluidCapacity() + " mB").withStyle(net.minecraft.ChatFormatting.GRAY));
             lines.add(Component.translatable("packwork.ui.tank_hint").withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
             g.setComponentTooltipForNextFrame(this.font, lines, mouseX, mouseY);
             return;

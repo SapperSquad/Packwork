@@ -20,8 +20,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.items.IItemHandler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -337,11 +335,10 @@ public class PackworkGameTests {
         helper.assertTrue(tank != null, "a Waterskin fits a tank");
 
         int cap = com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack);
-        var water = new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, cap + 5000);
-        int filled = tank.fill(water, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        int filled = tank.fill(net.minecraft.world.level.material.Fluids.WATER, cap + 5000, false);
         helper.assertTrue(filled == cap, "fill is clamped to capacity, got " + filled);
 
-        var drained = tank.drain(Integer.MAX_VALUE, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        var drained = tank.drain(Integer.MAX_VALUE, false);
         helper.assertTrue(drained.getAmount() == cap && drained.is(net.minecraft.world.level.material.Fluids.WATER),
                 "drains back exactly what was stored");
         helper.assertTrue(tank.getFluidInTank(0).isEmpty(), "tank empty after drain");
@@ -413,8 +410,7 @@ public class PackworkGameTests {
         ItemStack pack = waterskinPack();
         new com.sappersquad.packwork.pack.PackFluidHandler(pack,
                 com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
-                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 5000),
-                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                .fill(net.minecraft.world.level.material.Fluids.WATER, 5000, false);
         player.getInventory().setItem(0, pack);
         var menu = com.sappersquad.packwork.pack.PackMenu.server(9, player.getInventory(), 0);
 
@@ -533,26 +529,13 @@ public class PackworkGameTests {
         var crystal = energyCap(pack);
         helper.assertTrue(crystal != null && crystal.getEnergyStored() == 50_000, "crystal seeded with charge");
 
-        if (!net.neoforged.fml.ModList.get().isLoaded("forgework")) {
-            // no-op invariant: the bridge is gated, so nothing touches the charge here
-            helper.assertTrue(crystal.getEnergyStored() == 50_000,
-                    "without Forgework the bridge is inert - the crystal keeps its charge");
-            helper.succeed();
-            return;
-        }
-
-        // Forgework present: a Portable Ender Terminal fills from the crystal, 1:1.
-        var terminalItem = BuiltInRegistries.ITEM.getOptional(
-                Identifier.parse("forgework:portable_ender_terminal")).orElseThrow();
-        ItemStack terminal = new ItemStack(terminalItem);
-        int before = crystal.getEnergyStored();
-        // (26.1: the bridge takes the pack's own store now - same component the cap reads.)
-        int moved = com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.chargeItem(terminal,
-                new com.sappersquad.packwork.pack.PackEnergyStorage(() -> pack,
-                        com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pack),
-                        com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(pack)), 5_000);
-        helper.assertTrue(moved == 5_000, "moves the per-item cap of Flux, got " + moved);
-        helper.assertTrue(crystal.getEnergyStored() == before - moved, "FE leaves the crystal 1:1, none minted or lost");
+        // Forgework is NeoForge-only: on the Fabric branch the gate can never light, its
+        // compat class does not exist, and this test pins the no-op invariant - nothing
+        // touches the charge. (The bridge's live half runs on the NeoForge branches.)
+        helper.assertTrue(!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("forgework"),
+                "forgework cannot exist on the Fabric branch");
+        helper.assertTrue(crystal.getEnergyStored() == 50_000,
+                "without Forgework the bridge is inert - the crystal keeps its charge");
         helper.succeed();
     }
 
@@ -611,8 +594,7 @@ public class PackworkGameTests {
         sockets.insertItem(1, new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.SOUL_VIAL).get()), false);
         sockets.insertItem(2, new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.CHARGE_CRYSTAL).get()), false);
         new com.sappersquad.packwork.pack.PackFluidHandler(pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
-                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 3000),
-                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                .fill(net.minecraft.world.level.material.Fluids.WATER, 3000, false);
         pack.set(ModComponents.PACK_XP.get(), 1234);
         pack.set(ModComponents.PACK_ENERGY.get(), 56789);
         pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY.withPins(
@@ -655,10 +637,11 @@ public class PackworkGameTests {
         helper.getBlockEntity(p, com.sappersquad.packwork.block.PackContainerBlockEntity.class)
                 .setPackStack(new ItemStack(ModItems.pack(PackTier.CANVAS).get()));
 
-        var blockHandler = helper.getLevel().getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Item.BLOCK, helper.absolutePos(p), null);
-        helper.assertTrue(blockHandler != null, "a placed pack exposes an item-handler capability");
-        IItemHandler cap = IItemHandler.of(blockHandler);
+        var blockHandler = net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.SIDED.find(
+                helper.getLevel(), helper.absolutePos(p), null);
+        helper.assertTrue(blockHandler != null, "a placed pack exposes an item-storage lookup");
+        IItemHandler cap = IItemHandler.of(
+                (net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant>) blockHandler);
         helper.assertTrue(cap.getSlots() == PackTier.CANVAS.capacity(), "handler is bounded to tier capacity");
 
         ItemStack leftover = cap.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
@@ -689,23 +672,18 @@ public class PackworkGameTests {
         helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
         helper.getBlockEntity(p, com.sappersquad.packwork.block.PackContainerBlockEntity.class).setPackStack(pack);
 
-        var feHandler = helper.getLevel().getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Energy.BLOCK, helper.absolutePos(p), null);
+        var feHandler = team.reborn.energy.api.EnergyStorage.SIDED.find(
+                helper.getLevel(), helper.absolutePos(p), null);
         helper.assertTrue(feHandler != null, "placed pack exposes standard energy when a Charge Crystal is fitted");
-        var fe = net.neoforged.neoforge.energy.IEnergyStorage.of(feHandler);
+        var fe = IEnergyStorage.of(feHandler);
         helper.assertTrue(fe.canReceive(), "the placed pack's reservoir accepts charge");
 
-        if (!net.neoforged.fml.ModList.get().isLoaded("forgework")) {
-            helper.succeed(); // FLOW_ENERGY only exists when Forgework is loaded
-            return;
-        }
-        var flow = helper.getLevel().getCapability(
-                com.forgework.registry.ModCapabilities.FLOW_ENERGY, helper.absolutePos(p), null);
-        helper.assertTrue(flow != null && flow.canReceive(), "placed pack speaks Forgework Flux under Forgework");
+        // ...and a standard-energy "cable push" lands 1:1 in the reservoir. (Forgework's own
+        // Flux cap is NeoForge-only; that half of this test runs on the NeoForge branches.)
         int before = fe.getEnergyStored();
-        int accepted = flow.receiveEnergy(5_000, false);
-        helper.assertTrue(accepted == 5_000, "Forgework Flux charges the pack, got " + accepted);
-        helper.assertTrue(fe.getEnergyStored() == before + accepted, "1 Flux == 1 FE into the reservoir");
+        int accepted = fe.receiveEnergy(5_000, false);
+        helper.assertTrue(accepted == 5_000, "standard energy charges the placed pack, got " + accepted);
+        helper.assertTrue(fe.getEnergyStored() == before + accepted, "1 E == 1 FE-equivalent into the reservoir");
         helper.succeed();
     }
 
@@ -749,42 +727,35 @@ public class PackworkGameTests {
         new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
                 new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.FLASK_HARNESS).get()), false);
 
-        if (!net.neoforged.fml.ModList.get().isLoaded("mekanism")) {
-            helper.succeed(); // the chemical cap only exists when Mekanism is loaded
-            return;
-        }
-        var cap = pack.getCapability(com.sappersquad.packwork.compat.mekanism.MekanismChemicalStore.ITEM);
-        helper.assertTrue(cap != null && cap.getChemicalTanks() == 1, "Flask Harness exposes one chemical tank");
-        helper.assertTrue(cap.getChemicalTankCapacity(0)
-                == com.sappersquad.packwork.pack.PackChemical.capacityFor(pack), "tier-scaled capacity");
-        var hydrogen = mekanism.api.MekanismAPI.CHEMICAL_REGISTRY.getOptional(
-                net.minecraft.resources.Identifier.fromNamespaceAndPath("mekanism", "hydrogen")).orElse(null);
-        if (hydrogen == null) { helper.succeed(); return; }
-        var stack = new mekanism.api.chemical.ChemicalStack(hydrogen, 3000L);
-        var leftover = cap.insertChemical(0, stack, mekanism.api.Action.EXECUTE);
-        helper.assertTrue(leftover.isEmpty(), "3000 mB accepted");
-        var out = cap.extractChemical(0, 5000L, mekanism.api.Action.EXECUTE);
-        helper.assertTrue(out.getAmount() == 3000L, "extracts exactly what went in, got " + out.getAmount());
+        // Mekanism is NeoForge-only: on the Fabric branch the gate can never light and the
+        // compat class does not exist - this test pins that the gate stays DARK (no cap,
+        // no classload) while the component itself keeps working (previous test).
+        helper.assertTrue(!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("mekanism"),
+                "mekanism cannot exist on the Fabric branch - the gas gate stays dark");
         helper.succeed();
     }
 
     /**
-     * With Curios loaded, the "back" slot is registered and the pack is assigned to it (so it
-     * can be worn there). Without Curios the branch is never entered - the compat class never
-     * classloads. Verifies the wear WIRING headlessly (Curios is light enough to stage).
+     * With Trinkets loaded, the chest/back slot exists and the pack is tagged into it (so it
+     * can be worn there). Without Trinkets the branch is never entered - the compat class
+     * never classloads. Verifies the wear WIRING headlessly (Trinkets is light enough to
+     * stage). (The Curios sibling of this test runs on the NeoForge branches.)
      */
     @PackTest
-    public static void curiosBackSlotGated(GameTestHelper helper) {
-        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+    public static void trinketsBackSlotGated(GameTestHelper helper) {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
             helper.succeed();
             return;
         }
         var level = helper.getLevel();
-        boolean backRegistered = top.theillusivec4.curios.api.CuriosApi.getSlots(level).containsKey("back");
-        helper.assertTrue(backRegistered, "Curios has a registered 'back' slot");
+        boolean backRegistered = com.sappersquad.packwork.compat.trinkets.TrinketsCompat
+                .backSlotRegistered(level);
+        helper.assertTrue(backRegistered, "Trinkets has a registered chest/back slot");
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
-        boolean packFitsBack = top.theillusivec4.curios.api.CuriosApi.getItemStackSlots(pack, level).containsKey("back");
-        helper.assertTrue(packFitsBack, "the pack is assigned to the 'back' slot");
+        boolean packFitsBack = pack.is(net.minecraft.tags.TagKey.create(
+                net.minecraft.core.registries.Registries.ITEM,
+                Identifier.fromNamespaceAndPath("trinkets", "chest/back")));
+        helper.assertTrue(packFitsBack, "the pack is tagged into the chest/back slot");
         helper.succeed();
     }
 
@@ -1221,8 +1192,7 @@ public class PackworkGameTests {
         new PackTrinketInventory(() -> pack, PackTier.RUNED).insertItem(0,
                 new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
         new com.sappersquad.packwork.pack.PackFluidHandler(pack, com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
-                .fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 7000),
-                        net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                .fill(net.minecraft.world.level.material.Fluids.WATER, 7000, false);
         pack.set(ModComponents.PACK_XP.get(), 4321);
         pack.set(ModComponents.PACK_ENERGY.get(), 98765);
         pack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
@@ -1474,8 +1444,7 @@ public class PackworkGameTests {
     @PackTest
     public static void upgradeRecipesCarryDisplayableIngredients(GameTestHelper helper) {
         var level = helper.getLevel();
-        var upgrades = level.getServer().getRecipeManager().recipeMap()
-                .byType(net.minecraft.world.item.crafting.RecipeType.CRAFTING)
+        var upgrades = level.getServer().getRecipeManager().getRecipes()
                 .stream()
                 .filter(h -> h.value() instanceof com.sappersquad.packwork.pack.PackUpgradeRecipe)
                 .toList();
@@ -1708,7 +1677,7 @@ public class PackworkGameTests {
                 }
             }
         }
-        boolean mekanism = net.neoforged.fml.ModList.get().isLoaded("mekanism");
+        boolean mekanism = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("mekanism");
         int expected = mekanism ? 25 : 24; // canvas + 5 rings + trinkets (flask gated) + handbook
         helper.assertTrue(packworkRecipes == expected,
                 "all packwork recipes loaded, want " + expected + ", got " + packworkRecipes);
@@ -1747,7 +1716,7 @@ public class PackworkGameTests {
      */
     @PackTest
     public static void wornOpenBindsAndListsGated(GameTestHelper helper) {
-        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
             helper.succeed();
             return;
         }
@@ -1756,12 +1725,12 @@ public class PackworkGameTests {
         new PackInventory(() -> pack, PackTier.STUDDED)
                 .insertItem(0, new ItemStack(Items.COBBLESTONE, 7), false);
 
-        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+        helper.assertTrue(com.sappersquad.packwork.compat.trinkets.TrinketsCompat.equipWorn(player, pack),
                 "the mock player has a back slot and it takes the pack");
-        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player) == pack,
+        helper.assertTrue(com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(player) == pack,
                 "the equipped stack is the SAME instance, not a copy");
 
-        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        var host = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornHost(player);
         helper.assertTrue(host != null, "a worn pack resolves a menu host");
         var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
                 60, player.getInventory(), host, PackTier.STUDDED);
@@ -1784,15 +1753,15 @@ public class PackworkGameTests {
      */
     @PackTest
     public static void wornWritesPersistToEquippedStackGated(GameTestHelper helper) {
-        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
             helper.succeed();
             return;
         }
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
-        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+        helper.assertTrue(com.sappersquad.packwork.compat.trinkets.TrinketsCompat.equipWorn(player, pack),
                 "the pack equips");
-        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        var host = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornHost(player);
         var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
                 61, player.getInventory(), host, PackTier.STUDDED);
 
@@ -1801,7 +1770,7 @@ public class PackworkGameTests {
         menu.quickMoveStack(player, PackTier.VIEW_SLOTS);
         helper.assertTrue(player.getInventory().getItem(9).isEmpty(),
                 "the pocket stack moved (not copied) into the pack");
-        ItemStack equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
+        ItemStack equipped = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(player);
         int planks = equipped.getOrDefault(ModComponents.PACK_CONTENTS.get(), com.sappersquad.packwork.pack.PackContents.EMPTY)
                 .nonEmptyItemCopyStream().filter(s -> s.is(Items.OAK_PLANKS)).mapToInt(ItemStack::getCount).sum();
         helper.assertTrue(planks == 12, "the equipped curios stack holds the 12 planks, got " + planks);
@@ -1809,7 +1778,7 @@ public class PackworkGameTests {
         // Pin, through the same network entry the GUI uses.
         menu.handleAction(com.sappersquad.packwork.net.PackAction.PIN_ITEM.ordinal(), 0,
                 menu.activeTab(), "minecraft:oak_planks");
-        equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
+        equipped = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(player);
         PackLayout layout = equipped.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         boolean pinned = layout.pins().stream().anyMatch(p ->
                 p.item().equals(Identifier.parse("minecraft:oak_planks")));
@@ -1825,7 +1794,7 @@ public class PackworkGameTests {
      */
     @PackTest
     public static void wornUnequipClosesWithoutDupeGated(GameTestHelper helper) {
-        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+        if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
             helper.succeed();
             return;
         }
@@ -1833,15 +1802,15 @@ public class PackworkGameTests {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
         new PackInventory(() -> pack, PackTier.STUDDED)
                 .insertItem(0, new ItemStack(Items.COBBLESTONE, 7), false);
-        helper.assertTrue(com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, pack),
+        helper.assertTrue(com.sappersquad.packwork.compat.trinkets.TrinketsCompat.equipWorn(player, pack),
                 "the pack equips");
-        var host = com.sappersquad.packwork.compat.curios.CuriosCompat.wornHost(player);
+        var host = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornHost(player);
         var menu = com.sappersquad.packwork.pack.PackMenu.serverForWorn(
                 62, player.getInventory(), host, PackTier.STUDDED);
         helper.assertTrue(menu.stillValid(player), "valid while worn");
 
         // Unequip mid-session (the Curios slot empties under the open menu).
-        com.sappersquad.packwork.compat.curios.CuriosCompat.equipWorn(player, ItemStack.EMPTY);
+        com.sappersquad.packwork.compat.trinkets.TrinketsCompat.equipWorn(player, ItemStack.EMPTY);
         helper.assertTrue(!menu.stillValid(player),
                 "stillValid flips false the moment the pack leaves the slot");
 
@@ -1870,33 +1839,33 @@ public class PackworkGameTests {
                 BuiltInRegistries.ITEM.getKey(item) + " should route to " + expectedTab + " but got " + got);
     }
 
-    // ---- 1.21.11 port helpers: the standard caps are the transactional transfer API now.
-    // The tests still PROVE the real capability is exposed (pillar 3) - they query the new
-    // tokens - and then drive it through NeoForge's own sanctioned NEW->OLD views
-    // (IItemHandler.of & co.) so every assertion keeps its legacy stack semantics.
+    // ---- Fabric port helpers: the standard faces are the transfer-API lookups now.
+    // The tests still PROVE the real lookup is exposed (pillar 3) - they query
+    // ItemStorage/FluidStorage/EnergyStorage.ITEM - and then drive whatever comes back
+    // through the in-house legacy-shaped views (IItemHandler.of & co., this package) so
+    // every assertion keeps its battle-tested stack semantics.
 
-    /** The pack's standard item cap as a legacy view, or null when not exposed. */
+    /** The pack's standard item lookup as a legacy view, or null when not exposed. */
     private static IItemHandler itemCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Item.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : IItemHandler.of(handler);
+        var storage = net.fabricmc.fabric.api.transfer.v1.item.ItemStorage.ITEM.find(
+                pack, com.sappersquad.packwork.transfer.PackTransfer.forStack(pack));
+        return storage == null ? null
+                : IItemHandler.of((net.fabricmc.fabric.api.transfer.v1.storage.SlottedStorage<net.fabricmc.fabric.api.transfer.v1.item.ItemVariant>) storage);
     }
 
-    /** The pack's standard fluid cap as a legacy view, or null when not exposed (no Waterskin). */
-    private static net.neoforged.neoforge.fluids.capability.IFluidHandler fluidCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Fluid.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : net.neoforged.neoforge.fluids.capability.IFluidHandler.of(handler);
+    /** The pack's standard fluid lookup, or null when not exposed (no Waterskin). The
+     *  handler IS Packwork's tank, so the mB conveniences drive the same native face. */
+    private static com.sappersquad.packwork.pack.PackFluidHandler fluidCap(ItemStack pack) {
+        var storage = net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage.ITEM.find(
+                pack, com.sappersquad.packwork.transfer.PackTransfer.forStack(pack));
+        return (com.sappersquad.packwork.pack.PackFluidHandler) storage;
     }
 
-    /** The pack's standard energy cap as a legacy view, or null when not exposed (no Crystal). */
-    private static net.neoforged.neoforge.energy.IEnergyStorage energyCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : net.neoforged.neoforge.energy.IEnergyStorage.of(handler);
+    /** The pack's standard energy lookup as a legacy view, or null when not exposed (no Crystal). */
+    private static IEnergyStorage energyCap(ItemStack pack) {
+        var storage = team.reborn.energy.api.EnergyStorage.ITEM.find(
+                pack, com.sappersquad.packwork.transfer.PackTransfer.forStack(pack));
+        return storage == null ? null : IEnergyStorage.of(storage);
     }
 
     /** ItemStack NBT round-trip via codec (save/parse left the ItemStack API in 1.21.x). */

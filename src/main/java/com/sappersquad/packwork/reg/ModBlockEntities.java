@@ -2,18 +2,20 @@ package com.sappersquad.packwork.reg;
 
 import com.sappersquad.packwork.Packwork;
 import com.sappersquad.packwork.block.PackContainerBlockEntity;
-import net.minecraft.core.registries.Registries;
+import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ModBlockEntities {
 
-    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
-            DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Packwork.MODID);
+    // 26.1 vanilla's BlockEntityType constructor is private on Fabric (NeoForge patches it
+    // open); FabricBlockEntityTypeBuilder is the supported path.
+    public static final RegHandle<BlockEntityType<PackContainerBlockEntity>> PACK =
+            new RegHandle<>(Registry.register(BuiltInRegistries.BLOCK_ENTITY_TYPE, Packwork.id("pack"),
+                    FabricBlockEntityTypeBuilder.create(PackContainerBlockEntity::new, ModBlocks.PACK.get())
+                            .build()));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PackContainerBlockEntity>> PACK =
-            BLOCK_ENTITIES.register("pack", () ->
-                    // 1.21.2+ dropped the Builder; the plain constructor is the pattern now.
-                    new BlockEntityType<>(PackContainerBlockEntity::new, ModBlocks.PACK.get()));
+    /** Touch to classload + register everything above (called once from mod init). */
+    public static void init() {}
 }

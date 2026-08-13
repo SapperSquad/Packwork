@@ -76,7 +76,7 @@ public final class HandbookContent {
             text("A humble adventurer's pack that holds far more than it should - and quietly "
                 + "organizes itself. Right-click one in hand to open it, or press the Open Pack key "
                 + "(default B) to open the first pack you're carrying without digging it out. "
-                + "Wearing one on your back (a Curios back slot)? B finds it when your pockets hold "
+                + "Wearing one on your back (a Trinkets back slot)? B finds it when your pockets hold "
                 + "no pack, and Shift-B opens the worn one straight off your shoulders."),
             row("one ladder, every pack", allPacks()),
             text("Drop an item in and the pack decides where it goes. Stamped leather tabs run down "

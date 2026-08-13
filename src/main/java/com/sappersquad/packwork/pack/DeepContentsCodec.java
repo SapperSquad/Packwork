@@ -79,7 +79,9 @@ public final class DeepContentsCodec {
     }
 
     private static PackContents fromVanilla(ItemContainerContents contents) {
-        NonNullList<ItemStack> list = NonNullList.withSize(contents.getSlots(), ItemStack.EMPTY);
+        // pure vanilla 26.1 has no getSlots(); the copy-stream count is the slot count
+        NonNullList<ItemStack> list = NonNullList.withSize(
+                (int) contents.allItemsCopyStream().count(), ItemStack.EMPTY);
         contents.copyInto(list);
         return PackContents.fromItems(list);
     }

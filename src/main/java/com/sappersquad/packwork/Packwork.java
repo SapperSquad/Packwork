@@ -1,14 +1,9 @@
 package com.sappersquad.packwork;
 
 import com.mojang.logging.LogUtils;
-import com.sappersquad.packwork.reg.ModComponents;
-import com.sappersquad.packwork.reg.ModCreativeTabs;
-import com.sappersquad.packwork.reg.ModItems;
-import com.sappersquad.packwork.reg.ModMenus;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
 import org.slf4j.Logger;
 
 /**
@@ -16,8 +11,7 @@ import org.slf4j.Logger;
  * quietly organizes itself. Sorting is the soul; resource stores come later,
  * each behind its own trinket. Leather and brass, never circuits.
  */
-@Mod(Packwork.MODID)
-public class Packwork {
+public class Packwork implements ModInitializer {
 
     public static final String MODID = "packwork";
     public static final Logger LOGGER = LogUtils.getLogger();
@@ -26,29 +20,30 @@ public class Packwork {
         return Identifier.fromNamespaceAndPath(MODID, path);
     }
 
-    public Packwork(IEventBus modEventBus, ModContainer modContainer) {
-        // Components before items: the pack item's inventory capability leans on
-        // its data component types being registered.
-        ModComponents.COMPONENTS.register(modEventBus);
-        com.sappersquad.packwork.reg.ModBlocks.BLOCKS.register(modEventBus);
-        com.sappersquad.packwork.reg.ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
-        ModItems.ITEMS.register(modEventBus);
-        ModMenus.MENUS.register(modEventBus);
-        ModCreativeTabs.TABS.register(modEventBus);
-        com.sappersquad.packwork.reg.ModRecipes.SERIALIZERS.register(modEventBus);
+    @Override
+    public void onInitialize() {
+        // Components before items: the pack item's storage lookups lean on its data
+        // component types being registered. (Fabric: registration is eager - each reg
+        // class registers in its static init; init() just forces the classload, in order.)
+        com.sappersquad.packwork.reg.ModComponents.init();
+        com.sappersquad.packwork.reg.ModBlocks.init();
+        com.sappersquad.packwork.reg.ModBlockEntities.init();
+        com.sappersquad.packwork.reg.ModItems.init();
+        com.sappersquad.packwork.reg.ModMenus.init();
+        com.sappersquad.packwork.reg.ModCreativeTabs.init();
+        com.sappersquad.packwork.reg.ModRecipes.init();
         // 1.21.5+ gametests are registry entries; the registrar scans @PackTest methods.
-        com.sappersquad.packwork.gametest.PackworkTestRegistrar.TEST_FUNCTIONS.register(modEventBus);
+        com.sappersquad.packwork.gametest.PackworkTestRegistrar.register();
 
-        modEventBus.addListener(PackworkCapabilities::registerCapabilities);
-        modEventBus.addListener(PackworkNetwork::register);
+        PackworkCapabilities.register();
+        PackworkNetwork.register();
+        com.sappersquad.packwork.trinket.TrinketEffects.register();
 
-        // Curios (optional): register the packs as back-slot curios during common setup.
-        // Gated so compat/curios (the only class importing curios) never loads without it.
-        modEventBus.addListener((net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent e) -> {
-            if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
-                e.enqueueWork(() -> com.sappersquad.packwork.compat.curios.CuriosCompat.register());
-            }
-        });
+        // Trinkets (optional): hook the packs into the chest/back wear slot. Gated so
+        // compat/trinkets (the only class importing trinkets) never loads without it.
+        if (FabricLoader.getInstance().isModLoaded("trinkets")) {
+            com.sappersquad.packwork.compat.trinkets.TrinketsCompat.register();
+        }
 
         LOGGER.info("Packwork slung over one shoulder.");
     }

@@ -157,15 +157,16 @@ public class PackMenu extends AbstractContainerMenu {
         this.liveSupplier = hostContainer != null
                 ? () -> hostContainer.getItem(0)
                 : () -> playerInv.getItem(boundSlot);
-        // 26.1: the internals ride the transfer API, so the store binds to a live
-        // ItemAccess per host - the player-inventory slot (carried) or the one-slot
-        // host container (placed / worn / client mirror). Both resolve the CURRENT
-        // stack on every read, and commits mutate it in place + mark the host dirty,
-        // which is exactly the old live-supplier contract.
-        net.neoforged.neoforge.transfer.access.ItemAccess hostAccess = hostContainer != null
-                ? net.neoforged.neoforge.transfer.access.ItemAccess.forHandlerIndex(
-                        net.neoforged.neoforge.transfer.item.VanillaContainerWrapper.of(hostContainer), 0)
-                : net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerSlot(playerInv.player, boundSlot);
+        // The internals ride Fabric's transfer API, so the store binds to a live
+        // ContainerItemContext per host - the player-inventory slot (carried) or the
+        // one-slot host container (placed / worn / client mirror). Both resolve the
+        // CURRENT stack on every read, and commits write it back through the host +
+        // mark it dirty, which is exactly the old live-supplier contract.
+        net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext hostAccess = hostContainer != null
+                ? net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext.ofSingleSlot(
+                        net.fabricmc.fabric.api.transfer.v1.item.ContainerStorage.of(hostContainer, null).getSlot(0))
+                : net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext.ofPlayerSlot(playerInv.player,
+                        net.fabricmc.fabric.api.transfer.v1.item.PlayerInventoryStorage.of(playerInv).getSlot(boundSlot));
         this.packInv = new PackInventory(hostAccess, tier);
         this.trinketInv = new PackTrinketInventory(hostAccess, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
@@ -184,12 +185,11 @@ public class PackMenu extends AbstractContainerMenu {
 
         addPlayerInventory(playerInv);
 
-        // Trinket sockets on the right rail (component-backed copy slots - 26.1: the
-        // native ResourceHandlerSlot; the direct-set path is the handler's setSlot).
+        // Trinket sockets on the right rail (component-backed copy slots; the direct-set
+        // path is the handler's setSlot - see TrinketSocketSlot).
         this.trinketStart = slots.size();
         for (int i = 0; i < tier.trinketSlots(); i++) {
-            addSlot(new net.neoforged.neoforge.transfer.item.ResourceHandlerSlot(
-                    trinketInv, trinketInv::setSlot, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
+            addSlot(new TrinketSocketSlot(trinketInv, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
         }
         this.trinketEnd = slots.size();
 
@@ -865,9 +865,10 @@ public class PackMenu extends AbstractContainerMenu {
         fillPackStacked(contents);
         var ctx = net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(level);
         java.util.List<com.sappersquad.packwork.net.LedgerSyncPayload.Entry> out = new java.util.ArrayList<>();
-        for (var holder : server.getRecipeManager().recipeMap()
-                .byType(net.minecraft.world.item.crafting.RecipeType.CRAFTING)) {
-            net.minecraft.world.item.crafting.CraftingRecipe r = holder.value();
+        // (Fabric: recipeMap() is a NeoForge accessor; vanilla's getRecipes() + a type
+        // filter walk the same set.)
+        for (var holder : server.getRecipeManager().getRecipes()) {
+            if (!(holder.value() instanceof net.minecraft.world.item.crafting.CraftingRecipe r)) continue;
             if (arrangeOn3x3(r) == null) continue;          // no layable shape (true specials)
             if (!contents.canCraft(r, null)) continue;
             ItemStack result = firstDisplayResult(r, ctx);
@@ -875,7 +876,7 @@ public class PackMenu extends AbstractContainerMenu {
             out.add(new com.sappersquad.packwork.net.LedgerSyncPayload.Entry(
                     holder.id().identifier().toString(), result));
         }
-        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp,
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
                 new com.sappersquad.packwork.net.LedgerSyncPayload(out));
     }
 
@@ -908,7 +909,7 @@ public class PackMenu extends AbstractContainerMenu {
                     : ing.items().limit(16).map(ItemStack::new).toList());
         }
         String okId = arranged == null ? "" : recipeId;
-        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp,
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(sp,
                 new com.sappersquad.packwork.net.GhostSyncPayload(okId, result, cells));
     }
 
@@ -1248,23 +1249,23 @@ public class PackMenu extends AbstractContainerMenu {
         // Act on ONE container out of the carried stack, in its own holder.
         ItemStack one = carried.copyWithCount(1);
         var holder = new net.minecraft.world.SimpleContainer(one);
-        var holderWrapper = net.neoforged.neoforge.transfer.item.VanillaContainerWrapper.of(holder);
-        var containerAccess = net.neoforged.neoforge.transfer.access.ItemAccess.forHandlerIndex(holderWrapper, 0);
-        var containerFluid = one.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Fluid.ITEM, containerAccess);
+        var containerAccess = net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext.ofSingleSlot(
+                net.fabricmc.fabric.api.transfer.v1.item.ContainerStorage.of(holder, null).getSlot(0));
+        var containerFluid = containerAccess.find(
+                net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage.ITEM);
         if (containerFluid == null) return;
 
         var tank = com.sappersquad.packwork.transfer.PackTransfer.fluid(
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack), pack);
+                com.sappersquad.packwork.transfer.PackTransfer.forStack(pack), pack);
 
-        int moved;
-        try (var tx = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+        long moved;
+        try (var tx = net.fabricmc.fabric.api.transfer.v1.transaction.Transaction.openOuter()) {
             // first try to empty the container INTO the tank, else fill it FROM the tank
-            moved = net.neoforged.neoforge.transfer.ResourceHandlerUtil.move(
-                    containerFluid, tank, r -> true, Integer.MAX_VALUE, tx);
+            moved = net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil.move(
+                    containerFluid, tank, r -> true, Long.MAX_VALUE, tx);
             if (moved <= 0) {
-                moved = net.neoforged.neoforge.transfer.ResourceHandlerUtil.move(
-                        tank, containerFluid, r -> true, Integer.MAX_VALUE, tx);
+                moved = net.fabricmc.fabric.api.transfer.v1.storage.StorageUtil.move(
+                        tank, containerFluid, r -> true, Long.MAX_VALUE, tx);
             }
             if (moved > 0) tx.commit();
         }
@@ -1310,9 +1311,9 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     /** The fluid currently in the Waterskin tank (empty if none / no rack). */
-    public net.neoforged.neoforge.fluids.FluidStack fluidStack() {
+    public com.sappersquad.packwork.pack.PackFluidContent fluidStack() {
         return liveStack().getOrDefault(ModComponents.PACK_FLUID.get(),
-                net.neoforged.neoforge.fluids.SimpleFluidContent.EMPTY).copy();
+                com.sappersquad.packwork.pack.PackFluidContent.EMPTY).copy();
     }
 
     public int fluidCapacity() {

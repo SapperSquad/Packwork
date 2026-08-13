@@ -13,11 +13,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerDestroyItemEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -29,25 +24,32 @@ import java.util.List;
  *
  * <p>Everything is throttled and bounded; nothing here can void or dupe (magnet respects
  * the void list only when a Compass Rose is present, and only inserts what fits).
+ *
+ * <p>Fabric wiring: {@link #register()} hooks the tick and block-break events; the three
+ * hooks Fabric has no event for arrive from Packwork's own (minimal, documented) mixins -
+ * pack-first pickup ({@code ItemEntityMixin}), the Angler's Creel
+ * ({@code FishingHookMixin}), and Quick-Draw's broken-tool refill
+ * ({@code LivingEntityMixin}).
  */
-@EventBusSubscriber(modid = Packwork.MODID)
 public final class TrinketEffects {
 
     private static final double MAGNET_RANGE = 5.0;
     private static final int REPAIR_PER_TICK = 1;
-    /** Cap the Charge Crystal's Flux hand-off to a Forgework terminal per tick (with FE tools it's uncapped). */
-    private static final int FLUX_PER_TICK = 5_000;
 
-    /** Gate every touch of the Forgework bridge so its com.forgework.* imports never classload without the mod. */
-    private static final boolean FORGEWORK_LOADED = ModList.get().isLoaded("forgework");
+    /** Wire the Fabric events (called once from mod init). */
+    public static void register() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
+                onPlayerTick(sp);
+            }
+        });
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register(
+                TrinketEffects::onCropHarvested);
+    }
 
-    @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        Player player = event.getEntity();
-        if (player.level().isClientSide() || !(player instanceof ServerPlayer sp)) return;
+    private static void onPlayerTick(ServerPlayer sp) {
         long time = sp.level().getGameTime();
         Inventory inv = sp.getInventory();
-
         for (int i = 0; i < inv.getContainerSize(); i++) {
             applyPack(sp, inv.getItem(i), time);
         }
@@ -149,8 +151,9 @@ public final class TrinketEffects {
         for (int i = 0; i < pack.getSlots(); i++) {
             ItemStack s = pack.getStackInSlot(i);
             if (s.isEmpty() || !s.is(FURNACE_FUEL)) continue;
-            // 1.21.2+ moved burn times off the item onto the level's FuelValues table.
-            int burn = s.getBurnTime(net.minecraft.world.item.crafting.RecipeType.SMELTING, fuels);
+            // 1.21.2+ moved burn times off the item onto the level's FuelValues table
+            // (vanilla burnDuration; getBurnTime was the NeoForge extension spelling).
+            int burn = fuels.burnDuration(s);
             if (burn <= 0) continue;
             ItemStack fuel = pack.extractItem(i, 1, false);
             if (fuel.isEmpty()) continue;
@@ -164,11 +167,12 @@ public final class TrinketEffects {
         return 0;
     }
 
-    /** Raw ore and raw food only - see {@link #fieldFurnace}. */
+    /** Raw ore and raw food only - see {@link #fieldFurnace}. (The `c:` conventional tags
+     *  are the SAME tag ids on both loaders; only the constant-holder class differs.) */
     private static boolean worthCooking(ItemStack stack) {
         if (stack.has(net.minecraft.core.component.DataComponents.FOOD)) return true;
-        return stack.is(net.neoforged.neoforge.common.Tags.Items.RAW_MATERIALS)
-                || stack.is(net.neoforged.neoforge.common.Tags.Items.ORES);
+        return stack.is(net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags.RAW_MATERIALS)
+                || stack.is(net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags.ORES);
     }
 
     // ---- Provisioner's Pouch: eats from pack stock before you start starving ----
@@ -270,17 +274,17 @@ public final class TrinketEffects {
      * Reel something in with a creel fitted and it lands in the pack instead of bouncing off your
      * chest - and the Catch compartment already has a place for it. Anything the pack can't take
      * is left in the drop list so vanilla still hands it over; nothing is ever swallowed.
+     * (Called by {@code FishingHookMixin}, which intercepts the loot list the moment the
+     * rod's loot table rolls it - the same drops-list contract NeoForge's ItemFishedEvent gave.)
      */
-    @SubscribeEvent
-    public static void onItemFished(net.neoforged.neoforge.event.entity.player.ItemFishedEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+    public static void onItemFished(ServerPlayer sp, java.util.List<ItemStack> drops) {
         Inventory inv = sp.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack packStack = inv.getItem(i);
             if (!(packStack.getItem() instanceof PackItem)) continue;
             if (!TrinketAccess.has(packStack, TrinketType.ANGLERS_CREEL)) continue;
 
-            stowCatch(new PackInventory(packStack, PackItem.tierOf(packStack)), event.getDrops());
+            stowCatch(new PackInventory(packStack, PackItem.tierOf(packStack)), drops);
             return;
         }
     }
@@ -305,13 +309,14 @@ public final class TrinketEffects {
      * seed out of the pack. It only spends a seed the pack actually holds, and if the ground is
      * taken by the time it gets there the seed goes back - so it can neither dupe nor lose one.
      */
-    @SubscribeEvent
-    // 26.1: BlockEvent.BreakEvent became its own top-level BreakBlockEvent (fires both
-    // sides now; the ServerPlayer guard below already drops the client fire).
-    public static void onCropHarvested(net.neoforged.neoforge.event.level.block.BreakBlockEvent event) {
-        if (!(event.getPlayer() instanceof ServerPlayer sp)) return;
-        if (!(event.getLevel() instanceof net.minecraft.server.level.ServerLevel level)) return;
-        var state = event.getState();
+    // Fabric: PlayerBlockBreakEvents.AFTER fires server-side after a successful break,
+    // with the pre-break state - exactly the shape the NeoForge BreakBlockEvent gave.
+    public static void onCropHarvested(net.minecraft.world.level.Level world, Player breaker,
+                                       net.minecraft.core.BlockPos brokenPos,
+                                       net.minecraft.world.level.block.state.BlockState state,
+                                       net.minecraft.world.level.block.entity.BlockEntity blockEntity) {
+        if (!(breaker instanceof ServerPlayer sp)) return;
+        if (!(world instanceof net.minecraft.server.level.ServerLevel level)) return;
         if (!(state.getBlock() instanceof net.minecraft.world.level.block.CropBlock crop)) return;
         if (!crop.isMaxAge(state)) return;
 
@@ -325,7 +330,7 @@ public final class TrinketEffects {
             ItemStack seed = takeSeedFor(pack, crop);
             if (seed.isEmpty()) return;
 
-            net.minecraft.core.BlockPos pos = event.getPos().immutable();
+            net.minecraft.core.BlockPos pos = brokenPos.immutable();
             var young = crop.defaultBlockState();
             level.getServer().schedule(new net.minecraft.server.TickTask(level.getServer().getTickCount() + 1, () -> {
                 if (level.getBlockState(pos).canBeReplaced() && young.canSurvive(level, pos)) {
@@ -351,35 +356,24 @@ public final class TrinketEffects {
     }
 
     /** Charge Crystal: pour stored charge into the tools you're holding that accept it.
-     *  Ported to the 21.9+ transfer API: energy caps are {@code Capabilities.Energy.ITEM}
-     *  ({@code EnergyHandler} + {@code ItemAccess} context) and every move is transactional. */
+     *  Fabric: energy speaks Team Reborn Energy ({@code EnergyStorage.ITEM} with a
+     *  {@code ContainerItemContext}) and every move is transactional. 1 E = 1 FE, so the
+     *  crystal's numbers read the same on both loaders. (Forgework is NeoForge-only, so
+     *  its Flux top-up has no gate to light on this branch.) */
     private static void charge(ServerPlayer sp, ItemStack packStack) {
-        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(packStack));
-        if (crystal == null || crystal.getAmountAsLong() <= 0) return;
+        var crystal = com.sappersquad.packwork.transfer.PackTransfer.energy(
+                com.sappersquad.packwork.transfer.PackTransfer.forStack(packStack), packStack);
+        if (crystal.getAmount() <= 0) return;
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack held = sp.getItemInHand(hand);
             if (held.isEmpty() || held.getItem() instanceof PackItem) continue;
-            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                    net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerInteraction(sp, hand));
+            var sink = team.reborn.energy.api.EnergyStorage.ITEM.find(held,
+                    net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext.ofPlayerHand(sp, hand));
             if (sink == null) continue;
-            try (var tx = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
-                net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil.move(
-                        crystal, sink, Integer.MAX_VALUE, tx);
+            try (var tx = net.fabricmc.fabric.api.transfer.v1.transaction.Transaction.openOuter()) {
+                team.reborn.energy.api.EnergyStorageUtil.move(crystal, sink, Long.MAX_VALUE, tx);
                 tx.commit();
             }
-        }
-        // Forgework interop (gated): the crystal also tops up any Forgework portable
-        // terminal you're carrying, 1 Flux = 1 FE. Reached only when forgework is loaded,
-        // so ForgeworkFluxBridge (and com.forgework.*) never classloads without it.
-        // 26.1: the bridge rides the pack's own component store now (the deprecated
-        // IEnergyStorage legacy view is gone from the bridge's signature entirely).
-        if (FORGEWORK_LOADED && crystal.getAmountAsLong() > 0) {
-            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(
-                    sp, new com.sappersquad.packwork.pack.PackEnergyStorage(() -> packStack,
-                            com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(packStack),
-                            com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(packStack)),
-                    FLUX_PER_TICK);
         }
     }
 
@@ -409,18 +403,19 @@ public final class TrinketEffects {
 
     // ---- pack-first pickup: the Lodestone routes what the pack can FILE straight in ----
 
-    /** Gate every touch of the Curios compat class so its imports never classload without the mod. */
-    private static final boolean CURIOS_LOADED = ModList.get().isLoaded("curios");
+    /** Gate every touch of the Trinkets compat class so its imports never classload without the mod. */
+    private static final boolean TRINKETS_LOADED =
+            net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets");
 
     /**
      * The mining case the magnet always lost: an item at the player's feet is vanilla's the
      * instant they touch it, so mined cobble went to the pockets, never the pack. This hook
-     * fires FIRST - {@code EventHooks.fireItemPickupPre} runs "before any other processing
-     * occurs" in {@code ItemEntity.playerTouch} (verified in the 21.1.235 sources), and the
-     * event contract explicitly permits mutating the entity's stored stack (never
-     * {@code setItem}).
+     * fires FIRST - {@code ItemEntityMixin} injects at the HEAD of
+     * {@code ItemEntity.playerTouch}, before any vanilla processing, and mutates the
+     * entity's stored stack in place (never {@code setItem}) - the same contract the
+     * NeoForge branches' ItemEntityPickupEvent.Pre documents.
      *
-     * <p>The routing rule, per pack (inventory order, then the Curios-worn pack - the same
+     * <p>The routing rule, per pack (inventory order, then the Trinkets-worn pack - the same
      * order the tick effects scan): with a Lodestone fitted and the pack's PACK-FIRST toggle
      * on, a pickup the pack can FILE goes straight in - "file" meaning it routes to a
      * non-Loose compartment, or is pinned anywhere, or the pack already holds that very item.
@@ -429,44 +424,44 @@ public final class TrinketEffects {
      * the magnet does (the trash-collector contract).
      *
      * <p>Conservation: insert what fits (depth-aware), shrink the ground stack by exactly the
-     * amount inserted, and deny vanilla only when NOTHING remains - a partial fit leaves the
+     * amount inserted, and cancel vanilla only when NOTHING remains - a partial fit leaves the
      * remainder to vanilla pickup. Packs are never intercepted (nesting stays blocked). The
      * routed portion still plays the fly-to-player pickup cue.
+     *
+     * @return true when the touch is fully settled (entity discarded) and vanilla's
+     *         playerTouch must not run at all.
      */
-    @SubscribeEvent
-    public static void onItemPickup(net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent.Pre event) {
-        Player player = event.getPlayer();
-        // the event is server-only by contract; the level guard is belt-and-braces, and the
-        // player is deliberately NOT narrowed to ServerPlayer (gametest mock players aren't one)
-        if (player.level().isClientSide()) return;
-        // never fight an explicit decision by vanilla-to-be or another mod, and never jump
-        // the pickup delay (a just-dropped item must not be re-swallowed instantly)
-        if (event.canPickup() != net.minecraft.util.TriState.DEFAULT) return;
-        ItemEntity ie = event.getItemEntity();
-        if (ie.hasPickUpDelay()) return;
+    public static boolean onItemPickup(Player player, ItemEntity ie) {
+        // server-only; the player is deliberately NOT narrowed to ServerPlayer
+        // (gametest mock players aren't one)
+        if (player.level().isClientSide()) return false;
+        // never jump the pickup delay (a just-dropped item must not be re-swallowed instantly)
+        if (ie.hasPickUpDelay()) return false;
         ItemStack ground = ie.getItem();
-        if (ground.isEmpty() || ground.getItem() instanceof PackItem) return;
+        if (ground.isEmpty() || ground.getItem() instanceof PackItem) return false;
 
         Inventory inv = player.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
-            if (routePickupInto(player, inv.getItem(i), event, ie)) return;
+            Boolean settled = routePickupInto(player, inv.getItem(i), ie);
+            if (settled != null) return settled;
         }
-        if (CURIOS_LOADED && player instanceof ServerPlayer sp) {
-            ItemStack worn = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(sp);
-            routePickupInto(player, worn, event, ie);
+        if (TRINKETS_LOADED && player instanceof ServerPlayer sp) {
+            ItemStack worn = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(sp);
+            Boolean settled = routePickupInto(player, worn, ie);
+            if (settled != null) return settled;
         }
+        return false;
     }
 
-    /** Try one pack against a ground item. True if this pack settled the pickup (filed it
-     *  fully, filed a part of it, or binned it by the Rose contract). */
-    private static boolean routePickupInto(Player player, ItemStack packStack,
-                                           net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent.Pre event,
-                                           ItemEntity ie) {
-        if (!(packStack.getItem() instanceof PackItem)) return false;
-        if (!TrinketAccess.has(packStack, TrinketType.LODESTONE)) return false;
+    /** Try one pack against a ground item. Non-null if this pack settled the pickup (filed
+     *  it fully or binned it -> TRUE = cancel vanilla; filed a part -> FALSE = let vanilla
+     *  pocket the shrunk remainder); null = this pack didn't claim it, try the next. */
+    private static Boolean routePickupInto(Player player, ItemStack packStack, ItemEntity ie) {
+        if (!(packStack.getItem() instanceof PackItem)) return null;
+        if (!TrinketAccess.has(packStack, TrinketType.LODESTONE)) return null;
         var layout = packStack.getOrDefault(com.sappersquad.packwork.reg.ModComponents.PACK_LAYOUT.get(),
                 com.sappersquad.packwork.sort.PackLayout.EMPTY);
-        if (!layout.packFirst()) return false; // the GUI toggle: off = pure vanilla
+        if (!layout.packFirst()) return null; // the GUI toggle: off = pure vanilla
 
         ItemStack ground = ie.getItem();
         // Compass Rose void contract, exactly as the magnet path
@@ -474,27 +469,26 @@ public final class TrinketEffects {
                 && layout.voids(BuiltInRegistries.ITEM.getKey(ground.getItem()))) {
             ground.setCount(0);
             ie.discard();
-            event.setCanPickup(net.minecraft.util.TriState.FALSE);
             return true;
         }
 
         PackInventory pack = new PackInventory(packStack, PackItem.tierOf(packStack));
-        if (!packWouldFile(packStack, layout, ground, pack)) return false;
+        if (!packWouldFile(packStack, layout, ground, pack)) return null;
 
         int before = ground.getCount();
         ItemStack leftover = insertAll(pack, ground.copy());
         int moved = before - leftover.getCount();
-        if (moved <= 0) return false;               // this pack is full for it - try the next
+        if (moved <= 0) return null;                // this pack is full for it - try the next
 
         ground.shrink(moved);                        // the documented-legal mutation
         player.take(ie, moved);                      // the vanilla fly-to-player pickup cue
         if (ground.isEmpty()) {
-            event.setCanPickup(net.minecraft.util.TriState.FALSE);
             ie.discard();
+            return true;
         }
-        // a remainder stays on the ground stack with canPickup DEFAULT, so vanilla picks it
-        // up into the pockets this same touch - conservation to the item
-        return true;
+        // a remainder stays on the ground stack, so vanilla picks it up into the pockets
+        // this same touch - conservation to the item
+        return false;
     }
 
     /**
@@ -579,18 +573,18 @@ public final class TrinketEffects {
     }
 
     /**
-     * Quick-Draw Straps: when a held tool breaks (or a held stack is used to nothing),
-     * pull an identical one from a pack you carry straight into that hand - no fumbling
-     * for a spare. Fires only for gear that emptied a hand in use (getHand() != null),
-     * so setting an item aside never triggers a refill, and it can only hand back what
-     * the pack actually holds, so it never dupes.
+     * Quick-Draw Straps: when a held tool breaks, pull an identical one from a pack you
+     * carry straight into that hand - no fumbling for a spare. Fires only for gear that
+     * emptied a HAND (main or off), so armor crumbling or setting an item aside never
+     * triggers a refill, and it can only hand back what the pack actually holds, so it
+     * never dupes. (Called by {@code LivingEntityMixin} off vanilla's
+     * {@code onEquippedItemBroken} - the one choke point every equipped break routes
+     * through. The NeoForge branches also refill a stack USED to nothing via
+     * PlayerDestroyItemEvent; that loader has no Fabric hook, so the Fabric refill is
+     * break-only - the trinket's core promise.)
      */
-    @SubscribeEvent
-    public static void onHeldItemBroken(PlayerDestroyItemEvent event) {
-        InteractionHand hand = event.getHand();
-        if (hand == null || !(event.getEntity() instanceof ServerPlayer sp)) return;
-        ItemStack broken = event.getOriginal();
-        if (broken.isEmpty() || broken.getItem() instanceof PackItem) return;
+    public static void onHeldItemBroken(ServerPlayer sp, InteractionHand hand, Item brokenItem) {
+        if (brokenItem instanceof PackItem) return;
         if (!sp.getItemInHand(hand).isEmpty()) return; // only step in when that hand went empty
 
         Inventory inv = sp.getInventory();
@@ -599,7 +593,7 @@ public final class TrinketEffects {
             if (!(packStack.getItem() instanceof PackItem)) continue;
             if (!TrinketAccess.has(packStack, TrinketType.QUICK_DRAW)) continue;
             ItemStack replacement = pullReplacement(
-                    new PackInventory(packStack, PackItem.tierOf(packStack)), broken.getItem());
+                    new PackInventory(packStack, PackItem.tierOf(packStack)), brokenItem);
             if (!replacement.isEmpty()) {
                 sp.setItemInHand(hand, replacement);
                 return;
