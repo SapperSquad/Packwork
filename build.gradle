@@ -115,10 +115,12 @@ loom {
     }
 }
 
+// Captured as a plain String so the closure below stays configuration-cache safe.
+def modVersionString = version.toString()
 processResources {
-    inputs.property 'version', project.version
+    inputs.property 'version', modVersionString
     filesMatching('fabric.mod.json') {
-        expand 'version': project.version
+        expand 'version': modVersionString
     }
 }
 
