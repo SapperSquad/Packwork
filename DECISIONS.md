@@ -2,7 +2,14 @@
 
 Judgment calls already made, with reasons. Reopen only with new evidence, and say so.
 
-## 2026-08-13 — the Fabric port (this branch; reach campaign wave 3)
+## 2026-08-13 — the Fabric port (reach campaign wave 3; this branch = fabric/26.2)
+
+- **fabric/26.2 = fabric/26.1 + the same ONE drift family port/26.2 mapped** (the screen
+  layer moved onto `Gui`: `mc.screen` → `mc.gui.screen()`, `setScreen` → `gui.setScreen`,
+  `hideGui` → `gui.hud.toggle()/isHidden()`, `getMainRenderTarget` →
+  `gameRenderer.mainRenderTarget()`) plus pins: fabric-api 0.157.0+26.2, JEI 30.20.0.154,
+  Trinkets Updated 4.1.0-beta.3+26.2. Zero storage/menu/plumbing changes - the wave-2
+  drift map held on Fabric exactly as it did on NeoForge.
 
 - **A parallel `fabric/26.1` branch, NOT a multiloader/Architectury refactor.** The
   loader-coupled surface is ~15 files out of ~60; a shared-source restructure would touch

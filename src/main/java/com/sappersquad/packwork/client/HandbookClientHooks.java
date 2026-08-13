@@ -8,6 +8,6 @@ public final class HandbookClientHooks {
     private HandbookClientHooks() {}
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new OutfitterHandbookScreen());
+        Minecraft.getInstance().gui.setScreen(new OutfitterHandbookScreen());
     }
 }
