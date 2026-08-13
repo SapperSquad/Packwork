@@ -2,6 +2,27 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.0.0+mc26.1.2 / +mc26.2 — 2026-08-13 (version ports, wave 2)
+
+The same 1.0.0 "First Haul" on Minecraft's 26.x lines. Nothing gameplay-visible
+changed; each port passes the same 58-test suite (plain, with Curios, with JEI +
+Curios) plus a pixel-inspected GUI pass against the master gallery.
+
+- **New:** NeoForge **26.1.2** (26.1.2.95) and **26.2** (26.2.0.59) builds, from
+  `port/26.1` and `port/26.2`, jars named `packwork-1.0.0+mc<ver>.jar`.
+- Per-version soft deps: JEI (29 / 30) and Curios (15 / 16) light up on both lines.
+  **Mekanism and Forgework stay 1.21.1-only** - the gas store and the Flux bridge
+  simply stay dark on 26.x (no dead craftables).
+- Internal, for the curious: 26.1 rebuilt vanilla's item-container component on
+  templates that reject oversized stacks on read, so the pack's DEEP store now rides
+  its own holder (`PackContents`) - same save format, same 384-a-slot depth - and
+  the storage internals went fully native on NeoForge's transactional transfer API:
+  one handler now backs the standard capability AND the menu/trinkets/sorting, so
+  the depth clamp, nesting refusal, and one-stack pulls are provably the same rules
+  inside and out. Conservation is pinned by the same gametests as every other line.
+- Fixed in passing (all versions): a handbook caption that clipped at the panel edge
+  ("one ladder, every pack") now sits whole on its own line above the pack row.
+
 ## 1.0.0+mc1.21.8 / +mc1.21.10 / +mc1.21.11 — 2026-08-13 (version ports, wave 1)
 
 The same 1.0.0 "First Haul", ported to three more NeoForge lines so more players can

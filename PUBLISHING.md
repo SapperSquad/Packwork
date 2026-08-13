@@ -22,19 +22,22 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 | `1.0.0+mc1.21.8` | `build/libs/packwork-1.0.0+mc1.21.8.jar` (built on `port/1.21.8`) | 1.21.8 | NeoForge | **Required** | **Required** |
 | `1.0.0+mc1.21.10` | `build/libs/packwork-1.0.0+mc1.21.10.jar` (built on `port/1.21.10`) | 1.21.10 | NeoForge | **Required** | **Required** |
 | `1.0.0+mc1.21.11` | `build/libs/packwork-1.0.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
+| `1.0.0+mc26.1.2` | `build/libs/packwork-1.0.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
+| `1.0.0+mc26.2` | `build/libs/packwork-1.0.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
 
 Needed on both sides: on servers, install on the server and every client. Each port
 branch builds its own jar (`./gradlew.bat build` on that branch); every jar's own
-`neoforge.mods.toml` carries the matching `1.0.0+mc<ver>` version, so the four uploads
+`neoforge.mods.toml` carries the matching `1.0.0+mc<ver>` version, so the uploads
 are distinguishable at a glance in any launcher.
 
-One capability note per version, for support questions: on **1.21.10 and 1.21.11** the
+One capability note per version, for support questions: on **1.21.10 and newer** the
 pack's stores speak NeoForge's new transfer-API capabilities (the 21.9 rework) - any
 mod's pipes and cables that target those versions use the same standard, so automation
-against a placed pack works exactly as on 1.21.1. The **Mekanism gas store and the
-Forgework Flux bridge light only on 1.21.1** for now - neither mod ships builds for the
-newer lines; the gates simply stay dark there (no dead craftables: the Flask Harness
-recipe requires Mekanism to be present).
+against a placed pack works exactly as on 1.21.1 (on 26.1.2 and 26.2 the pack's
+internals ride that API natively). The **Mekanism gas store and the Forgework Flux
+bridge light only on 1.21.1** for now - neither mod ships builds for the newer lines;
+the gates simply stay dark there (no dead craftables: the Flask Harness recipe
+requires Mekanism to be present).
 
 **Migration notes for this release:** none — first release.
 
@@ -155,9 +158,9 @@ Remove any of them and Packwork carries on without it.
 
 ## ⚙️ Requirements & honest notes
 
-- **Now available for 1.21.1, 1.21.8, 1.21.10, and 1.21.11 on NeoForge** (21.1.235+ /
-  21.8.54+ / 21.10.64+ / 21.11.45+ respectively); more versions and loaders coming.
-  No other dependencies, ever.
+- **Now available for 1.21.1, 1.21.8, 1.21.10, 1.21.11, 26.1.2, and 26.2 on NeoForge**
+  (21.1.235+ / 21.8.54+ / 21.10.64+ / 21.11.45+ / 26.1.2.95+ / 26.2.0.59+ respectively);
+  more versions and loaders coming. No other dependencies, ever.
 - On 1.21.8+, Mekanism (the gas store) and Forgework (the Flux bridge) don't ship for
   those Minecraft versions yet, so those two integrations light up on 1.21.1 only.
   JEI and Curios work on every listed version.
