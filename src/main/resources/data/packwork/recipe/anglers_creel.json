@@ -1,5 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": ["WSW", "WRW", "WWW"],
-  "key": { "W": { "item": "minecraft:stick" }, "S": { "item": "minecraft:string" },
-           "R": { "item": "minecraft:fishing_rod" } },
+  "key": { "W": "minecraft:stick", "S": "minecraft:string",
+           "R": "minecraft:fishing_rod" },
   "result": { "id": "packwork:anglers_creel", "count": 1 } }

@@ -1,5 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": ["PPP", "LML", "LLL"],
-  "key": { "P": { "item": "minecraft:paper" }, "M": { "item": "minecraft:map" },
-           "L": { "item": "minecraft:leather" } },
+  "key": { "P": "minecraft:paper", "M": "minecraft:map",
+           "L": "minecraft:leather" },
   "result": { "id": "packwork:cartographers_sleeve", "count": 1 } }

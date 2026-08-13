@@ -1,5 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
   "pattern": ["ITI", "TLT", "ITI"],
-  "key": { "I": { "item": "minecraft:iron_nugget" }, "T": { "item": "minecraft:torch" },
-           "L": { "item": "minecraft:leather" } },
+  "key": { "I": "minecraft:iron_nugget", "T": "minecraft:torch",
+           "L": "minecraft:leather" },
   "result": { "id": "packwork:torchbearers_loop", "count": 1 } }
