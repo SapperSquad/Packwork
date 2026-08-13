@@ -2,6 +2,36 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
+
+Packwork crosses the loader line: the same 1.0.0 "First Haul" on **Fabric**, for the
+26.1.x and 26.2 lines. Nothing gameplay-visible changed; each build passes the same
+58-test suite (plain, with Trinkets, with JEI + Trinkets) plus a pixel-inspected GUI
+pass — sorting grid, deep counts, gauges, rule editor, Recipe Ledger, six-tier
+placed trim, handbook, and the JEI upgrade ring.
+
+- **New:** Fabric **26.1.x** and **26.2** builds (loader 0.19.3+, Fabric API), from
+  `fabric/26.1` and `fabric/26.2`, jars named `packwork-1.0.0+mc<ver>-fabric.jar`.
+- **Wear on Fabric = Trinkets** (the maintained Trinkets Updated fork): the pack rides
+  the chest/back slot, B / Shift-B behave exactly as with Curios on NeoForge, worn
+  trinkets keep ticking, and everything works without it (both wear mods stay optional).
+- **Energy on Fabric = Team Reborn Energy**, the ecosystem's standard, bundled inside
+  the jar (never a mod to install). Same reservoir, same numbers: 1 E = 1 FE.
+- **JEI renders the pack ladder on Fabric too** — the full nine-cell ring, pack
+  centered. Under the hood the upgrade recipes now opt into Fabric's client recipe
+  sync, so any viewer reading synced recipes can see them.
+- Hoppers, pipes, and cables feed a placed pack through Fabric's own transfer API —
+  same standard-first story as NeoForge, no bridge blocks.
+- **Mekanism and Forgework are NeoForge-only mods**, so the gas store and the Flux
+  bridge stay dark on Fabric (no dead craftables; the Flask Harness recipe requires
+  Mekanism present and stays off the creative shelf there).
+- Internal, for the curious: the storage internals mapped straight onto Fabric's
+  transactional transfer API (the design NeoForge's 21.9 rework shares), with the
+  same three rules — per-slot depth, nesting refusal, one-stack pulls — enforced at
+  the same native choke points, pinned by the same conservation gametests. Exactly
+  three mixins where Fabric has no event: pack-first pickup, the Angler's Creel
+  catch, and Quick-Draw's broken-tool refill (break-only on Fabric, documented).
+
 ## 1.0.0+mc26.1.2 / +mc26.2 — 2026-08-13 (version ports, wave 2)
 
 The same 1.0.0 "First Haul" on Minecraft's 26.x lines. Nothing gameplay-visible

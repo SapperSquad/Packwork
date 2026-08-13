@@ -14,42 +14,61 @@ gases, energy, and XP** — all re-skinned as leather-and-brass gear, never tech
 Published under **SapperSquad**, playful forge-y voice. Sits beside Coinkeep, Highroller,
 Forgework, PhytoForge, Gunsmith, Pantrywork, and Reel Rivals.
 
-## Version ports — the reach campaign (waves 1+2 DONE, 2026-08-13)
+## Version ports — the reach campaign (ALL THREE WAVES DONE, 2026-08-13)
 
 Downloads track version×loader coverage, not quality (measured: Pantrywork 519 @ 13
 combos vs Packwork 32 @ 1), so 1.0.0 is being spread wide. **Wave 1: NeoForge
-1.21.8 / 1.21.10 / 1.21.11 — DONE. Wave 2: NeoForge 26.1.2 / 26.2 — DONE.**
-Wave 3 = Fabric (open). Master stays the 1.21.1 line; each port lives on its own
-branch. Do NOT restructure to multiloader yet (coordinator's call for this campaign).
+1.21.8 / 1.21.10 / 1.21.11 — DONE. Wave 2: NeoForge 26.1.2 / 26.2 — DONE.
+Wave 3: Fabric 26.1 / 26.2 — DONE** (incl. the 26.2 stretch). Master stays the
+1.21.1 line; each port lives on its own branch. Do NOT restructure to multiloader
+yet (coordinator's call for this campaign; re-argued and upheld in the fabric
+branches' DECISIONS — the parallel branch was cheap precisely because 26.x is
+unobfuscated, and it kept six green NeoForge branches untouched).
 
 ### Branch layout and toolchain pins
 
-| Branch | MC | NeoForge | Parchment | JEI | Curios | Jar |
+| Branch | MC | Loader | Parchment | JEI | Wear | Jar |
 |---|---|---|---|---|---|---|
-| `master` | 1.21.1 | 21.1.235 | 2024.11.17 | 19.21.1.312 | 9.5.1+1.21.1 | `packwork-1.0.0.jar` |
-| `port/1.21.8` | 1.21.8 | 21.8.54 | 2025.09.14 | 24.2.0.6 | 12.0.0+1.21.8 | `packwork-1.0.0+mc1.21.8.jar` |
-| `port/1.21.10` | 1.21.10 | 21.10.64 | 2025.10.12 | 26.3.0.31 | 13.0.0+1.21.10 | `packwork-1.0.0+mc1.21.10.jar` |
-| `port/1.21.11` | 1.21.11 | 21.11.45 | 2025.12.20 | 27.23.0.71 | 14.0.0+1.21.11 | `packwork-1.0.0+mc1.21.11.jar` |
-| `port/26.1` | 26.1.2 | 26.1.2.95 | — (unobf) | 29.22.0.73 | 15.0.0+26.1.2 | `packwork-1.0.0+mc26.1.2.jar` |
-| `port/26.2` | 26.2 | 26.2.0.59 | — (unobf) | 30.20.0.154 | 16.0.0+26.2 | `packwork-1.0.0+mc26.2.jar` |
+| `master` | 1.21.1 | NeoForge 21.1.235 | 2024.11.17 | 19.21.1.312 | Curios 9.5.1+1.21.1 | `packwork-1.0.0.jar` |
+| `port/1.21.8` | 1.21.8 | NeoForge 21.8.54 | 2025.09.14 | 24.2.0.6 | Curios 12.0.0+1.21.8 | `packwork-1.0.0+mc1.21.8.jar` |
+| `port/1.21.10` | 1.21.10 | NeoForge 21.10.64 | 2025.10.12 | 26.3.0.31 | Curios 13.0.0+1.21.10 | `packwork-1.0.0+mc1.21.10.jar` |
+| `port/1.21.11` | 1.21.11 | NeoForge 21.11.45 | 2025.12.20 | 27.23.0.71 | Curios 14.0.0+1.21.11 | `packwork-1.0.0+mc1.21.11.jar` |
+| `port/26.1` | 26.1.2 | NeoForge 26.1.2.95 | — (unobf) | 29.22.0.73 | Curios 15.0.0+26.1.2 | `packwork-1.0.0+mc26.1.2.jar` |
+| `port/26.2` | 26.2 | NeoForge 26.2.0.59 | — (unobf) | 30.20.0.154 | Curios 16.0.0+26.2 | `packwork-1.0.0+mc26.2.jar` |
+| `fabric/26.1` | 26.1 (`~26.1`) | Fabric 0.19.3 + API 0.155.2+26.1.2 | — (unobf) | 29.22.0.73 | Trinkets Upd. 4.0.0-beta.3+26.1 | `packwork-1.0.0+mc26.1-fabric.jar` |
+| `fabric/26.2` | 26.2 (`~26.2`) | Fabric 0.19.3 + API 0.157.0+26.2 | — (unobf) | 30.20.0.154 | Trinkets Upd. 4.1.0-beta.3+26.2 | `packwork-1.0.0+mc26.2-fabric.jar` |
 
-All six: NeoGradle userdev 7.1.38 (unchanged — the official MDKs through 26.2 still
-use it), Gradle 9.6.1. JDK: 21 through 1.21.11; **Java 25 from 26.1** (Mojang ships
-25; the foojay resolver already in settings.gradle auto-provisioned Adoptium 25 into
-`~/.gradle/jdks` — nothing to install by hand, the house daemon-JDK worry didn't
-bite on NeoForge). Parchment ends at 1.21.11: 26.x is unobfuscated, nothing to map.
-NeoForge 26.x versioning: the first THREE components are the MC version (26.1.2.95 =
-MC 26.1.2); the 26.2 line is beta-numbered on the maven but the artifact id carries
-no suffix. **Mekanism and Forgework ship no builds past 1.21.1** (re-checked modmaven
-2026-08-13), so on every port branch those two gates simply never light; their compat
-classes still compile against the pinned 1.21.1 API jars. Port branches carry
-`version = "${mod_version}+mc${minecraft_version}"` in `build.gradle` and the datagen
-run is `runClientData` (NeoForge 21.4+ split datagen).
-Bar per branch: `compileJava` clean, `runClientData` clean, **58/58 gametests
-(57 packwork + vanilla's always_pass) × plain / -Pcurios / -Pjei -Pcurios**, jar built
-with the right name AND `version="1.0.0+mc<ver>"` inside its `neoforge.mods.toml`.
-The 1.21.11 and 26.1 branches had the full GUI verified as pixels via `-Pautoshot`
-(26.2 got a spot-check: pack GUI + placed trim, identical to 26.1's set).
+All six NeoForge branches: NeoGradle userdev 7.1.38 (unchanged — the official MDKs
+through 26.2 still use it), Gradle 9.6.1. JDK: 21 through 1.21.11; **Java 25 from
+26.1** (Mojang ships 25; the foojay resolver already in settings.gradle
+auto-provisioned Adoptium 25 into `~/.gradle/jdks` — nothing to install by hand, the
+house daemon-JDK worry didn't bite on NeoForge). Parchment ends at 1.21.11: 26.x is
+unobfuscated, nothing to map. NeoForge 26.x versioning: the first THREE components
+are the MC version (26.1.2.95 = MC 26.1.2); the 26.2 line is beta-numbered on the
+maven but the artifact id carries no suffix. **Mekanism and Forgework ship no builds
+past 1.21.1** (re-checked modmaven 2026-08-13), so on every port branch those two
+gates simply never light; their compat classes still compile against the pinned
+1.21.1 API jars. Port branches carry `version = "${mod_version}+mc${minecraft_version}"`
+in `build.gradle` and the datagen run is `runClientData` (NeoForge 21.4+ split datagen).
+
+The two `fabric/*` branches: non-remapping **`net.fabricmc.fabric-loom` 1.17.19**
+(the DejaView/Blockives house recipe — no mappings line, plain `implementation`, no
+remapJar), Gradle 9.6.1 (same wrapper), Java 25 toolchain/release with the DAEMON
+pinned to 26 via `gradle/gradle-daemon-jvm.properties` (Loom rejects 26.x on an
+older daemon — the house worry DID bite on Fabric). Team Reborn Energy 5.0.0
+jar-in-jar'd (`include`); Trinkets Updated + JEI compileOnly with `-Ptrinkets` /
+`-Pjei` runtime flags; Mekanism/Forgework compat classes DELETED there (no Fabric
+artifact exists to compile against — gas gates dark, Flask Harness recipe
+`fabric:load_conditions`-gated, creative tab hides the fitting).
+Bar per branch: `compileJava` clean, (`runClientData` clean on NeoForge; Fabric has
+no datagen — the generated resources are committed), **58/58 gametests (57 packwork
++ vanilla's always_pass) × plain / -Pcurios / -Pjei -Pcurios** (Fabric: × plain /
+`-Ptrinkets` / `-Ptrinkets -Pjei`, on fabric-api's runner: `./gradlew runGametest`),
+jar built with the right name AND the full version inside its
+`neoforge.mods.toml` / `fabric.mod.json`. The 1.21.11, 26.1, and fabric/26.1
+branches had the full GUI verified as pixels via `-Pautoshot` (26.2 and fabric/26.2
+got the spot-check: pack GUI + placed trim + on Fabric the JEI ring, identical to
+their 26.1 siblings' sets).
 
 ### The drift map, 1.21.11 → 26.2 (wave 2's findings — wave 3 starts from this)
 
@@ -125,22 +144,77 @@ because port/1.21.11 already carried the 26.x-era foundations. What actually mov
   FluidAction convenience overloads (kept so test bodies stay word-for-word), and the
   dormant 1.21.1-only compat classes.
 
-**Wave 3 (Fabric) notes:** the expensive thinking is already done. The storage
-internals are loader-agnostic in SHAPE — Fabric's transfer API is the same
-transactional design NeoForge's new one copied (`Transaction`, per-slot insert/
-extract, snapshot journals), so `PackContents` ports verbatim and `PackInventory`
-maps onto a `Storage<ItemVariant>` with the same three overrides; the legacy-shaped
-conveniences keep the menu/trinkets/sorting/test bodies identical. What Fabric has
-NO equivalent for: NeoForge data-component TYPE registration is `DeferredRegister.
-DataComponents` (Fabric registers straight into the registry), the capability
-events (Fabric uses API lookups), `ItemAccess` (Fabric's `ContainerItemContext` is
-the analogue — same idea, commit-mutates-the-source), and the config/event bus
-plumbing. Energy has no vanilla-Fabric standard: team Reborn Energy or skip the FE
-store's automation face on Fabric (the component + gauge still work). Curios ↔
-Trinkets (Fabric) is a different API with the same shape. JEI ships Fabric builds
-(same version lines). Start from `port/26.x` for MC-version drift, but expect the
-loader plumbing (registration, events, network, menus/screens host wiring) to be
-the actual cost — the GUI, sorting engine, recipes, and store math are untouched.
+### Wave 3 (Fabric) — DONE 2026-08-13; how the prediction held, and what it missed
+
+The shape-analysis above held exactly: `PackContents` ported verbatim, `PackInventory`
+is the three rules on a `SlottedStorage<ItemVariant>` over `ContainerItemContext`
+(one wrinkle: the native face is a NESTED view, because `SlottedStorage`'s default
+`getSlots()` collides with the legacy-shaped convenience of the same name), and the
+conveniences run root `Transaction`s so the menu/trinkets/sorting/test bodies stayed
+intact. `transfer/LiveStackStorage` is the `ItemAccess.forStack` analogue — in-place
+replace-the-patch write-through over the live stack. Fluid stays **millibuckets in the
+`pack_fluid` component** (own `PackFluidContent`, same serialized shape as
+SimpleFluidContent); Fabric droplets (81/mB) exist only at the transfer face, whole-mB
+moves only. Energy is **Team Reborn Energy jar-in-jar** over the same `pack_energy`
+ints, 1 E = 1 FE (`transfer/PackEnergyFace`, the SimpleEnergyItem pattern with our
+component and tier caps). Wear is **Trinkets Updated** (Patbox fork — the original
+Trinkets ends at 1.21.1, Accessories at 1.21.10; the fork `provides: trinkets`, which
+is what every gate checks) in the built-in `chest/back` slot;
+`compat/trinkets/TrinketsCompat` mirrors CuriosCompat's surface method for method.
+
+**Mixins — exactly three, plus one classtweaker line** (Fabric has no event for these):
+`ItemEntityMixin` (playerTouch HEAD → pack-first pickup), `FishingHookMixin` (redirect
+the loot roll → Angler's Creel), `LivingEntityMixin` (onEquippedItemBroken TAIL →
+Quick-Draw; break-only — the NeoForge used-to-nothing refill has no Fabric hook,
+documented narrowing). The classtweaker opens `ShapedRecipe.pattern` for the tool
+roll's shaped-grid arrangement (private in pure vanilla; NeoForge patches it).
+
+**What the prediction missed — every one found by the SUITE or the AUTOSHOT, none by
+the compile** (the reason those bars exist):
+- `LiveStackStorage` must snapshot a COPY — `SingleStackStorage` snapshots the
+  instance (safe for its own reference-swapping ops, corrupt for in-place
+  write-through), so rollbacks restored nothing: the Field Furnace's simulated
+  room-check doubled output and `StorageUtil.move`'s aborted probe-extract drained
+  the waterskin. Two gametests caught it on the first run.
+- Trinkets Updated reads entity→slot bindings ONLY from the `trinkets` namespace
+  (`data/trinkets/entities/*.json`, verified in the loader bytecode) and ships none
+  itself — without our `packwork_back.json` binding player→chest/back, NO player
+  slots exist at all. The pack tag rides at `data/trinkets/tags/item/chest/back.json`.
+- JEI-Fabric discovers plugins via the **`jei_mod_plugin` entrypoint**, not the
+  annotation scan (entrypoints are lazy — the one-class gate still holds), AND its
+  crafting index reads the client's synced RecipeMap, where fabric-api's recipe sync
+  is **opt-in per serializer**: `RecipeSynchronization.synchronizeRecipeSerializer`.
+  Without both, the ladder rendered as info pages but never as real recipes — the
+  wave-4 failure in Fabric clothes. The autoshot logs the greppable probe
+  `crafting index holds N pack-upgrade recipes` (want 5).
+- Pure-vanilla drift from the NeoForge-patched view (these ARE compile-visible):
+  `recipeMap()`→`getRecipes()`, `ItemStack.getBurnTime`→`FuelValues.burnDuration`,
+  `renderSlotContents`→an `extractSlot` override, `getGuiLeft/Top`→own accessors,
+  `Screen.hasShiftDown`→a GLFW poll (Shift-B rides it; Fabric has no key-modifier
+  system, OPEN_WORN ships unbound), `ItemContainerContents.getSlots`→copyInto
+  counting, `onDataPacket`/`handleUpdateTag`→a dual-shape `loadAdditional` (vanilla
+  applies BE update packets through `loadWithComponents`), `invalidateCapabilities`→
+  nothing (lookups re-derive), `BlockEntityType` ctor private→
+  `FabricBlockEntityTypeBuilder`, `CreativeModeTab.builder()`→`FabricCreativeModeTab`.
+- Fabric API's own transfer mixins patch HOPPERS onto the lookups, so a placed pack
+  stays hopper-automatable with zero extra code — full pillar-3 parity.
+- `fabric/26.2` was the wave-2 26.2 screen family re-applied verbatim + pins;
+  compiled first try, suite green first try.
+
+**EMI status (honest):** EMI ships no 26.x build at all (checked Modrinth
+2026-08-13), so there is nothing to be compatible WITH yet. When it arrives: the
+upgrade recipes now sync to clients and carry vanilla `display()`s, so any viewer
+reading the client RecipeMap can index and draw them; the positioned-ring extension
+itself is JEI-only, and no native EMI plugin was built (campaign call).
+
+**Maintenance story across 8 branches:** master (1.21.1) is the feature line;
+`port/*` are MC-drift-only; `fabric/*` are loader-plumbing-only. A feature lands on
+master, sweeps the ports with the drift maps below, then crosses to Fabric by
+touching only the loader surface (the reg/net/capabilities/client-plumbing files +
+the three mixins — the full list is the fabric branches' DECISIONS entry). The
+storage internals, sorting engine, GUI drawing, recipes, and store math are shared
+text on every branch. If Fabric targets multiply or FEATURES (not plumbing) start
+drifting between loaders, that is the evidence gate for revisiting multiloader.
 
 ### The drift map, 1.21.1 → 1.21.11 (what broke where — wave 2 starts from this)
 
