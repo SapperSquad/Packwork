@@ -78,10 +78,21 @@ public class OutfitterHandbookScreen extends Screen {
                 wrappedLines.addAll(paragraphLines);
                 addParagraphGap();
             } else if (entry instanceof HandbookContent.ItemsEntry itemsEntry) {
-                if (LINES_PER_PAGE - (wrappedLines.size() % LINES_PER_PAGE) < 2) {
+                // A caption that would clip at the panel edge (the six-pack ladder rows)
+                // becomes its own dim line ABOVE the icons instead of a truncated tail.
+                boolean splitCaption = !itemsEntry.caption().isEmpty()
+                        && font.width(itemsEntry.caption())
+                                > contentWidth() - (itemsEntry.items().size() * 20 + 4);
+                if (LINES_PER_PAGE - (wrappedLines.size() % LINES_PER_PAGE) < (splitCaption ? 3 : 2)) {
                     padToPageBoundary();
                 }
-                wrappedLines.add(itemsEntry);
+                if (splitCaption) {
+                    wrappedLines.add(Component.literal(itemsEntry.caption())
+                            .withStyle(s -> s.withColor(TEXT_DIM & 0xFFFFFF)).getVisualOrderText());
+                    wrappedLines.add(new HandbookContent.ItemsEntry("", itemsEntry.items()));
+                } else {
+                    wrappedLines.add(itemsEntry);
+                }
                 wrappedLines.add(SPACER);
                 addParagraphGap();
             }
