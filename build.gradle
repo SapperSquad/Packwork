@@ -34,8 +34,9 @@ base {
     archivesName = mod_id
 }
 
-// Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Mojang ships Java 25 to end users from 26.1, so mods should target Java 25.
+// (The foojay resolver in settings.gradle auto-provisions the JDK if absent.)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // Default run configurations.
 runs {

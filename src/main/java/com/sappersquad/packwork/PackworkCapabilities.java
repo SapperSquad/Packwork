@@ -27,8 +27,10 @@ public final class PackworkCapabilities {
 
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         for (var holder : ModItems.PACKS.values()) {
+            // 26.1: PackInventory IS the native handler now - the capability and the
+            // menu/trinket internals share one implementation of the three rules.
             event.registerItem(Capabilities.Item.ITEM,
-                    (stack, access) -> new PackTransfer.PackItemHandler(access, PackItem.tierOf(stack)),
+                    (stack, access) -> new com.sappersquad.packwork.pack.PackInventory(access, PackItem.tierOf(stack)),
                     holder.get());
 
             event.registerItem(Capabilities.Fluid.ITEM,
@@ -68,7 +70,7 @@ public final class PackworkCapabilities {
         // marks the block entity dirty on every successful move (see PackTransfer).
         event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.PACK.get(),
                 (be, side) -> be.isEmpty() ? null
-                        : new PackTransfer.PackItemHandler(PackTransfer.forBlockEntity(be),
+                        : new com.sappersquad.packwork.pack.PackInventory(PackTransfer.forBlockEntity(be),
                                 PackItem.tierOf(be.getPackStack())));
 
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.PACK.get(),

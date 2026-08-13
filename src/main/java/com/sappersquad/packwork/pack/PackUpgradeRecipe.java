@@ -52,6 +52,18 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
     /** Row-major 3x3 cell roles: the centre is the pack; odd cells are edges, the rest corners. */
     public static final int CENTER_CELL = 4;
 
+    /** 26.1: {@code group()} became abstract on Recipe; upgrades belong to no book group. */
+    @Override
+    public String group() {
+        return "";
+    }
+
+    /** 26.1: {@code showNotification()} went abstract too; keep vanilla's usual yes. */
+    @Override
+    public boolean showNotification() {
+        return true;
+    }
+
     private static boolean isEdgeCell(int cell) {
         return cell % 2 == 1;
     }
@@ -74,7 +86,7 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
     }
 
     @Override
-    public ItemStack assemble(CraftingInput input, HolderLookup.Provider registries) {
+    public ItemStack assemble(CraftingInput input) {
         ItemStack pack = input.getItem(CENTER_CELL);
         ItemStack result = new ItemStack(ModItems.pack(to).get());
         copy(pack, result, ModComponents.PACK_CONTENTS.get());
@@ -133,17 +145,23 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
                         .map(Ingredient::display)
                         .map(d -> (net.minecraft.world.item.crafting.display.SlotDisplay) d)
                         .toList(),
-                new net.minecraft.world.item.crafting.display.SlotDisplay.ItemStackSlotDisplay(resultStack()),
+                new net.minecraft.world.item.crafting.display.SlotDisplay.ItemStackSlotDisplay(
+                        net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(resultStack())),
                 new net.minecraft.world.item.crafting.display.SlotDisplay.ItemSlotDisplay(
-                        net.minecraft.world.item.Items.CRAFTING_TABLE)));
+                        net.minecraft.world.item.Items.CRAFTING_TABLE.builtInRegistryHolder())));
     }
 
     @Override
-    public RecipeSerializer<? extends CraftingRecipe> getSerializer() {
+    public RecipeSerializer<PackUpgradeRecipe> getSerializer() {
         return ModRecipes.PACK_UPGRADE.get();
     }
 
-    public static final class Serializer implements RecipeSerializer<PackUpgradeRecipe> {
+    /** 26.1: {@code RecipeSerializer} became a record of (codec, streamCodec); this builds ours. */
+    public static RecipeSerializer<PackUpgradeRecipe> createSerializer() {
+        return new RecipeSerializer<>(Serializer.CODEC, Serializer.STREAM_CODEC);
+    }
+
+    private static final class Serializer {
         private static final MapCodec<PackUpgradeRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("from").forGetter(PackUpgradeRecipe::from),
                 StringRepresentable.fromEnum(PackTier::values).fieldOf("to").forGetter(PackUpgradeRecipe::to),
@@ -161,15 +179,5 @@ public record PackUpgradeRecipe(PackTier from, PackTier to, Ingredient edges, In
                         Ingredient.CONTENTS_STREAM_CODEC, PackUpgradeRecipe::corners,
                         CraftingBookCategory.STREAM_CODEC, PackUpgradeRecipe::category,
                         PackUpgradeRecipe::new);
-
-        @Override
-        public MapCodec<PackUpgradeRecipe> codec() {
-            return CODEC;
-        }
-
-        @Override
-        public StreamCodec<RegistryFriendlyByteBuf, PackUpgradeRecipe> streamCodec() {
-            return STREAM_CODEC;
-        }
     }
 }

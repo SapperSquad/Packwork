@@ -234,8 +234,8 @@ public class PackworkGameTests {
     @PackTest
     public static void freshPackIsEmptyAndDefault(GameTestHelper helper) {
         ItemStack pack = new ItemStack(ModItems.leatherPack().get());
-        ItemContainerContents c = pack.get(ModComponents.PACK_CONTENTS.get());
-        helper.assertTrue(c == null || c.nonEmptyStream().findAny().isEmpty(), "fresh pack holds nothing");
+        com.sappersquad.packwork.pack.PackContents c = pack.get(ModComponents.PACK_CONTENTS.get());
+        helper.assertTrue(c == null || c.nonEmptyItemCopyStream().findAny().isEmpty(), "fresh pack holds nothing");
         PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         helper.assertTrue(layout.customTabs().isEmpty() && layout.pins().isEmpty(),
                 "fresh pack has default layout");
@@ -313,7 +313,7 @@ public class PackworkGameTests {
                 new ItemStack(Items.IRON_INGOT), new ItemStack(Items.COPPER_INGOT), new ItemStack(Items.IRON_INGOT)));
         helper.assertTrue(recipe.matches(input, helper.getLevel()), "the full studded ring matches");
 
-        ItemStack out = recipe.assemble(input, reg);
+        ItemStack out = recipe.assemble(input);
         helper.assertTrue(out.getItem() == ModItems.pack(PackTier.STUDDED).get(), "result is a Studded pack");
         PackInventory upgraded = new PackInventory(out, PackTier.STUDDED);
         helper.assertTrue(upgraded.getStackInSlot(0).is(Items.DIAMOND)
@@ -546,7 +546,11 @@ public class PackworkGameTests {
                 Identifier.parse("forgework:portable_ender_terminal")).orElseThrow();
         ItemStack terminal = new ItemStack(terminalItem);
         int before = crystal.getEnergyStored();
-        int moved = com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.chargeItem(terminal, crystal, 5_000);
+        // (26.1: the bridge takes the pack's own store now - same component the cap reads.)
+        int moved = com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.chargeItem(terminal,
+                new com.sappersquad.packwork.pack.PackEnergyStorage(() -> pack,
+                        com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(pack),
+                        com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(pack)), 5_000);
         helper.assertTrue(moved == 5_000, "moves the per-item cap of Flux, got " + moved);
         helper.assertTrue(crystal.getEnergyStored() == before - moved, "FE leaves the crystal 1:1, none minted or lost");
         helper.succeed();
@@ -1262,7 +1266,7 @@ public class PackworkGameTests {
                 ItemStack.EMPTY, new ItemStack(Items.AMETHYST_SHARD), ItemStack.EMPTY));
         helper.assertTrue(!recipe.matches(half, helper.getLevel()), "amethyst alone is not enough");
 
-        ItemStack out = recipe.assemble(input, reg);
+        ItemStack out = recipe.assemble(input);
         helper.assertTrue(out.getItem() == ModItems.pack(PackTier.SCULKHIDE).get(), "result is Sculkhide");
         PackInventory upStore = new PackInventory(out, PackTier.SCULKHIDE);
         helper.assertTrue(upStore.getStackInSlot(0).getCount() == 320,
@@ -1374,7 +1378,7 @@ public class PackworkGameTests {
         // drop bread (a Food item) into the Ores tab: it must PIN there and stay
         menu.applySelectTab("auto:ores");
         menu.setCarried(new ItemStack(Items.BREAD, 5));
-        menu.clicked(0, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+        menu.clicked(0, 0, net.minecraft.world.inventory.ContainerInput.PICKUP, player);
         PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         helper.assertTrue("auto:ores".equals(layout.pinnedTab(BuiltInRegistries.ITEM.getKey(Items.BREAD))),
                 "bread dropped into Ores pins to Ores, got " + layout.pins());
@@ -1385,7 +1389,7 @@ public class PackworkGameTests {
 
         // drop iron into Ores - its own tab - and no pin is created
         menu.setCarried(new ItemStack(Items.IRON_INGOT, 3));
-        menu.clicked(1, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+        menu.clicked(1, 0, net.minecraft.world.inventory.ContainerInput.PICKUP, player);
         layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         helper.assertTrue(layout.pinnedTab(BuiltInRegistries.ITEM.getKey(Items.IRON_INGOT)) == null,
                 "iron dropped into Ores needs no pin");
@@ -1411,7 +1415,7 @@ public class PackworkGameTests {
         menu.applySelectTab("auto:blocks");
         menu.applyToggleTabMode("auto:blocks");
         menu.setCarried(new ItemStack(Items.COBBLESTONE, 10));
-        menu.clicked(5, 0, net.minecraft.world.inventory.ClickType.PICKUP, player);
+        menu.clicked(5, 0, net.minecraft.world.inventory.ContainerInput.PICKUP, player);
 
         PackLayout layout = pack.getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         var kept = layout.manualFor("auto:blocks");
@@ -1798,8 +1802,8 @@ public class PackworkGameTests {
         helper.assertTrue(player.getInventory().getItem(9).isEmpty(),
                 "the pocket stack moved (not copied) into the pack");
         ItemStack equipped = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
-        int planks = equipped.getOrDefault(ModComponents.PACK_CONTENTS.get(), ItemContainerContents.EMPTY)
-                .nonEmptyStream().filter(s -> s.is(Items.OAK_PLANKS)).mapToInt(ItemStack::getCount).sum();
+        int planks = equipped.getOrDefault(ModComponents.PACK_CONTENTS.get(), com.sappersquad.packwork.pack.PackContents.EMPTY)
+                .nonEmptyItemCopyStream().filter(s -> s.is(Items.OAK_PLANKS)).mapToInt(ItemStack::getCount).sum();
         helper.assertTrue(planks == 12, "the equipped curios stack holds the 12 planks, got " + planks);
 
         // Pin, through the same network entry the GUI uses.
@@ -1850,8 +1854,8 @@ public class PackworkGameTests {
 
         // A racing GUI verb must refuse too - and the departed stack stays exactly as it was.
         menu.handleAction(com.sappersquad.packwork.net.PackAction.TIDY_UP.ordinal(), 0, "", "");
-        int cobble = pack.getOrDefault(ModComponents.PACK_CONTENTS.get(), ItemContainerContents.EMPTY)
-                .nonEmptyStream().filter(s -> s.is(Items.COBBLESTONE)).mapToInt(ItemStack::getCount).sum();
+        int cobble = pack.getOrDefault(ModComponents.PACK_CONTENTS.get(), com.sappersquad.packwork.pack.PackContents.EMPTY)
+                .nonEmptyItemCopyStream().filter(s -> s.is(Items.COBBLESTONE)).mapToInt(ItemStack::getCount).sum();
         helper.assertTrue(cobble == 7, "the departed pack is untouched, got " + cobble + " cobble");
 
         // The close path (menu.removed -> roll cleanup) is safe with the host gone.

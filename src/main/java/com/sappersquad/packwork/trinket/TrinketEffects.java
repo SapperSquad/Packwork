@@ -120,7 +120,7 @@ public final class TrinketEffects {
             var recipe = level.getServer().getRecipeManager().getRecipeFor(
                     net.minecraft.world.item.crafting.RecipeType.SMELTING, input, level);
             if (recipe.isEmpty()) continue;
-            ItemStack out = recipe.get().value().assemble(input, level.registryAccess());
+            ItemStack out = recipe.get().value().assemble(input);
             if (out.isEmpty()) continue;
             // no room for what it would make? leave the raw one exactly where it is
             if (!insertAll(pack, out.copy(), true).isEmpty()) continue;
@@ -154,7 +154,10 @@ public final class TrinketEffects {
             if (burn <= 0) continue;
             ItemStack fuel = pack.extractItem(i, 1, false);
             if (fuel.isEmpty()) continue;
-            ItemStack remainder = fuel.getCraftingRemainder();
+            // 26.1: getCraftingRemainder returns a nullable ItemStackTemplate, not a stack.
+            net.minecraft.world.item.ItemStackTemplate remT = fuel.getCraftingRemainder();
+            ItemStack remainder = remT == null ? ItemStack.EMPTY
+                    : remT.apply(remT.count(), net.minecraft.core.component.DataComponentPatch.EMPTY);
             if (!remainder.isEmpty()) insertAll(pack, remainder);
             return burn;
         }
@@ -303,7 +306,9 @@ public final class TrinketEffects {
      * taken by the time it gets there the seed goes back - so it can neither dupe nor lose one.
      */
     @SubscribeEvent
-    public static void onCropHarvested(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+    // 26.1: BlockEvent.BreakEvent became its own top-level BreakBlockEvent (fires both
+    // sides now; the ServerPlayer guard below already drops the client fire).
+    public static void onCropHarvested(net.neoforged.neoforge.event.level.block.BreakBlockEvent event) {
         if (!(event.getPlayer() instanceof ServerPlayer sp)) return;
         if (!(event.getLevel() instanceof net.minecraft.server.level.ServerLevel level)) return;
         var state = event.getState();
@@ -367,11 +372,14 @@ public final class TrinketEffects {
         // Forgework interop (gated): the crystal also tops up any Forgework portable
         // terminal you're carrying, 1 Flux = 1 FE. Reached only when forgework is loaded,
         // so ForgeworkFluxBridge (and com.forgework.*) never classloads without it.
-        // The bridge keeps its 1.21.1-era IEnergyStorage signature; the legacy view
-        // adapter is the sanctioned NEW->OLD direction (IEnergyStorage.of).
+        // 26.1: the bridge rides the pack's own component store now (the deprecated
+        // IEnergyStorage legacy view is gone from the bridge's signature entirely).
         if (FORGEWORK_LOADED && crystal.getAmountAsLong() > 0) {
             com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(
-                    sp, net.neoforged.neoforge.energy.IEnergyStorage.of(crystal), FLUX_PER_TICK);
+                    sp, new com.sappersquad.packwork.pack.PackEnergyStorage(() -> packStack,
+                            com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(packStack),
+                            com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(packStack)),
+                    FLUX_PER_TICK);
         }
     }
 

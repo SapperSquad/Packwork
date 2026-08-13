@@ -22,15 +22,17 @@ public class ModComponents {
 
     /**
      * The pack's item store: one flat backing inventory; tabs are virtual views over it.
-     * Persisted through {@link com.sappersquad.packwork.pack.DeepContentsCodec} because
-     * per-slot DEPTH holds counts far past vanilla's 99-count codec cap; the codec still
-     * reads pre-depth saves via its legacy fallback. The stream codec is vanilla's - it
-     * writes counts as raw VarInts, so sync never needed a change.
+     * 26.1: the value type is Packwork's own {@link com.sappersquad.packwork.pack.PackContents}
+     * - vanilla's ItemContainerContents now strict-validates every stack-shaped read and
+     * nulls deep counts to EMPTY, so per-slot DEPTH needs a holder that trusts its counts.
+     * Persisted through {@link com.sappersquad.packwork.pack.DeepContentsCodec} (same
+     * serialized shape as the 1.21.x branches, legacy fallback intact); the stream codec
+     * writes counts as raw VarInts and never caps.
      */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> PACK_CONTENTS =
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.sappersquad.packwork.pack.PackContents>> PACK_CONTENTS =
             COMPONENTS.registerComponentType("pack_contents", builder -> builder
                     .persistent(com.sappersquad.packwork.pack.DeepContentsCodec.CODEC)
-                    .networkSynchronized(ItemContainerContents.STREAM_CODEC));
+                    .networkSynchronized(com.sappersquad.packwork.pack.PackContents.STREAM_CODEC));
 
     /** Custom tabs, manual pins, the void-filter list, and per-pack view settings. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<PackLayout>> PACK_LAYOUT =

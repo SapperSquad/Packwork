@@ -12,7 +12,8 @@ public class ModRecipes {
     public static final DeferredRegister<RecipeSerializer<?>> SERIALIZERS =
             DeferredRegister.create(BuiltInRegistries.RECIPE_SERIALIZER, Packwork.MODID);
 
-    /** Preserving tier upgrade: keeps a pack's contents when it moves up the ladder. */
-    public static final DeferredHolder<RecipeSerializer<?>, PackUpgradeRecipe.Serializer> PACK_UPGRADE =
-            SERIALIZERS.register("pack_upgrade", PackUpgradeRecipe.Serializer::new);
+    /** Preserving tier upgrade: keeps a pack's contents when it moves up the ladder.
+     *  (26.1: {@code RecipeSerializer} is a plain record of codecs now, not an interface.) */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<PackUpgradeRecipe>> PACK_UPGRADE =
+            SERIALIZERS.register("pack_upgrade", PackUpgradeRecipe::createSerializer);
 }

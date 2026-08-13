@@ -203,10 +203,10 @@ public class PackItem extends Item {
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
                                 java.util.function.Consumer<Component> tooltip, TooltipFlag flag) {
-        ItemContainerContents contents = stack.get(com.sappersquad.packwork.reg.ModComponents.PACK_CONTENTS.get());
+        com.sappersquad.packwork.pack.PackContents contents = stack.get(com.sappersquad.packwork.reg.ModComponents.PACK_CONTENTS.get());
         int used = 0;
         if (contents != null) {
-            used = (int) contents.nonEmptyStream().count();
+            used = (int) contents.nonEmptyItemCopyStream().count();
         }
         tooltip.accept(Component.translatable("packwork.pack.slots_used", used, tier.capacity())
                 .withStyle(net.minecraft.ChatFormatting.GRAY));

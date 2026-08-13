@@ -12,7 +12,6 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /**
  * The ONLY class in Packwork allowed to import {@code com.forgework.*}. Every entry
@@ -43,7 +42,7 @@ public final class ForgeworkFluxBridge {
      * Top up every Forgework portable terminal the player carries from the pack's charge.
      * Bounded by {@code perTick} so a full pack can't dump instantly. Returns FE moved.
      */
-    public static int topUpCarried(ServerPlayer sp, IEnergyStorage crystal, int perTick) {
+    public static int topUpCarried(ServerPlayer sp, PackEnergyStorage crystal, int perTick) {
         Inventory inv = sp.getInventory();
         int budget = perTick;
         int moved = 0;
@@ -60,7 +59,7 @@ public final class ForgeworkFluxBridge {
      * 1:1. A non-Flux item (anything that isn't a Portable Ender Terminal) is a no-op.
      * Never dupes: it only adds what the crystal actually gives up.
      */
-    public static int chargeItem(ItemStack fluxItem, IEnergyStorage crystal, int cap) {
+    public static int chargeItem(ItemStack fluxItem, PackEnergyStorage crystal, int cap) {
         if (fluxItem.isEmpty() || !(fluxItem.getItem() instanceof PortableEnderTerminalItem)) return 0;
         int room = PortableEnderTerminalItem.FLUX_CAPACITY - PortableEnderTerminalItem.getFlux(fluxItem);
         if (room <= 0) return 0;
@@ -93,7 +92,7 @@ public final class ForgeworkFluxBridge {
     }
 
     /** 1 Flux = 1 FE, straight delegation onto the pack's energy store - no unit conversion. */
-    private record FlowAdapter(IEnergyStorage fe) implements IFlowEnergyStorage {
+    private record FlowAdapter(PackEnergyStorage fe) implements IFlowEnergyStorage {
         @Override public int receiveEnergy(int maxReceive, boolean simulate) { return fe.receiveEnergy(maxReceive, simulate); }
         @Override public int extractEnergy(int maxExtract, boolean simulate) { return fe.extractEnergy(maxExtract, simulate); }
         @Override public int getEnergyStored() { return fe.getEnergyStored(); }
