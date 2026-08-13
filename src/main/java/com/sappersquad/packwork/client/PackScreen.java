@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
@@ -34,8 +34,8 @@ import java.util.List;
  */
 public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
-    private static final Identifier BG = Packwork.id("textures/gui/pack.png");
-    private static final Identifier TAB = Packwork.id("textures/gui/tab.png");
+    private static final ResourceLocation BG = Packwork.id("textures/gui/pack.png");
+    private static final ResourceLocation TAB = Packwork.id("textures/gui/tab.png");
 
     // rail geometry
     private static final int TAB_W = 26;
@@ -161,7 +161,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + 13, 0xFFC8B892);            // parchment
         g.fill(x, y, x + w, y + 1, 0xFFE2D6AE);             // lit top edge
         g.fill(x, y + 12, x + w, y + 13, 0xFFA89A74);       // shaded bottom edge
-        g.renderOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
+        g.submitOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
         g.drawString(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
     }
 
@@ -251,7 +251,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + h, 0xFF3D2A16);                    // dark oiled leather, distinct from the panel
         g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF6A4A2A);        // lit top roll
         g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF241708);
-        g.renderOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
+        g.submitOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
 
         // a canvas working field behind the 3x3 - the tool pockets are sewn onto it
         int cx = leftPos + PackMenu.ROLL_GRID_X - 4, cy = topPos + PackMenu.ROLL_Y - 3;
@@ -286,7 +286,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         for (int i = 0; i < 4; i++) g.fill(ax + 8 + i, ay - 3 + i, ax + 9 + i, ay + 5 - i, 0xFFE7CC82);
 
         slotWell(g, leftPos + PackMenu.ROLL_RESULT_X, topPos + PackMenu.ROLL_RESULT_Y);
-        g.renderOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
+        g.submitOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
                 20, 20, 0xFFC9A24B);
     }
 
@@ -355,7 +355,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.submitOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
@@ -463,7 +463,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int railH = n * PackMenu.TRINKET_PITCH + 6;
         // a strip of stitched brass backing the sockets
         g.fill(railX - 1, railY - 1, railX + 24, railY + railH, 0xFF3E2A18);
-        g.renderOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
+        g.submitOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
         for (int i = 0; i < n; i++) {
             int x = leftPos + PackMenu.TRINKET_X - 1;
             int y = topPos + PackMenu.TRINKET_Y0 + i * PackMenu.TRINKET_PITCH - 1;
@@ -518,7 +518,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // above the sprites by submission order - the old z-translate is gone with the 2D pose)
         for (Slot s : menu.slots) {
             if (!(s instanceof PackViewSlot vs) || !vs.isActive() || !s.hasItem()) continue;
-            Identifier key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
             if (active.equals(layout.pinnedTab(key))) {
                 drawPinRibbon(g, leftPos + s.x, topPos + s.y);
             }
@@ -569,7 +569,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     protected List<Component> getTooltipFromContainerItem(ItemStack stack) {
         List<Component> tip = super.getTooltipFromContainerItem(stack);
         if (!menu.flatten() && this.hoveredSlot instanceof PackViewSlot && this.hoveredSlot.hasItem()) {
-            Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
             boolean pinnedHere = menu.activeTab().equals(menu.layout().pinnedTab(key));
             List<Component> out = new ArrayList<>(tip);
             out.add(Component.translatable(pinnedHere ? "packwork.ui.unpin_key" : "packwork.ui.pin_key",
@@ -747,7 +747,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.submitOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
@@ -781,7 +781,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             int bx = x + w - 14;
             boolean hov = inRect(mouseX, mouseY, bx, ry, 9, 9);
             g.fill(bx, ry, bx + 9, ry + 9, hov ? 0xFF8A3A2A : 0xFF6B4A2F);
-            g.renderOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
+            g.submitOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
             g.fill(bx + 2, ry + 4, bx + 7, ry + 5, 0xFFEAD9A6); // the strike
             if (hov) {
                 g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_remove"),
@@ -826,7 +826,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                                 boolean hover, boolean on) {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         g.fill(x, y, x + w, y + 10, base);
-        g.renderOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
+        g.submitOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
         String s = this.font.plainSubstrByWidth(label.getString(), w - 4);
         g.drawString(this.font, s, x + (w - this.font.width(s)) / 2, y + 1, 0xFFEAD9A6, false);
     }
@@ -1067,7 +1067,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     private void gaugeFrame(GuiGraphics g, int x, int y, int w, int h, int glass) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF3E2A18);
-        g.renderOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
+        g.submitOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
         g.fill(x, y, x + w, y + h, glass);
     }
 
@@ -1108,7 +1108,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         int edge = hover ? 0xFFE7CC82 : 0xFFC9A24B;
         g.fill(x, y, x + BTN, y + BTN, base);
-        g.renderOutline(x, y, BTN, BTN, edge);
+        g.submitOutline(x, y, BTN, BTN, edge);
     }
 
     private void drawPageNav(GuiGraphics g, int mouseX, int mouseY) {
@@ -1438,7 +1438,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         // reads the mapping rather than a hardcoded key and shows up in vanilla Controls.
         if (PackKeyMappings.PIN.matches(event) && overGrid && !menu.flatten()) {
             ItemStack held = hovered.getItem();
-            Identifier itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
+            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(held.getItem());
             String pinned = menu.layout().pinnedTab(itemKey);
             if (menu.activeTab().equals(pinned)) {
                 PackClientActions.unpin(menu, itemKey.toString());

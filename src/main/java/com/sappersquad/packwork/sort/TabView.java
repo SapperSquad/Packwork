@@ -1,7 +1,7 @@
 package com.sappersquad.packwork.sort;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.List;
  * @param editable whether the player may rename/re-rule/delete it (custom tabs only)
  * @param loose    the always-last catch-all that claims anything no rule wanted
  */
-public record TabView(String id, Component name, Identifier icon, int color,
+public record TabView(String id, Component name, ResourceLocation icon, int color,
                       List<SortRule> rules, boolean editable, boolean loose) {
 
     /** Does any of this tab's rules claim the stack? (Loose claims nothing here; it is the fallback.) */

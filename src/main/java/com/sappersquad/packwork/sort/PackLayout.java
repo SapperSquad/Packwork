@@ -5,7 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +31,7 @@ import java.util.List;
  *                   (default ON; the toggle lives in the pack GUI's title strip)
  */
 public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
-                         List<Identifier> voidList, List<ManualTab> manual,
+                         List<ResourceLocation> voidList, List<ManualTab> manual,
                          boolean packFirst) {
 
     public static final PackLayout EMPTY =
@@ -39,25 +39,25 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
 
     /** Pre-pickup-toggle shape (pack-first defaults ON); kept for older call sites and tests. */
     public PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
-                      List<Identifier> voidList, List<ManualTab> manual) {
+                      List<ResourceLocation> voidList, List<ManualTab> manual) {
         this(tabOrder, customTabs, pins, voidList, manual, true);
     }
 
     /** Pre-manual-mode shape; kept so old call sites and tests read naturally. */
     public PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pin> pins,
-                      List<Identifier> voidList) {
+                      List<ResourceLocation> voidList) {
         this(tabOrder, customTabs, pins, voidList, List.of(), true);
     }
 
     /** A manual override: this exact item always lands in this tab. */
-    public record Pin(Identifier item, String tabId) {
+    public record Pin(ResourceLocation item, String tabId) {
         public static final Codec<Pin> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-                Identifier.CODEC.fieldOf("item").forGetter(Pin::item),
+                ResourceLocation.CODEC.fieldOf("item").forGetter(Pin::item),
                 Codec.STRING.fieldOf("tab").forGetter(Pin::tabId)
         ).apply(inst, Pin::new));
 
         public static final StreamCodec<RegistryFriendlyByteBuf, Pin> STREAM_CODEC = StreamCodec.composite(
-                Identifier.STREAM_CODEC, Pin::item,
+                ResourceLocation.STREAM_CODEC, Pin::item,
                 ByteBufCodecs.STRING_UTF8, Pin::tabId,
                 Pin::new);
     }
@@ -100,7 +100,7 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
             Codec.STRING.listOf().optionalFieldOf("tab_order", List.of()).forGetter(PackLayout::tabOrder),
             TabDef.CODEC.listOf().optionalFieldOf("custom_tabs", List.of()).forGetter(PackLayout::customTabs),
             Pin.CODEC.listOf().optionalFieldOf("pins", List.of()).forGetter(PackLayout::pins),
-            Identifier.CODEC.listOf().optionalFieldOf("void_list", List.of()).forGetter(PackLayout::voidList),
+            ResourceLocation.CODEC.listOf().optionalFieldOf("void_list", List.of()).forGetter(PackLayout::voidList),
             ManualTab.CODEC.listOf().optionalFieldOf("manual", List.of()).forGetter(PackLayout::manual),
             Codec.BOOL.optionalFieldOf("pack_first", true).forGetter(PackLayout::packFirst)
     ).apply(inst, PackLayout::new));
@@ -109,13 +109,13 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
             ByteBufCodecs.STRING_UTF8.apply(ByteBufCodecs.list()), PackLayout::tabOrder,
             TabDef.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::customTabs,
             Pin.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::pins,
-            Identifier.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::voidList,
+            ResourceLocation.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::voidList,
             ManualTab.STREAM_CODEC.apply(ByteBufCodecs.list()), PackLayout::manual,
             ByteBufCodecs.BOOL, PackLayout::packFirst,
             PackLayout::new);
 
     /** The tab id a manual pin sends this item to, or null if unpinned. */
-    public String pinnedTab(Identifier itemId) {
+    public String pinnedTab(ResourceLocation itemId) {
         for (Pin p : pins) {
             if (p.item().equals(itemId)) return p.tabId();
         }
@@ -134,7 +134,7 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
         return new PackLayout(newOrder, customTabs, pins, voidList, manual, packFirst);
     }
 
-    public PackLayout withVoidList(List<Identifier> newVoid) {
+    public PackLayout withVoidList(List<ResourceLocation> newVoid) {
         return new PackLayout(tabOrder, customTabs, pins, newVoid, manual, packFirst);
     }
 
@@ -155,7 +155,7 @@ public record PackLayout(List<String> tabOrder, List<TabDef> customTabs, List<Pi
     }
 
     /** Is this item marked for the Compass Rose to discard? */
-    public boolean voids(Identifier itemId) {
+    public boolean voids(ResourceLocation itemId) {
         return voidList.contains(itemId);
     }
 

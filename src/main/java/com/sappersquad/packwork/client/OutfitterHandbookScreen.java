@@ -175,9 +175,9 @@ public class OutfitterHandbookScreen extends Screen {
         // subtle top-lit leather band
         g.fill(x + 3, y + 3, x + w - 3, y + h / 3, LEATHER_HI);
         // brass frame, three nested outlines
-        g.renderOutline(x, y, w, h, BRASS_LO);
-        g.renderOutline(x + 1, y + 1, w - 2, h - 2, BRASS);
-        g.renderOutline(x + 2, y + 2, w - 4, h - 4, BRASS_HI);
+        g.submitOutline(x, y, w, h, BRASS_LO);
+        g.submitOutline(x + 1, y + 1, w - 2, h - 2, BRASS);
+        g.submitOutline(x + 2, y + 2, w - 4, h - 4, BRASS_HI);
         // corner rivets
         rivet(g, x + 5, y + 5);
         rivet(g, x + w - 6, y + 5);

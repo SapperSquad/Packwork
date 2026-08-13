@@ -863,7 +863,7 @@ public class PackMenu extends AbstractContainerMenu {
             ItemStack result = firstDisplayResult(r, ctx);
             if (result.isEmpty()) continue;
             out.add(new com.sappersquad.packwork.net.LedgerSyncPayload.Entry(
-                    holder.id().identifier().toString(), result));
+                    holder.id().location().toString(), result));
         }
         net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(sp,
                 new com.sappersquad.packwork.net.LedgerSyncPayload(out));
@@ -878,7 +878,7 @@ public class PackMenu extends AbstractContainerMenu {
         if (server == null) return;
         net.minecraft.world.item.crafting.Ingredient[] arranged = null;
         ItemStack result = ItemStack.EMPTY;
-        var id = net.minecraft.resources.Identifier.tryParse(recipeId);
+        var id = net.minecraft.resources.ResourceLocation.tryParse(recipeId);
         if (id != null) {
             var key = net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.RECIPE, id);
@@ -936,7 +936,7 @@ public class PackMenu extends AbstractContainerMenu {
         Player player = playerInv.player;
         var server = player.level().getServer();
         if (server == null) return;
-        var id = net.minecraft.resources.Identifier.tryParse(recipeId);
+        var id = net.minecraft.resources.ResourceLocation.tryParse(recipeId);
         if (id == null) return;
         // 1.21.2+: recipe lookups key by ResourceKey, and canCraftInDimensions is gone -
         // every crafting recipe fits a 3x3 now, and arrangeOn3x3 still nulls out anything
@@ -1294,10 +1294,10 @@ public class PackMenu extends AbstractContainerMenu {
 
     /** Add/remove an item from the Compass Rose discard list. */
     public void applyVoidToggle(String itemId) {
-        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
-        List<net.minecraft.resources.Identifier> voids = new ArrayList<>(cur.voidList());
+        List<net.minecraft.resources.ResourceLocation> voids = new ArrayList<>(cur.voidList());
         if (voids.contains(r)) voids.remove(r);
         else voids.add(r);
         saveLayout(cur.withVoidList(voids));
@@ -1357,7 +1357,7 @@ public class PackMenu extends AbstractContainerMenu {
         PackLayout cur = currentLayout();
         String id = cur.nextCustomId();
         com.sappersquad.packwork.sort.TabDef def = new com.sappersquad.packwork.sort.TabDef(
-                id, "New Tab", net.minecraft.resources.Identifier.withDefaultNamespace("leather"),
+                id, "New Tab", net.minecraft.resources.ResourceLocation.withDefaultNamespace("leather"),
                 0, List.of());
         List<com.sappersquad.packwork.sort.TabDef> customs = new ArrayList<>(cur.customTabs());
         customs.add(def);
@@ -1394,7 +1394,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyTabIcon(String id, String iconId) {
-        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(iconId);
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(iconId);
         if (r != null) mutateCustom(id, td -> td.withIcon(r));
     }
 
@@ -1411,7 +1411,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyPin(String tabId, String itemId) {
-        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
         List<PackLayout.Pin> pins = new ArrayList<>();
@@ -1421,7 +1421,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     public void applyUnpin(String itemId) {
-        net.minecraft.resources.Identifier r = net.minecraft.resources.Identifier.tryParse(itemId);
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
         List<PackLayout.Pin> pins = new ArrayList<>();
