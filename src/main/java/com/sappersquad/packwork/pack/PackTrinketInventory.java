@@ -44,10 +44,27 @@ public class PackTrinketInventory extends ItemAccessItemHandler {
         return slots;
     }
 
+    // The parent captures its access item at CONSTRUCTION (validItem) - but a client
+    // menu is built a tick before its host stack syncs, so the capture would be AIR and
+    // every read dead forever (the Phase-1 resolve-live lesson, in native clothing; the
+    // sockets rendered empty on the first 26.1 autoshot). Re-derive per read instead.
+
+    @Override
+    protected ItemResource getResourceFrom(ItemResource accessResource, int index) {
+        if (!(accessResource.getItem() instanceof PackItem)) return ItemResource.EMPTY;
+        return ItemResource.of(getStackFromContents(getContents(accessResource), index));
+    }
+
+    @Override
+    protected int getAmountFrom(ItemResource accessResource, int index) {
+        if (!(accessResource.getItem() instanceof PackItem)) return 0;
+        return getStackFromContents(getContents(accessResource), index).getCount();
+    }
+
     /** Only fittings, one of each kind - a duplicate grants nothing, so refuse it. */
     @Override
     public boolean isValid(int index, ItemResource resource) {
-        if (!super.isValid(index, resource)) return false; // access item changed under us
+        if (!(itemAccess.getResource().getItem() instanceof PackItem)) return false; // live host check
         if (!(resource.getItem() instanceof TrinketItem)) return false;
         TrinketType type = TrinketType.of(resource.toStack(1));
         for (int i = 0; i < size(); i++) {
