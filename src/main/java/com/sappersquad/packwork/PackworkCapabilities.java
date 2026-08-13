@@ -1,45 +1,45 @@
 package com.sappersquad.packwork;
 
 import com.sappersquad.packwork.block.PackContainerBlockEntity;
+import com.sappersquad.packwork.pack.PackEnergyStorage;
+import com.sappersquad.packwork.pack.PackFluidHandler;
+import com.sappersquad.packwork.pack.PackInventory;
 import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.reg.ModBlockEntities;
 import com.sappersquad.packwork.reg.ModItems;
-import com.sappersquad.packwork.transfer.PackTransfer;
 import com.sappersquad.packwork.trinket.TrinketAccess;
 import com.sappersquad.packwork.trinket.TrinketType;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 /**
  * Exposes the pack's stores as standard NeoForge capabilities on the stack, so any
  * mod's automation works against a pack the same way it would any container/tank -
  * no Packwork API required (pillar 3). The item store is always present; the fluid
  * tank appears only when a Waterskin Rack is fitted (trinket-gated, pillar 2).
- *
- * <p><b>21.9+ transfer rework:</b> the standard tokens are {@code Capabilities.Item /
- * Fluid / Energy} now (transactional {@code ResourceHandler}s with an {@link ItemAccess}
- * context on items); the handlers live in {@link PackTransfer}, one file per NeoForge
- * drift surface.
  */
 public final class PackworkCapabilities {
 
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {
         for (var holder : ModItems.PACKS.values()) {
-            event.registerItem(Capabilities.Item.ITEM,
-                    (stack, access) -> new PackTransfer.PackItemHandler(access, PackItem.tierOf(stack)),
+            event.registerItem(Capabilities.ItemHandler.ITEM,
+                    (stack, ctx) -> new PackInventory(stack, PackItem.tierOf(stack)),
                     holder.get());
 
-            event.registerItem(Capabilities.Fluid.ITEM,
-                    (stack, access) -> TrinketAccess.has(stack, TrinketType.WATERSKIN)
-                            ? PackTransfer.fluid(access, stack)
+            event.registerItem(Capabilities.FluidHandler.ITEM,
+                    (stack, ctx) -> TrinketAccess.has(stack, TrinketType.WATERSKIN)
+                            ? new PackFluidHandler(stack, PackFluidHandler.capacityFor(stack))
                             : null,
                     holder.get());
 
-            event.registerItem(Capabilities.Energy.ITEM,
-                    (stack, access) -> TrinketAccess.has(stack, TrinketType.CHARGE_CRYSTAL)
-                            ? PackTransfer.energy(access, stack)
+            event.registerItem(Capabilities.EnergyStorage.ITEM,
+                    (stack, ctx) -> TrinketAccess.has(stack, TrinketType.CHARGE_CRYSTAL)
+                            ? new PackEnergyStorage(() -> stack,
+                                    PackEnergyStorage.capacityFor(stack),
+                                    PackEnergyStorage.transferFor(stack))
                             : null,
                     holder.get());
         }
@@ -64,21 +64,36 @@ public final class PackworkCapabilities {
      * persists. Standard FE is exposed here; Forgework's own Flux cap is added (gated) below.
      */
     private static void registerBlockCaps(RegisterCapabilitiesEvent event) {
-        // The BE-backed ItemAccess mutates the held pack stack in place on commit and
-        // marks the block entity dirty on every successful move (see PackTransfer).
-        event.registerBlockEntity(Capabilities.Item.BLOCK, ModBlockEntities.PACK.get(),
-                (be, side) -> be.isEmpty() ? null
-                        : new PackTransfer.PackItemHandler(PackTransfer.forBlockEntity(be),
-                                PackItem.tierOf(be.getPackStack())));
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, ModBlockEntities.PACK.get(),
+                (be, side) -> new PackInventory(be::getPackStack, PackItem.tierOf(be.getPackStack())) {
+                    @Override
+                    protected void onContentsChanged(int slot, ItemStack oldStack, ItemStack newStack) {
+                        be.setChanged();
+                    }
+                });
 
-        event.registerBlockEntity(Capabilities.Fluid.BLOCK, ModBlockEntities.PACK.get(),
-                (be, side) -> !be.isEmpty() && TrinketAccess.has(be.getPackStack(), TrinketType.WATERSKIN)
-                        ? PackTransfer.fluid(PackTransfer.forBlockEntity(be), be.getPackStack())
+        event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, ModBlockEntities.PACK.get(),
+                (be, side) -> TrinketAccess.has(be.getPackStack(), TrinketType.WATERSKIN)
+                        ? new PackFluidHandler(be.getPackStack(), PackFluidHandler.capacityFor(be.getPackStack())) {
+                            @Override
+                            protected void setFluid(FluidStack fluid) {
+                                super.setFluid(fluid);
+                                be.setChanged();
+                            }
+
+                            @Override
+                            protected void setContainerToEmpty() {
+                                super.setContainerToEmpty();
+                                be.setChanged();
+                            }
+                        }
                         : null);
 
-        event.registerBlockEntity(Capabilities.Energy.BLOCK, ModBlockEntities.PACK.get(),
-                (be, side) -> !be.isEmpty() && TrinketAccess.has(be.getPackStack(), TrinketType.CHARGE_CRYSTAL)
-                        ? PackTransfer.energy(PackTransfer.forBlockEntity(be), be.getPackStack())
+        event.registerBlockEntity(Capabilities.EnergyStorage.BLOCK, ModBlockEntities.PACK.get(),
+                (be, side) -> TrinketAccess.has(be.getPackStack(), TrinketType.CHARGE_CRYSTAL)
+                        ? new PackEnergyStorage(be::getPackStack,
+                                PackEnergyStorage.capacityFor(be.getPackStack()),
+                                PackEnergyStorage.transferFor(be.getPackStack()), be::setChanged)
                         : null);
 
         // Forgework's Flux is its OWN block capability, not standard FE, so a Forgework cable

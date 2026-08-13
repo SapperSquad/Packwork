@@ -25,4 +25,8 @@ public class PackHelper extends GameTestHelper {
     public void assertFalse(boolean condition, String message) {
         assertFalse(condition, Component.literal(message));
     }
+
+    public void fail(String message) {
+        fail(Component.literal(message));
+    }
 }

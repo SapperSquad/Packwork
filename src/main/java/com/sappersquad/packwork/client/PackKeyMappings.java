@@ -22,7 +22,7 @@ import org.lwjgl.glfw.GLFW;
 public final class PackKeyMappings {
 
     public static final KeyMapping OPEN = new KeyMapping(
-            "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
+            "key.packwork.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
 
     /**
      * Open the pack worn in the Curios back slot, explicitly. Default Shift-B (rebindable
@@ -34,7 +34,7 @@ public final class PackKeyMappings {
             "key.packwork.open_worn",
             net.neoforged.neoforge.client.settings.KeyConflictContext.IN_GAME,
             net.neoforged.neoforge.client.settings.KeyModifier.SHIFT,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, KeyMapping.Category.INVENTORY);
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_B, "key.categories.inventory");
 
     /**
      * Pin/unpin the hovered grid item to the active tab. Only meaningful inside the pack GUI,
@@ -42,7 +42,7 @@ public final class PackKeyMappings {
      * registered so it shows up (and is rebindable) in vanilla Controls; default P.
      */
     public static final KeyMapping PIN = new KeyMapping(
-            "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, KeyMapping.Category.INVENTORY);
+            "key.packwork.pin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_P, "key.categories.inventory");
 
     @EventBusSubscriber(modid = Packwork.MODID, value = Dist.CLIENT)
     public static final class Registrar {

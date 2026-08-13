@@ -346,32 +346,24 @@ public final class TrinketEffects {
     }
 
     /** Charge Crystal: pour stored charge into the tools you're holding that accept it.
-     *  Ported to the 21.9+ transfer API: energy caps are {@code Capabilities.Energy.ITEM}
-     *  ({@code EnergyHandler} + {@code ItemAccess} context) and every move is transactional. */
+     *  (1.21.8: still the legacy IEnergyStorage caps - the 21.9 transfer rework isn't here yet.) */
     private static void charge(ServerPlayer sp, ItemStack packStack) {
-        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(packStack));
-        if (crystal == null || crystal.getAmountAsLong() <= 0) return;
-        for (InteractionHand hand : InteractionHand.values()) {
-            ItemStack held = sp.getItemInHand(hand);
+        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
+        if (crystal == null || crystal.getEnergyStored() <= 0) return;
+        for (ItemStack held : List.of(sp.getMainHandItem(), sp.getOffhandItem())) {
             if (held.isEmpty() || held.getItem() instanceof PackItem) continue;
-            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                    net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerInteraction(sp, hand));
-            if (sink == null) continue;
-            try (var tx = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
-                net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil.move(
-                        crystal, sink, Integer.MAX_VALUE, tx);
-                tx.commit();
-            }
+            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
+            if (sink == null || !sink.canReceive()) continue;
+            int room = sink.receiveEnergy(Integer.MAX_VALUE, true);
+            if (room <= 0) continue;
+            int pulled = crystal.extractEnergy(room, false);
+            if (pulled > 0) sink.receiveEnergy(pulled, false);
         }
         // Forgework interop (gated): the crystal also tops up any Forgework portable
         // terminal you're carrying, 1 Flux = 1 FE. Reached only when forgework is loaded,
         // so ForgeworkFluxBridge (and com.forgework.*) never classloads without it.
-        // The bridge keeps its 1.21.1-era IEnergyStorage signature; the legacy view
-        // adapter is the sanctioned NEW->OLD direction (IEnergyStorage.of).
-        if (FORGEWORK_LOADED && crystal.getAmountAsLong() > 0) {
-            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(
-                    sp, net.neoforged.neoforge.energy.IEnergyStorage.of(crystal), FLUX_PER_TICK);
+        if (FORGEWORK_LOADED && crystal.getEnergyStored() > 0) {
+            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(sp, crystal, FLUX_PER_TICK);
         }
     }
 

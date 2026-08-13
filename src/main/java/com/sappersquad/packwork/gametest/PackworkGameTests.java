@@ -651,10 +651,9 @@ public class PackworkGameTests {
         helper.getBlockEntity(p, com.sappersquad.packwork.block.PackContainerBlockEntity.class)
                 .setPackStack(new ItemStack(ModItems.pack(PackTier.CANVAS).get()));
 
-        var blockHandler = helper.getLevel().getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Item.BLOCK, helper.absolutePos(p), null);
-        helper.assertTrue(blockHandler != null, "a placed pack exposes an item-handler capability");
-        IItemHandler cap = IItemHandler.of(blockHandler);
+        IItemHandler cap = helper.getLevel().getCapability(
+                net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK, helper.absolutePos(p), null);
+        helper.assertTrue(cap != null, "a placed pack exposes an item-handler capability");
         helper.assertTrue(cap.getSlots() == PackTier.CANVAS.capacity(), "handler is bounded to tier capacity");
 
         ItemStack leftover = cap.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
@@ -685,11 +684,9 @@ public class PackworkGameTests {
         helper.setBlock(p, com.sappersquad.packwork.reg.ModBlocks.PACK.get());
         helper.getBlockEntity(p, com.sappersquad.packwork.block.PackContainerBlockEntity.class).setPackStack(pack);
 
-        var feHandler = helper.getLevel().getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Energy.BLOCK, helper.absolutePos(p), null);
-        helper.assertTrue(feHandler != null, "placed pack exposes standard energy when a Charge Crystal is fitted");
-        var fe = net.neoforged.neoforge.energy.IEnergyStorage.of(feHandler);
-        helper.assertTrue(fe.canReceive(), "the placed pack's reservoir accepts charge");
+        var fe = helper.getLevel().getCapability(
+                net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.BLOCK, helper.absolutePos(p), null);
+        helper.assertTrue(fe != null && fe.canReceive(), "placed pack exposes standard FE when a Charge Crystal is fitted");
 
         if (!net.neoforged.fml.ModList.get().isLoaded("forgework")) {
             helper.succeed(); // FLOW_ENERGY only exists when Forgework is loaded
@@ -1866,33 +1863,23 @@ public class PackworkGameTests {
                 BuiltInRegistries.ITEM.getKey(item) + " should route to " + expectedTab + " but got " + got);
     }
 
-    // ---- 1.21.11 port helpers: the standard caps are the transactional transfer API now.
-    // The tests still PROVE the real capability is exposed (pillar 3) - they query the new
-    // tokens - and then drive it through NeoForge's own sanctioned NEW->OLD views
-    // (IItemHandler.of & co.) so every assertion keeps its legacy stack semantics.
+    // ---- port helpers, 1.21.8 flavor: the legacy capability tokens are still the standard
+    // here (the 21.9 transfer rework hasn't happened yet), so these are thin pass-throughs -
+    // the same call shape the 1.21.10+ branches back with adapter views.
 
-    /** The pack's standard item cap as a legacy view, or null when not exposed. */
+    /** The pack's standard item cap, or null when not exposed. */
     private static IItemHandler itemCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Item.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : IItemHandler.of(handler);
+        return pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
     }
 
-    /** The pack's standard fluid cap as a legacy view, or null when not exposed (no Waterskin). */
+    /** The pack's standard fluid cap, or null when not exposed (no Waterskin). */
     private static net.neoforged.neoforge.fluids.capability.IFluidHandler fluidCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Fluid.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : net.neoforged.neoforge.fluids.capability.IFluidHandler.of(handler);
+        return pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM);
     }
 
-    /** The pack's standard energy cap as a legacy view, or null when not exposed (no Crystal). */
+    /** The pack's standard energy cap, or null when not exposed (no Crystal). */
     private static net.neoforged.neoforge.energy.IEnergyStorage energyCap(ItemStack pack) {
-        var handler = pack.getCapability(
-                net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
-                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack));
-        return handler == null ? null : net.neoforged.neoforge.energy.IEnergyStorage.of(handler);
+        return pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
     }
 
     /** ItemStack NBT round-trip via codec (save/parse left the ItemStack API in 1.21.x). */
