@@ -20,7 +20,7 @@ public class ModBlocks {
 
     public static final DeferredBlock<PackContainerBlock> PACK = BLOCKS.registerBlock("pack",
             PackContainerBlock::new,
-            BlockBehaviour.Properties.of()
+            () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.TERRACOTTA_BROWN)
                     .strength(0.8f)
                     .sound(SoundType.WOOL)

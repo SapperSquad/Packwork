@@ -1,7 +1,7 @@
 package com.sappersquad.packwork.client;
 
 import com.sappersquad.packwork.guide.HandbookContent;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -106,15 +106,15 @@ public class OutfitterHandbookScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        super.render(g, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(g, mouseX, mouseY, partialTick);
 
         drawPanel(g, panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT);
 
         // full-width brass title plate; the book title lives here and never collides
         // with the per-chapter heading below
         drawHeaderBar(g, panelLeft + 4, panelTop + 4, PANEL_WIDTH - 8);
-        g.drawString(font, title, panelLeft + 12, panelTop + 8, LEATHER_EDGE, false);
+        g.text(font, title, panelLeft + 12, panelTop + 8, LEATHER_EDGE, false);
 
         // sidebar divider: brass seam
         int dividerTop = panelTop + 4 + HEADER_HEIGHT + 2;
@@ -135,14 +135,14 @@ public class OutfitterHandbookScreen extends Screen {
             }
             String trimmed = font.plainSubstrByWidth(
                 HandbookContent.CHAPTERS.get(i).title(), SIDEBAR_WIDTH - 17);
-            g.drawString(font, trimmed, panelLeft + 13, by + 5,
+            g.text(font, trimmed, panelLeft + 13, by + 5,
                 selected ? HEADING : TEXT_DIM, false);
         }
 
         // chapter heading + page body
         HandbookContent.Chapter chapter = HandbookContent.CHAPTERS.get(chapterIndex);
         int headingY = panelTop + 4 + HEADER_HEIGHT + 6;
-        g.drawString(font, chapter.title(), contentX(), headingY, HEADING, false);
+        g.text(font, chapter.title(), contentX(), headingY, HEADING, false);
         g.fill(contentX(), headingY + 9,
             contentX() + font.width(chapter.title()), headingY + 10, BRASS);
 
@@ -151,7 +151,7 @@ public class OutfitterHandbookScreen extends Screen {
             Object line = wrappedLines.get(start + i);
             int lineY = contentY() + i * LINE_HEIGHT;
             if (line instanceof FormattedCharSequence seq) {
-                g.drawString(font, seq, contentX(), lineY, PARCHMENT, false);
+                g.text(font, seq, contentX(), lineY, PARCHMENT, false);
             } else if (line instanceof HandbookContent.ItemsEntry itemsEntry) {
                 renderItemRow(g, itemsEntry, contentX(), lineY);
             }
@@ -160,24 +160,24 @@ public class OutfitterHandbookScreen extends Screen {
         // pager
         if (maxPage() > 0) {
             String pager = (pageIndex + 1) + " / " + (maxPage() + 1);
-            g.drawCenteredString(font, pager,
+            g.centeredText(font, pager,
                 contentX() + contentWidth() / 2, panelTop + PANEL_HEIGHT - 14, TEXT_DIM);
-            g.drawString(font, "<", contentX(), panelTop + PANEL_HEIGHT - 14,
+            g.text(font, "<", contentX(), panelTop + PANEL_HEIGHT - 14,
                 pageIndex > 0 ? BRASS_HI : BRASS_LO, false);
-            g.drawString(font, ">", contentX() + contentWidth() - 6, panelTop + PANEL_HEIGHT - 14,
+            g.text(font, ">", contentX() + contentWidth() - 6, panelTop + PANEL_HEIGHT - 14,
                 pageIndex < maxPage() ? BRASS_HI : BRASS_LO, false);
         }
     }
 
     /** A riveted brass-framed leather panel. */
-    private void drawPanel(GuiGraphics g, int x, int y, int w, int h) {
+    private void drawPanel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         g.fill(x, y, x + w, y + h, LEATHER_LO);
         // subtle top-lit leather band
         g.fill(x + 3, y + 3, x + w - 3, y + h / 3, LEATHER_HI);
         // brass frame, three nested outlines
-        g.renderOutline(x, y, w, h, BRASS_LO);
-        g.renderOutline(x + 1, y + 1, w - 2, h - 2, BRASS);
-        g.renderOutline(x + 2, y + 2, w - 4, h - 4, BRASS_HI);
+        g.outline(x, y, w, h, BRASS_LO);
+        g.outline(x + 1, y + 1, w - 2, h - 2, BRASS);
+        g.outline(x + 2, y + 2, w - 4, h - 4, BRASS_HI);
         // corner rivets
         rivet(g, x + 5, y + 5);
         rivet(g, x + w - 6, y + 5);
@@ -185,32 +185,32 @@ public class OutfitterHandbookScreen extends Screen {
         rivet(g, x + w - 6, y + h - 6);
     }
 
-    private void drawHeaderBar(GuiGraphics g, int x, int y, int w) {
+    private void drawHeaderBar(GuiGraphicsExtractor g, int x, int y, int w) {
         g.fill(x, y, x + w, y + HEADER_HEIGHT - 2, BRASS_LO);
         g.fill(x, y, x + w, y + 1, BRASS_HI);
         g.fill(x, y + HEADER_HEIGHT - 3, x + w, y + HEADER_HEIGHT - 2, LEATHER_EDGE);
     }
 
-    private void rivet(GuiGraphics g, int cx, int cy) {
+    private void rivet(GuiGraphicsExtractor g, int cx, int cy) {
         g.fill(cx - 1, cy - 1, cx + 2, cy + 2, BRASS_LO);
         g.fill(cx, cy, cx + 1, cy + 1, BRASS_HI);
     }
 
     /** An icon row: slot-styled backdrops, rendered items, a dim caption to the right. */
-    private void renderItemRow(GuiGraphics g, HandbookContent.ItemsEntry entry, int x, int y) {
+    private void renderItemRow(GuiGraphicsExtractor g, HandbookContent.ItemsEntry entry, int x, int y) {
         int iconX = x;
         for (var stack : entry.items()) {
             g.fill(iconX - 1, y - 1, iconX + 17, y + 17, SLOT_BG);
             g.fill(iconX - 1, y - 1, iconX + 17, y, LEATHER_EDGE);
             g.fill(iconX - 1, y + 16, iconX + 17, y + 17, BRASS_LO);
-            g.renderItem(stack, iconX, y);
+            g.item(stack, iconX, y);
             iconX += 20;
         }
         if (!entry.caption().isEmpty()) {
             int captionX = iconX + 4;
             String caption = font.plainSubstrByWidth(entry.caption(),
                 contentX() + contentWidth() - captionX);
-            g.drawString(font, caption, captionX, y + 4, TEXT_DIM, false);
+            g.text(font, caption, captionX, y + 4, TEXT_DIM, false);
         }
     }
 

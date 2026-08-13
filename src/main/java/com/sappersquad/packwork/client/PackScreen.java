@@ -6,7 +6,7 @@ import com.sappersquad.packwork.pack.PackViewSlot;
 import com.sappersquad.packwork.sort.AutoTabs;
 import com.sappersquad.packwork.sort.TabView;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
@@ -98,9 +98,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private int[] flaskGaugeRect = null;  // flask-harness gauge, or null (needs Mekanism + the fitting)
 
     public PackScreen(PackMenu menu, Inventory playerInv, Component title) {
-        super(menu, playerInv, title);
-        this.imageWidth = PackMenu.IMAGE_W;
-        this.imageHeight = PackMenu.IMAGE_H;
+        // 26.1: imageWidth/imageHeight are final now and ride the super constructor.
+        super(menu, playerInv, title, PackMenu.IMAGE_W, PackMenu.IMAGE_H);
         this.titleLabelX = 8;
         this.titleLabelY = 6;
     }
@@ -151,7 +150,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** The parchment pin note, centred over the seam between the grid and your pockets. */
-    private void drawPinNote(GuiGraphics g) {
+    private void drawPinNote(GuiGraphicsExtractor g) {
         if (pinNote == null) return;
         int w = this.font.width(pinNote) + 12;
         int x = leftPos + (imageWidth - w) / 2;
@@ -161,8 +160,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + 13, 0xFFC8B892);            // parchment
         g.fill(x, y, x + w, y + 1, 0xFFE2D6AE);             // lit top edge
         g.fill(x, y + 12, x + w, y + 13, 0xFFA89A74);       // shaded bottom edge
-        g.renderOutline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
-        g.drawString(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
+        g.outline(x - 1, y - 1, w + 2, 15, 0xFFC9A24B); // brass binding
+        g.text(this.font, pinNote, x + 6, y + 3, 0xFF3A2A18, false);
     }
 
     /**
@@ -228,8 +227,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         ghostCells = null;
     }
 
+    /**
+     * 26.1: {@code renderBg} is gone - container screens draw their panel in
+     * {@code extractBackground} now (its own stratum, composed by the frame before
+     * {@code extractRenderState}; the old renderBackground-only-fires-renderBg trap
+     * is structurally dead). Super first: the dimmed/blurred world backdrop.
+     */
     @Override
-    protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+        super.extractBackground(g, mouseX, mouseY, a);
         g.blit(RenderPipelines.GUI_TEXTURED, BG, leftPos, topPos, 0f, 0f,
                 imageWidth, imageHeight, imageWidth, imageHeight);
         drawTabRail(g, mouseX, mouseY);
@@ -242,7 +248,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * three canvas pockets of workspace and a brass-ringed well for what comes out. Draws over
      * the grid rows the menu has deactivated, so the pack above stays usable.
      */
-    private void drawToolRoll(GuiGraphics g) {
+    private void drawToolRoll(GuiGraphicsExtractor g) {
         if (!menu.rollActive()) return;
         int x = leftPos + 5, y = topPos + PackMenu.ROLL_Y - 6;
         int w = imageWidth - 10, h = 3 * 18 + 10;
@@ -251,7 +257,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y, x + w, y + h, 0xFF3D2A16);                    // dark oiled leather, distinct from the panel
         g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF6A4A2A);        // lit top roll
         g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF241708);
-        g.renderOutline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
+        g.outline(x, y, w, h, 0xFFC9A24B);                   // brass binding all round
 
         // a canvas working field behind the 3x3 - the tool pockets are sewn onto it
         int cx = leftPos + PackMenu.ROLL_GRID_X - 4, cy = topPos + PackMenu.ROLL_Y - 3;
@@ -286,7 +292,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         for (int i = 0; i < 4; i++) g.fill(ax + 8 + i, ay - 3 + i, ax + 9 + i, ay + 5 - i, 0xFFE7CC82);
 
         slotWell(g, leftPos + PackMenu.ROLL_RESULT_X, topPos + PackMenu.ROLL_RESULT_Y);
-        g.renderOutline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
+        g.outline(leftPos + PackMenu.ROLL_RESULT_X - 2, topPos + PackMenu.ROLL_RESULT_Y - 2,
                 20, 20, 0xFFC9A24B);
     }
 
@@ -346,7 +352,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** The parchment ledger: a searchable sheet of everything craftable from pack stock. */
-    private void drawBrowser(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawBrowser(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         if (!ledgerVisible()) return;
         int x = browserX(), y = browserY(), w = BR_W, h = browserH();
 
@@ -355,16 +361,16 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.outline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
-        g.drawString(this.font, Component.translatable("packwork.ui.recipe_ledger"),
+        g.text(this.font, Component.translatable("packwork.ui.recipe_ledger"),
                 x + 5, y + 5, 0xFF3A2A18, false);
-        browserSearch.render(g, mouseX, mouseY, 0);
+        browserSearch.extractRenderState(g, mouseX, mouseY, 0);
 
         if (craftable.isEmpty()) {
-            g.drawWordWrap(this.font, Component.translatable("packwork.ui.ledger_empty"),
+            g.textWithWordWrap(this.font, Component.translatable("packwork.ui.ledger_empty"),
                     x + 5, browserGridY() + 4, w - 10, 0xFF6A5A40);
             return;
         }
@@ -382,8 +388,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             } else if (hovered) {
                 g.fill(cx - 1, cy - 1, cx + 17, cy + 17, 0x40573B23);
             }
-            g.renderItem(entry.result(), cx, cy);
-            g.renderItemDecorations(this.font, entry.result(), cx, cy);
+            g.item(entry.result(), cx, cy);
+            g.itemDecorations(this.font, entry.result(), cx, cy);
             if (hovered) {
                 List<Component> tip = new ArrayList<>();
                 tip.add(entry.result().getHoverName());
@@ -407,7 +413,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** Ghost the chalked recipe into the roll's EMPTY cells - paint only, items never move here. */
-    private void drawGhost(GuiGraphics g) {
+    private void drawGhost(GuiGraphicsExtractor g) {
         if (ghostId == null || ghostCells == null || !menu.rollActive()) return;
         var level = Minecraft.getInstance().level;
         if (level == null) return;
@@ -429,8 +435,8 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     /** One chalked item: the fake render under a parchment wash (vanilla's own ghost pattern;
      *  a plain translucent fill layers over the item in the new submission-ordered renderer). */
-    private static void ghostInto(GuiGraphics g, ItemStack stack, int x, int y) {
-        g.renderFakeItem(stack, x, y);
+    private static void ghostInto(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
+        g.fakeItem(stack, x, y);
         g.fill(x, y, x + 16, y + 16, 0x80C8B892);
     }
 
@@ -446,7 +452,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** One recessed slot well in the leather, matching the ones baked into the panel. */
-    private void slotWell(GuiGraphics g, int x, int y) {
+    private void slotWell(GuiGraphicsExtractor g, int x, int y) {
         g.fill(x - 1, y - 1, x + 17, y + 17, 0xFF3C2A19);
         g.fill(x - 1, y - 1, x + 16, y, 0xFF2A1C10);
         g.fill(x - 1, y - 1, x, y + 16, 0xFF2A1C10);
@@ -455,7 +461,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     /** Brass sockets on the right rail; the socket items render themselves as normal slots. */
-    private void drawTrinketRail(GuiGraphics g) {
+    private void drawTrinketRail(GuiGraphicsExtractor g) {
         int n = menu.trinketSlotCount();
         if (n <= 0) return;
         int railX = leftPos + PackMenu.TRINKET_X - 4;
@@ -463,7 +469,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         int railH = n * PackMenu.TRINKET_PITCH + 6;
         // a strip of stitched brass backing the sockets
         g.fill(railX - 1, railY - 1, railX + 24, railY + railH, 0xFF3E2A18);
-        g.renderOutline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
+        g.outline(railX - 1, railY - 1, 25, railH + 1, 0xFFC9A24B);
         for (int i = 0; i < n; i++) {
             int x = leftPos + PackMenu.TRINKET_X - 1;
             int y = topPos + PackMenu.TRINKET_Y0 + i * PackMenu.TRINKET_PITCH - 1;
@@ -475,7 +481,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
     }
 
-    private void drawTabRail(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawTabRail(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         List<TabView> tabs = menu.tabs();
         tabRects.clear();
         int availH = imageHeight - RAIL_TOP - 8;
@@ -503,14 +509,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 g.fill(x + 1, y + 2, x + 3, y + th - 2, pip);
             }
 
-            g.renderItem(t.iconStack(), x + 5, y + (th - 16) / 2);
+            g.item(t.iconStack(), x + 5, y + (th - 16) / 2);
         }
     }
 
     // ---------- foreground ----------
 
     /** A bold red corner ribbon + brass tack on every item pinned to the active tab. */
-    private void drawPinMarkers(GuiGraphics g) {
+    private void drawPinMarkers(GuiGraphicsExtractor g) {
         if (menu.flatten()) return;
         String active = menu.activeTab();
         com.sappersquad.packwork.sort.PackLayout layout = menu.layout();
@@ -527,7 +533,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
     /** A folded red ribbon in the slot's top-left corner, studded with a brass tack. Big and
      *  unmistakable so a pinned slot reads at a glance; only clips the very corner of the item. */
-    private void drawPinRibbon(GuiGraphics g, int x, int y) {
+    private void drawPinRibbon(GuiGraphicsExtractor g, int x, int y) {
         // triangular ribbon fold from the corner (rows of shrinking width) + a dark edge under it
         for (int i = 0; i < 8; i++) g.fill(x - 1, y - 1 + i, x - 1 + (8 - i), y + i, 0xFF48120F); // shadow/backing
         for (int i = 0; i < 7; i++) g.fill(x - 1, y - 1 + i, x - 1 + (7 - i), y + i, 0xFFC0332F); // red ribbon
@@ -550,14 +556,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * spare, and the numbers stay exact (no "2.5K" rounding) as preferred.
      */
     @Override
-    protected void renderSlotContents(GuiGraphics g, ItemStack stack, Slot slot, String countString) {
+    protected void renderSlotContents(GuiGraphicsExtractor g, ItemStack stack, Slot slot, String countString) {
         if (slot instanceof PackViewSlot && countString == null && stack.getCount() > 99) {
             super.renderSlotContents(g, stack, slot, "");   // item + durability bar, no count
             String txt = String.valueOf(stack.getCount());
             g.pose().pushMatrix();                          // Matrix3x2fStack in 1.21.6+ (2D)
             g.pose().translate(slot.x + 17f, slot.y + 16f);
             g.pose().scale(0.75f, 0.75f);
-            g.drawString(this.font, txt, -this.font.width(txt), -9, 0xFFFFFFFF, true);
+            g.text(this.font, txt, -this.font.width(txt), -9, 0xFFFFFFFF, true);
             g.pose().popMatrix();
             return;
         }
@@ -581,18 +587,24 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     }
 
     @Override
-    protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+    protected void extractLabels(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         if (!renaming) {
-            g.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xE8DCC0, false);
+            g.text(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xE8DCC0, false);
         }
     }
 
+    /**
+     * 26.1: {@code render} became {@code extractRenderState}. Super draws contents, the
+     * carried stack, the snapback and queues the hovered-slot tooltip (tooltips are
+     * DEFERRED - set*ForNextFrame - so chrome submitted after super still lands under
+     * them, same as on 1.21.11; the old explicit renderTooltip call is super's job now).
+     */
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        super.render(g, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+        super.extractRenderState(g, mouseX, mouseY, a);
         drawPinMarkers(g);
         drawGhost(g);
-        if (renaming) renameBox.render(g, mouseX, mouseY, partialTick);
+        if (renaming) renameBox.extractRenderState(g, mouseX, mouseY, a);
         drawButtons(g, mouseX, mouseY);
         drawPageNav(g, mouseX, mouseY);
         drawStoreGauges(g);
@@ -600,7 +612,6 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         drawRulesSheet(g, mouseX, mouseY);
         drawPinNote(g);
         drawHoverTooltips(g, mouseX, mouseY);
-        this.renderTooltip(g, mouseX, mouseY);
     }
 
     // Title-strip buttons: pickup toggle (with a Lodestone), ledger + tool roll (with a kit),
@@ -736,7 +747,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
      * the always-on baseline; the list below is the authored rules the Quill &amp; Ledger
      * unlocks; the controls at the bottom write new ones.
      */
-    private void drawRulesSheet(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawRulesSheet(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         if (!rulesVisible()) return;
         var def = activeCustomDef();
         if (def == null) return;
@@ -747,21 +758,21 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x, y + 1, x + w - 1, y + h - 1, 0xFFC8B892);
         g.fill(x, y + 1, x + w - 1, y + 2, 0xFFE2D6AE);
         g.fill(x, y + h - 2, x + w - 1, y + h - 1, 0xFFA89A74);
-        g.renderOutline(x - 2, y, w + 2, h, 0xFFC9A24B);
+        g.outline(x - 2, y, w + 2, h, 0xFFC9A24B);
         for (int[] t : new int[][]{{x + 2, y + 3}, {x + w - 5, y + 3}, {x + 2, y + h - 5}, {x + w - 5, y + h - 5}}) {
             g.fill(t[0], t[1], t[0] + 2, t[1] + 2, 0xFF8A6A28);
         }
-        g.drawString(this.font, Component.translatable("packwork.ui.rules_title"),
+        g.text(this.font, Component.translatable("packwork.ui.rules_title"),
                 x + 5, y + 5, 0xFF3A2A18, false);
         String tabName = this.font.plainSubstrByWidth(menu.tabName(def.id()).getString(), w - 10);
-        g.drawString(this.font, tabName, x + 5, y + 16, 0xFF6A4A2A, false);
+        g.text(this.font, tabName, x + 5, y + 16, 0xFF6A4A2A, false);
 
         // the stamp baseline - always on, trinket or no
         var stampRule = com.sappersquad.packwork.sort.SortEngine.iconRule(def.icon());
         Component stampLine = stampRule == null
                 ? Component.translatable("packwork.ui.rules_stamp_none")
                 : Component.translatable("packwork.ui.rules_stamp", kindName(stampRule.value()));
-        g.drawString(this.font, this.font.plainSubstrByWidth(stampLine.getString(), w - 10),
+        g.text(this.font, this.font.plainSubstrByWidth(stampLine.getString(), w - 10),
                 x + 5, y + 28, 0xFF3A2A18, false);
         if (inRect(mouseX, mouseY, x + 3, y + 26, w - 6, 11)) {
             g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_stamp_hint"),
@@ -777,11 +788,11 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             int ry = rulesListY() + v * RULE_ROW_H;
             var rule = def.rules().get(i);
             String line = this.font.plainSubstrByWidth(ruleText(rule).getString(), w - 24);
-            g.drawString(this.font, line, x + 5, ry + 1, 0xFF3A2A18, false);
+            g.text(this.font, line, x + 5, ry + 1, 0xFF3A2A18, false);
             int bx = x + w - 14;
             boolean hov = inRect(mouseX, mouseY, bx, ry, 9, 9);
             g.fill(bx, ry, bx + 9, ry + 9, hov ? 0xFF8A3A2A : 0xFF6B4A2F);
-            g.renderOutline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
+            g.outline(bx, ry, 9, 9, hov ? 0xFFE7CC82 : 0xFFC9A24B);
             g.fill(bx + 2, ry + 4, bx + 7, ry + 5, 0xFFEAD9A6); // the strike
             if (hov) {
                 g.setTooltipForNextFrame(this.font, Component.translatable("packwork.ui.rules_remove"),
@@ -789,7 +800,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
             }
         }
         if (def.rules().isEmpty()) {
-            g.drawWordWrap(this.font, Component.translatable("packwork.ui.rules_empty"),
+            g.textWithWordWrap(this.font, Component.translatable("packwork.ui.rules_empty"),
                     x + 5, rulesListY() + 2, w - 10, 0xFF6A5A40);
         }
         if (def.rules().size() > rows) { // a thin brass track when there's more than fits
@@ -802,9 +813,9 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
 
         // the writing desk: a value, two ways to file it, and the category chips
         int at = rulesAddTop();
-        g.drawString(this.font, Component.translatable("packwork.ui.rules_add"),
+        g.text(this.font, Component.translatable("packwork.ui.rules_add"),
                 x + 5, at, 0xFF6A4A2A, false);
-        ruleValueBox.render(g, mouseX, mouseY, 0);
+        ruleValueBox.extractRenderState(g, mouseX, mouseY, 0);
         int bw = (RU_W - 14) / 2;
         drawTextButton(g, x + 4, at + 26, bw, Component.translatable("packwork.ui.rules_add_name"),
                 inRect(mouseX, mouseY, x + 4, at + 26, bw, 12), false);
@@ -817,18 +828,18 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                     Component.translatable("packwork.kind." + CHIP_KINDS[i].name().toLowerCase(java.util.Locale.ROOT)),
                     inRect(mouseX, mouseY, r[0], r[1], r[2], r[3]), on);
         }
-        g.drawString(this.font, Component.translatable("packwork.ui.rules_footer"),
+        g.text(this.font, Component.translatable("packwork.ui.rules_footer"),
                 x + 5, y + h - 12, 0xFF6A5A40, false);
     }
 
     /** A small labelled brass-edged plate (chips and the Name/Mod buttons). */
-    private void drawTextButton(GuiGraphics g, int x, int y, int w, Component label,
+    private void drawTextButton(GuiGraphicsExtractor g, int x, int y, int w, Component label,
                                 boolean hover, boolean on) {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         g.fill(x, y, x + w, y + 10, base);
-        g.renderOutline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
+        g.outline(x, y, w, 10, hover ? 0xFFE7CC82 : 0xFFC9A24B);
         String s = this.font.plainSubstrByWidth(label.getString(), w - 4);
-        g.drawString(this.font, s, x + (w - this.font.width(s)) / 2, y + 1, 0xFFEAD9A6, false);
+        g.text(this.font, s, x + (w - this.font.width(s)) / 2, y + 1, 0xFFEAD9A6, false);
     }
 
     /** Clicks inside the rule sheet: focus the box, add or strike rules, or just be swallowed. */
@@ -895,7 +906,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         return true; // anywhere else on the sheet: consumed, never vanilla's drop-outside
     }
 
-    private void drawButtons(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawButtons(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         drawPlate(g, flatBtnX(), btnY(), inRect(mouseX, mouseY, flatBtnX(), btnY(), BTN, BTN), menu.flatten());
         drawPlate(g, tidyBtnX(), btnY(), inRect(mouseX, mouseY, tidyBtnX(), btnY(), BTN, BTN), false);
         drawPlate(g, newBtnX(), btnY(), inRect(mouseX, mouseY, newBtnX(), btnY(), BTN, BTN), false);
@@ -982,7 +993,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
     private int perTabBtnY() { return topPos + 142; }
 
     /** Glass store gauges under the trinket sockets: a waterskin, then a soul vial. */
-    private void drawStoreGauges(GuiGraphics g) {
+    private void drawStoreGauges(GuiGraphicsExtractor g) {
         gaugeRect = null;
         xpGaugeRect = null;
         energyGaugeRect = null;
@@ -1041,7 +1052,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         return Math.max(22, Math.min(GAUGE_H, avail / n));
     }
 
-    private void drawFlaskGauge(GuiGraphics g, int x, int y, int w, int h) {
+    private void drawFlaskGauge(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         gaugeFrame(g, x, y, w, h, 0xFF241F2C);
         long stored = menu.chemicalStored();
         long cap = menu.chemicalCapacity();
@@ -1053,7 +1064,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
-    private void drawEnergyGauge(GuiGraphics g, int x, int y, int w, int h) {
+    private void drawEnergyGauge(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         gaugeFrame(g, x, y, w, h, 0xFF15323B);                          // cool crystal-teal glass
         int stored = menu.energyStored();
         int cap = menu.energyCapacity();
@@ -1065,24 +1076,25 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
-    private void gaugeFrame(GuiGraphics g, int x, int y, int w, int h, int glass) {
+    private void gaugeFrame(GuiGraphicsExtractor g, int x, int y, int w, int h, int glass) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, 0xFF3E2A18);
-        g.renderOutline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
+        g.outline(x - 1, y - 1, w + 2, h + 2, 0xFFC9A24B);
         g.fill(x, y, x + w, y + h, glass);
     }
 
-    private void drawFluidGauge(GuiGraphics g, int x, int y, int w, int h) {
+    private void drawFluidGauge(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         gaugeFrame(g, x, y, w, h, 0xFF20303A);
         FluidStack fs = menu.fluidStack();
         int cap = menu.fluidCapacity();
         if (!fs.isEmpty() && cap > 0) {
             int filled = Math.max(1, (int) ((long) h * Math.min(fs.getAmount(), cap) / cap));
-            IClientFluidTypeExtensions ext = IClientFluidTypeExtensions.of(fs.getFluid());
-            // 1.21.5+: sprites resolve through the AtlasManager via a Material, and the
-            // tint rides the blitSprite color arg (setShaderColor is gone).
-            TextureAtlasSprite sprite = Minecraft.getInstance().getAtlasManager()
-                    .get(net.neoforged.neoforge.client.ClientHooks.getBlockMaterial(ext.getStillTexture(fs)));
-            int tint = 0xFF000000 | (ext.getTintColor(fs) & 0xFFFFFF);
+            // 26.1: fluid client info moved off IClientFluidTypeExtensions onto FluidModel
+            // (still sprite + tint source), resolved through the model manager's set.
+            var fluidModel = Minecraft.getInstance().getModelManager().getFluidStateModelSet()
+                    .get(fs.getFluid().defaultFluidState());
+            TextureAtlasSprite sprite = fluidModel.stillMaterial().sprite();
+            var tintSource = fluidModel.fluidTintSource();
+            int tint = 0xFF000000 | ((tintSource != null ? tintSource.colorAsStack(fs) : 0xFFFFFF) & 0xFFFFFF);
             for (int yy = 0; yy < filled; yy += 16) {
                 int hh = Math.min(16, filled - yy);
                 g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y + h - yy - hh, w, hh, tint);
@@ -1091,7 +1103,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
-    private void drawXpGauge(GuiGraphics g, int x, int y, int w, int h) {
+    private void drawXpGauge(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         gaugeFrame(g, x, y, w, h, 0xFF1C241A);
         int stored = menu.xpStored();
         int cap = menu.xpCapacity();
@@ -1104,14 +1116,14 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         g.fill(x + 1, y + 1, x + 3, y + h - 1, 0x33FFFFFF);
     }
 
-    private void drawPlate(GuiGraphics g, int x, int y, boolean hover, boolean on) {
+    private void drawPlate(GuiGraphicsExtractor g, int x, int y, boolean hover, boolean on) {
         int base = on ? 0xFF8A6A28 : 0xFF6B4A2F;
         int edge = hover ? 0xFFE7CC82 : 0xFFC9A24B;
         g.fill(x, y, x + BTN, y + BTN, base);
-        g.renderOutline(x, y, BTN, BTN, edge);
+        g.outline(x, y, BTN, BTN, edge);
     }
 
-    private void drawPageNav(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawPageNav(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         if (menu.pageCount() <= 1) return;
         int y = topPos + 143;
         int lx = leftPos + 8, rx = leftPos + 160;
@@ -1120,10 +1132,10 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         triangle(g, lx, y, true, lh);
         triangle(g, rx, y, false, rh);
         String p = (menu.page() + 1) + "/" + menu.pageCount();
-        g.drawString(this.font, p, leftPos + 88 - this.font.width(p) / 2, y, 0xE8DCC0, false);
+        g.text(this.font, p, leftPos + 88 - this.font.width(p) / 2, y, 0xE8DCC0, false);
     }
 
-    private void triangle(GuiGraphics g, int x, int y, boolean left, boolean hover) {
+    private void triangle(GuiGraphicsExtractor g, int x, int y, boolean left, boolean hover) {
         int c = hover ? 0xFFE7CC82 : 0xFFC9A24B;
         for (int i = 0; i < 4; i++) {
             int col = left ? x + i : x + 7 - i;
@@ -1131,7 +1143,7 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         }
     }
 
-    private void drawHoverTooltips(GuiGraphics g, int mouseX, int mouseY) {
+    private void drawHoverTooltips(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         // tab names
         List<TabView> tabs = menu.tabs();
         for (int i = 0; i < tabRects.size() && i < tabs.size(); i++) {

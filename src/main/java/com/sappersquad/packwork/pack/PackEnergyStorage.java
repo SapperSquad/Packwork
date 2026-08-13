@@ -2,16 +2,18 @@ package com.sappersquad.packwork.pack;
 
 import com.sappersquad.packwork.reg.ModComponents;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import java.util.function.Supplier;
 
 /**
- * The Charge Crystal's reservoir: a component-backed {@link IEnergyStorage} on the pack
- * (an arcane charge in a copper-wound crystal, never a "battery"). Standard capability,
- * so any mod's charger or conduit fills a placed pack, and equipped tools sip from it.
+ * The Charge Crystal's reservoir: a component-backed store on the pack (an arcane
+ * charge in a copper-wound crystal, never a "battery"). The standard capability is the
+ * transfer-API handler in {@code PackTransfer.energy}; this class is the plain
+ * component-math view the internals and the (gated, 1.21.1-era) Forgework bridge ride.
+ * 26.1: it no longer implements the deprecated-for-removal {@code IEnergyStorage} -
+ * the receive/extract vocabulary stays, the NeoForge interface goes.
  */
-public class PackEnergyStorage implements IEnergyStorage {
+public class PackEnergyStorage {
 
     private final Supplier<ItemStack> live;
     private final int capacity;
@@ -52,36 +54,30 @@ public class PackEnergyStorage implements IEnergyStorage {
         }
     }
 
-    @Override
     public int receiveEnergy(int toReceive, boolean simulate) {
         int accepted = Math.min(capacity - get(), Math.min(toReceive, maxTransfer));
         if (accepted > 0 && !simulate) set(get() + accepted);
         return Math.max(0, accepted);
     }
 
-    @Override
     public int extractEnergy(int toExtract, boolean simulate) {
         int extracted = Math.min(get(), Math.min(toExtract, maxTransfer));
         if (extracted > 0 && !simulate) set(get() - extracted);
         return Math.max(0, extracted);
     }
 
-    @Override
     public int getEnergyStored() {
         return get();
     }
 
-    @Override
     public int getMaxEnergyStored() {
         return capacity;
     }
 
-    @Override
     public boolean canExtract() {
         return true;
     }
 
-    @Override
     public boolean canReceive() {
         return true;
     }

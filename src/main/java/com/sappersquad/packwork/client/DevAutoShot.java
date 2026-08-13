@@ -20,7 +20,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.items.IItemHandler;
 
 /**
  * Dev-only visual harness. With {@code -Dpackwork.autoshot=1} the client boots a
@@ -92,7 +91,7 @@ public final class DevAutoShot {
                     try {
                         org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1120, 900);
                         mc.options.guiScale().set(3);
-                        mc.resizeDisplay();
+                        mc.resizeGui();
                         Packwork.LOGGER.info("[autoshot] window 1120x900 @ guiScale 3");
                     } catch (Throwable t) {
                         Packwork.LOGGER.warn("[autoshot] resize failed: {}", t.toString());
@@ -100,8 +99,9 @@ public final class DevAutoShot {
                 }
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[autoshot] creating throwaway world");
+                    // 26.1: hardcore/difficulty fold into DifficultySettings; GameRules left the ctor.
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
+                            new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.WAIT_LEVEL;
@@ -133,7 +133,7 @@ public final class DevAutoShot {
             }
             // ---- the reported bug: clicking the waterskin gauge with a bucket threw it on the floor ----
             case BUCKET_GIVE -> {
-                giveCarried(mc, BUCKET_ROUNDS[bucketRound]);
+                giveCarried(mc, bucketRounds()[bucketRound]);
                 phase = Phase.BUCKET_W1; wait = 0;
             }
             case BUCKET_W1 -> { if (++wait > 10) { phase = Phase.BUCKET_CLICK; wait = 0; } }
@@ -145,7 +145,7 @@ public final class DevAutoShot {
             case BUCKET_REPORT -> {
                 reportBucketRound(mc);
                 grab(mc, "packwork_bucket_" + bucketRound);
-                if (++bucketRound < BUCKET_ROUNDS.length) {
+                if (++bucketRound < bucketRounds().length) {
                     phase = Phase.BUCKET_GIVE;
                 } else {
                     giveCarried(mc, ItemStack.EMPTY); // clear the cursor before the pin demo
@@ -443,7 +443,7 @@ public final class DevAutoShot {
                     try {
                         org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1920, 1080);
                         mc.options.guiScale().set(3);
-                        mc.resizeDisplay();
+                        mc.resizeGui();
                         Packwork.LOGGER.info("[gallery] window 1920x1080 @ guiScale 3");
                     } catch (Throwable t) {
                         Packwork.LOGGER.warn("[gallery] resize failed: {}", t.toString());
@@ -451,8 +451,9 @@ public final class DevAutoShot {
                 }
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[gallery] creating throwaway world");
+                    // 26.1: hardcore/difficulty fold into DifficultySettings; GameRules left the ctor.
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
+                            new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.G_WAIT_LEVEL;
@@ -581,7 +582,7 @@ public final class DevAutoShot {
                 if (server != null) server.execute(() -> {
                     if (server.getPlayerList().getPlayers().isEmpty()) return;
                     ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                    sp.level().setDayTime(18000);
+                    setWorldTime(server, 18000); // 26.1: day time rides the clock manager now
                     // Step in close on the Sculkhide so its echo-gem glow carries the frame.
                     // The Sculkhide now sits at the +0 (west) end of the row, so the camera
                     // stands on its EAST side (+1.8 past the block coord = +1.3 past centre,
@@ -624,12 +625,23 @@ public final class DevAutoShot {
 
     // ---- waterskin-gauge bucket check (the bug Alex hit: the bucket landed on the ground) ----
 
-    /** One bucket, then a STACK of three, then an empty one to fill back out of the tank. */
-    private static final ItemStack[] BUCKET_ROUNDS = {
-            new ItemStack(Items.WATER_BUCKET),
-            new ItemStack(Items.WATER_BUCKET, 3),
-            new ItemStack(Items.BUCKET)
-    };
+    /** One bucket, then a STACK of three, then an empty one to fill back out of the tank.
+     *  (26.1: built lazily - constructing an ItemStack in a static initializer now throws
+     *  "Components not bound yet", because item components bind to the registry holder
+     *  AFTER registration; this class is classloaded during subscriber scanning.) */
+    private static ItemStack[] bucketRounds;
+
+    private static ItemStack[] bucketRounds() {
+        if (bucketRounds == null) {
+            bucketRounds = new ItemStack[] {
+                    new ItemStack(Items.WATER_BUCKET),
+                    new ItemStack(Items.WATER_BUCKET, 3),
+                    new ItemStack(Items.BUCKET)
+            };
+        }
+        return bucketRounds;
+    }
+
     private static int bucketRound = 0;
 
     /** Put a stack on the player's cursor server-side; it syncs down to the open screen. */
@@ -784,8 +796,8 @@ public final class DevAutoShot {
             net.minecraft.world.inventory.Slot s = menu.slots.get(i);
             if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive()
                     && s.hasItem() == wantItem) {
-                mc.gameMode.handleInventoryMouseClick(menu.containerId, i, 0,
-                        net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+                mc.gameMode.handleContainerInput(menu.containerId, i, 0,
+                        net.minecraft.world.inventory.ContainerInput.PICKUP, mc.player);
                 Packwork.LOGGER.info("[autoshot] {} -> menu slot {}", what, i);
                 return;
             }
@@ -809,8 +821,8 @@ public final class DevAutoShot {
     private static void craftFromRoll(Minecraft mc) {
         if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
         PackMenu menu = ps.getMenu();
-        mc.gameMode.handleInventoryMouseClick(menu.containerId, menu.resultIndex(), 0,
-                net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+        mc.gameMode.handleContainerInput(menu.containerId, menu.resultIndex(), 0,
+                net.minecraft.world.inventory.ContainerInput.QUICK_MOVE, mc.player);
         Packwork.LOGGER.info("[autoshot][kit] shift-clicked the result slot");
     }
 
@@ -855,7 +867,7 @@ public final class DevAutoShot {
             // (1.21.11: the standard item cap is the transactional ResourceHandler now; the
             // harness just needs to stuff the pack, so it uses the internal store directly -
             // the cap itself is exercised by the automation gametests)
-            IItemHandler h = new com.sappersquad.packwork.pack.PackInventory(
+            var h = new com.sappersquad.packwork.pack.PackInventory(
                     pack, com.sappersquad.packwork.pack.PackTier.SCULKHIDE);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
@@ -936,6 +948,15 @@ public final class DevAutoShot {
      *             open sky so the backdrop is guaranteed clean whatever terrain the random
      *             seed dealt (a ground-level pad once spawned walled inside a hillside).
      */
+    /** 26.1 moved world time onto the clock system: set the OVERWORLD clock's total ticks
+     *  (what {@code /time set} does now - verified in the 26.1.2 TimeCommand sources). */
+    private static void setWorldTime(net.minecraft.server.MinecraftServer server, long ticks) {
+        var clock = server.registryAccess()
+                .lookupOrThrow(net.minecraft.core.registries.Registries.WORLD_CLOCK)
+                .getOrThrow(net.minecraft.world.clock.WorldClocks.OVERWORLD);
+        server.clockManager().setTotalTicks(clock, ticks);
+    }
+
     private static void placeBlocks(Minecraft mc, int rise) {
         var server = mc.getSingleplayerServer();
         if (server == null) return;
@@ -943,7 +964,7 @@ public final class DevAutoShot {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             net.minecraft.server.level.ServerLevel lvl = sp.level();
-            lvl.setDayTime(6000);
+            setWorldTime(server, 6000); // 26.1: day time rides the clock manager now
             net.minecraft.core.BlockPos base = sp.blockPosition().above(rise);
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
             var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();

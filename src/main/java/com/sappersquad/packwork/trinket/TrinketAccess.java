@@ -22,7 +22,7 @@ public final class TrinketAccess {
         EnumSet<TrinketType> set = EnumSet.noneOf(TrinketType.class);
         ItemContainerContents c = pack.get(ModComponents.PACK_TRINKETS.get());
         if (c != null) {
-            c.nonEmptyStream().forEach(s -> {
+            c.nonEmptyItemCopyStream().forEach(s -> {
                 TrinketType t = TrinketType.of(s);
                 if (t != null) set.add(t);
             });
@@ -33,7 +33,7 @@ public final class TrinketAccess {
     public static boolean has(ItemStack pack, TrinketType type) {
         ItemContainerContents c = pack.get(ModComponents.PACK_TRINKETS.get());
         if (c == null) return false;
-        return c.nonEmptyStream().anyMatch(s -> TrinketType.of(s) == type);
+        return c.nonEmptyItemCopyStream().anyMatch(s -> TrinketType.of(s) == type);
     }
 
     /** Backing-slot count for this pack: tier capacity, grown by a Bottomless Lining. */

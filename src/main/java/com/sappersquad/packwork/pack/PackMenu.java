@@ -157,8 +157,17 @@ public class PackMenu extends AbstractContainerMenu {
         this.liveSupplier = hostContainer != null
                 ? () -> hostContainer.getItem(0)
                 : () -> playerInv.getItem(boundSlot);
-        this.packInv = new PackInventory(this::liveStack, tier);
-        this.trinketInv = new PackTrinketInventory(this::liveStack, tier);
+        // 26.1: the internals ride the transfer API, so the store binds to a live
+        // ItemAccess per host - the player-inventory slot (carried) or the one-slot
+        // host container (placed / worn / client mirror). Both resolve the CURRENT
+        // stack on every read, and commits mutate it in place + mark the host dirty,
+        // which is exactly the old live-supplier contract.
+        net.neoforged.neoforge.transfer.access.ItemAccess hostAccess = hostContainer != null
+                ? net.neoforged.neoforge.transfer.access.ItemAccess.forHandlerIndex(
+                        net.neoforged.neoforge.transfer.item.VanillaContainerWrapper.of(hostContainer), 0)
+                : net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerSlot(playerInv.player, boundSlot);
+        this.packInv = new PackInventory(hostAccess, tier);
+        this.trinketInv = new PackTrinketInventory(hostAccess, tier);
         this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
         this.tabs = SortEngine.tabsFor(layout, fitted());
         this.activeTab = firstRealTab();
@@ -175,11 +184,12 @@ public class PackMenu extends AbstractContainerMenu {
 
         addPlayerInventory(playerInv);
 
-        // Trinket sockets on the right rail (component-backed copy slots).
+        // Trinket sockets on the right rail (component-backed copy slots - 26.1: the
+        // native ResourceHandlerSlot; the direct-set path is the handler's setSlot).
         this.trinketStart = slots.size();
         for (int i = 0; i < tier.trinketSlots(); i++) {
-            addSlot(new net.neoforged.neoforge.items.ItemHandlerCopySlot(
-                    trinketInv, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
+            addSlot(new net.neoforged.neoforge.transfer.item.ResourceHandlerSlot(
+                    trinketInv, trinketInv::setSlot, i, TRINKET_X, TRINKET_Y0 + i * TRINKET_PITCH));
         }
         this.trinketEnd = slots.size();
 
@@ -316,7 +326,7 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public void clicked(int slotId, int button, net.minecraft.world.inventory.ClickType type, Player player) {
+    public void clicked(int slotId, int button, net.minecraft.world.inventory.ContainerInput type, Player player) {
         // The host stack is gone (worn pack unequipped, carried one /clear-ed) but the close
         // hasn't landed yet: swallow the click rather than write onto - or conjure out of -
         // a stack that already left. The server closes this menu on its next container tick.
@@ -1028,7 +1038,7 @@ public class PackMenu extends AbstractContainerMenu {
             boolean allowed = !(player instanceof net.minecraft.server.level.ServerPlayer sp)
                     || resultSlots.setRecipeUsed(sp, found.get());
             if (allowed) {
-                ItemStack out = found.get().value().assemble(input, level.registryAccess());
+                ItemStack out = found.get().value().assemble(input);
                 if (out.isItemEnabled(level.enabledFeatures())) result = out;
             }
         }
@@ -1218,9 +1228,15 @@ public class PackMenu extends AbstractContainerMenu {
     /**
      * Fill or drain the Waterskin tank using the item on the cursor (a bucket, flask, etc.).
      * Exactly ONE container is handled per click, whether you're holding one bucket or a
-     * stack of sixteen: NeoForge's {@code FluidUtil.tryEmptyContainer/tryFillContainer}
-     * operate on a single container and hand back a single result, so the old
-     * {@code setCarried(result)} silently ate the rest of the stack.
+     * stack of sixteen - the interaction runs on a one-count copy in its own single-slot
+     * holder, and only the resulting container goes back through {@link #spendOneCarried}.
+     *
+     * <p>26.1: rewritten natively on the transfer API. The copy sits in a
+     * {@code SimpleContainer} wrapped as a {@code ResourceHandler}, the container item's
+     * own fluid handler comes off the standard {@code Capabilities.Fluid.ITEM} with that
+     * holder as its {@code ItemAccess} (so a bucket can swap itself for an empty bucket
+     * on commit), and the move both ways is one transaction against the same tank
+     * handler automation uses.
      */
     public void applyFluidInteract() {
         if (isClient()) return; // server-authoritative: it moves a real item on the cursor
@@ -1228,22 +1244,33 @@ public class PackMenu extends AbstractContainerMenu {
         ItemStack carried = getCarried();
         if (carried.isEmpty()) return;
         ItemStack pack = liveStack();
-        PackFluidHandler tank = new PackFluidHandler(pack, PackFluidHandler.capacityFor(pack));
 
-        // Act on ONE container out of the carried stack.
+        // Act on ONE container out of the carried stack, in its own holder.
         ItemStack one = carried.copyWithCount(1);
-        Player player = playerInv.player;
+        var holder = new net.minecraft.world.SimpleContainer(one);
+        var holderWrapper = net.neoforged.neoforge.transfer.item.VanillaContainerWrapper.of(holder);
+        var containerAccess = net.neoforged.neoforge.transfer.access.ItemAccess.forHandlerIndex(holderWrapper, 0);
+        var containerFluid = one.getCapability(
+                net.neoforged.neoforge.capabilities.Capabilities.Fluid.ITEM, containerAccess);
+        if (containerFluid == null) return;
 
-        // first try to empty a filled container INTO the tank, else fill an empty one FROM it
-        var result = net.neoforged.neoforge.fluids.FluidUtil.tryEmptyContainer(
-                one, tank, Integer.MAX_VALUE, player, true);
-        if (!result.isSuccess()) {
-            result = net.neoforged.neoforge.fluids.FluidUtil.tryFillContainer(
-                    one, tank, Integer.MAX_VALUE, player, true);
+        var tank = com.sappersquad.packwork.transfer.PackTransfer.fluid(
+                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(pack), pack);
+
+        int moved;
+        try (var tx = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+            // first try to empty the container INTO the tank, else fill it FROM the tank
+            moved = net.neoforged.neoforge.transfer.ResourceHandlerUtil.move(
+                    containerFluid, tank, r -> true, Integer.MAX_VALUE, tx);
+            if (moved <= 0) {
+                moved = net.neoforged.neoforge.transfer.ResourceHandlerUtil.move(
+                        tank, containerFluid, r -> true, Integer.MAX_VALUE, tx);
+            }
+            if (moved > 0) tx.commit();
         }
-        if (!result.isSuccess()) return;
+        if (moved <= 0) return;
 
-        spendOneCarried(result.getResult());
+        spendOneCarried(holder.getItem(0));
         rebuildView();
     }
 

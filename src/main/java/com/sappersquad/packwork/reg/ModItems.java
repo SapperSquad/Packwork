@@ -28,16 +28,16 @@ public class ModItems {
 
     /** The in-house guide book. Opens a client screen on right-click; auto-listed in the creative tab. */
     public static final DeferredItem<HandbookItem> HANDBOOK =
-            ITEMS.registerItem("outfitters_handbook", HandbookItem::new, new Item.Properties());
+            ITEMS.registerItem("outfitters_handbook", HandbookItem::new, Item.Properties::new);
 
     static {
         for (PackTier tier : PackTier.values()) {
             PACKS.put(tier, ITEMS.registerItem(tier.getSerializedName() + "_pack",
-                    props -> new PackItem(props, tier), new Item.Properties()));
+                    props -> new PackItem(props, tier), Item.Properties::new));
         }
         for (TrinketType type : TrinketType.values()) {
             TRINKETS.put(type, ITEMS.registerItem(type.id(),
-                    props -> new TrinketItem(props, type), new Item.Properties()));
+                    props -> new TrinketItem(props, type), Item.Properties::new));
         }
     }
 

@@ -1,7 +1,7 @@
 package com.sappersquad.packwork.client;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
@@ -32,7 +32,7 @@ public class CrispEditBox extends EditBox {
     }
 
     @Override
-    public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         if (!this.isVisible()) return;
         int x = getX();
         int y = getY();
@@ -40,7 +40,7 @@ public class CrispEditBox extends EditBox {
 
         if (value.isEmpty() && hintText != null && !isFocused()) {
             // dim hint, still crisp (no shadow)
-            g.drawString(font, hintText, x, y, 0xFF8A7658, false);
+            g.text(font, hintText, x, y, 0xFF8A7658, false);
             return;
         }
         // trim from the front so the caret end stays visible instead of spilling off the strip
@@ -48,7 +48,7 @@ public class CrispEditBox extends EditBox {
         while (!shown.isEmpty() && font.width(shown) > getWidth() - 1) {
             shown = shown.substring(1);
         }
-        g.drawString(font, shown, x, y, textColor, false); // dropShadow = false -> crisp
+        g.text(font, shown, x, y, textColor, false); // dropShadow = false -> crisp
         if (isFocused() && (System.currentTimeMillis() / 500) % 2 == 0) {
             int cx = x + font.width(shown);
             g.fill(cx, y - 1, cx + 1, y + font.lineHeight, 0xFF000000 | (textColor & 0xFFFFFF));
