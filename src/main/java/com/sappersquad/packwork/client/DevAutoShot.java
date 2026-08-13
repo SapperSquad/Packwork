@@ -97,13 +97,13 @@ public final class DevAutoShot {
                         Packwork.LOGGER.warn("[autoshot] resize failed: {}", t.toString());
                     }
                 }
-                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                if (ticks > 40 && mc.level == null && mc.gui.screen() != null) {
                     Packwork.LOGGER.info("[autoshot] creating throwaway world");
                     // 26.1: hardcore/difficulty fold into DifficultySettings; GameRules left the ctor.
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
                             new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
-                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.gui.screen());
                     phase = Phase.WAIT_LEVEL;
                     wait = 0;
                 }
@@ -118,7 +118,7 @@ public final class DevAutoShot {
                 }
             }
             case OPEN -> {
-                if (mc.screen instanceof PackScreen && ++wait > 12) {
+                if (mc.gui.screen() instanceof PackScreen && ++wait > 12) {
                     // flatten so the whole varied spread is visible in one grid for the alignment shot
                     withMenu(mc, PackClientActions::toggleFlatten);
                     phase = Phase.SHOOT_GRID; wait = 0;
@@ -164,7 +164,7 @@ public final class DevAutoShot {
                 // Force the hovered slot (the unfocused dev window won't register a synthetic cursor
                 // move as a hover), then fire a REAL Screen.keyPressed(P) at it - exercises the real
                 // keyPressed -> pin wiring end to end.
-                if (mc.screen instanceof PackScreen ps) ps.devHover(pinSlotIndex);
+                if (mc.gui.screen() instanceof PackScreen ps) ps.devHover(pinSlotIndex);
                 pressPin(mc);                        // BUG 1: a REAL Screen.keyPressed(P)
                 phase = Phase.PW1; wait = 0;
             }
@@ -176,7 +176,7 @@ public final class DevAutoShot {
             }
             case PIN2 -> {
                 hoverFirstGridItem(mc);
-                if (mc.screen instanceof PackScreen ps) ps.devHover(pinSlotIndex);
+                if (mc.gui.screen() instanceof PackScreen ps) ps.devHover(pinSlotIndex);
                 pressPin(mc);                        // press again -> unpin
                 phase = Phase.PW2; wait = 0;
             }
@@ -228,13 +228,13 @@ public final class DevAutoShot {
             case SHOOT_BOOK -> {
                 grab(mc, "packwork_handbook");     // chapter 1: "The Pack" (prose + a pack row)
                 // jump to the Trinkets chapter to prove chapter switching + a second item row
-                if (mc.screen instanceof OutfitterHandbookScreen book) book.devSelectChapter(2);
+                if (mc.gui.screen() instanceof OutfitterHandbookScreen book) book.devSelectChapter(2);
                 phase = Phase.WB2; wait = 0;
             }
             case WB2 -> { if (++wait > 8) phase = Phase.SHOOT_BOOK2; }
             case SHOOT_BOOK2 -> {
                 grab(mc, "packwork_handbook_trinkets");
-                mc.setScreen(null);          // close the book
+                mc.gui.setScreen(null);          // close the book
                 placeBlocks(mc);             // set three packs down in the world
                 phase = Phase.WPLACE; wait = 0;
             }
@@ -247,7 +247,7 @@ public final class DevAutoShot {
             case WBLOCK -> { if (++wait > 15) phase = Phase.SHOOT_BLOCK; } // menu opens + syncs
             case SHOOT_BLOCK -> {
                 grab(mc, "packwork_placed_gui"); // the SAME organizer, opened from the block
-                mc.setScreen(null);              // close the GUI, back to the world row
+                mc.gui.setScreen(null);              // close the GUI, back to the world row
                 breakPlacedPack(mc);             // break the Runed pack - logs the RIGHT-tier drop
                 phase = Phase.WBREAK; wait = 0;
             }
@@ -265,14 +265,14 @@ public final class DevAutoShot {
             }
             case WLINEUP -> {
                 if (++wait > 8) {
-                    if (mc.player != null) mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+                    if (mc.player != null) mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
                     phase = Phase.SHOOT_LINEUP; wait = 0;
                 }
             }
             case SHOOT_LINEUP -> {
                 if (++wait > 6) {
                     grab(mc, "packwork_lineup");  // every pack tier + trinket in the inventory grid
-                    mc.setScreen(null);            // drop to first person, holding the Runed pack
+                    mc.gui.setScreen(null);            // drop to first person, holding the Runed pack
                     phase = Phase.SHOOT_INHAND; wait = 0;
                 }
             }
@@ -287,7 +287,7 @@ public final class DevAutoShot {
                 giveKitPack(mc);
                 phase = Phase.KIT_W1; wait = 0;
             }
-            case KIT_W1 -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.KIT_UNROLL; wait = 0; } }
+            case KIT_W1 -> { if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.KIT_UNROLL; wait = 0; } }
             case KIT_UNROLL -> {
                 switchTab(mc, "auto:nature");     // the wheat lives in Nature & Farming
                 clickRollLatch(mc);               // a real press + release on the latch
@@ -343,7 +343,7 @@ public final class DevAutoShot {
                 setupAndOpen(mc);   // the Sculkhide spread again (now with a Quill & Ledger fitted)
                 phase = Phase.W4_OPEN; wait = 0;
             }
-            case W4_OPEN -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.AUTOPIN_GIVE; wait = 0; } }
+            case W4_OPEN -> { if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.AUTOPIN_GIVE; wait = 0; } }
             case AUTOPIN_GIVE -> {
                 switchTab(mc, "auto:ores");
                 giveCarried(mc, new ItemStack(Items.BREAD, 5));  // bread does NOT belong in Ores
@@ -376,7 +376,7 @@ public final class DevAutoShot {
                 phase = Phase.RULES_WRITE; wait = 0;
             }
             case RULES_WRITE -> {
-                if (mc.screen instanceof PackScreen ps) ps.devSetRuleValue("ingot");
+                if (mc.gui.screen() instanceof PackScreen ps) ps.devSetRuleValue("ingot");
                 clickAt(mc, PackScreen::devRuleAddNameCenter, "file 'ingot' by name");
                 clickAt(mc, ps -> ps.devRuleChipCenter(0), "the Food category chip");
                 phase = Phase.RULES_W2; wait = 0;
@@ -449,13 +449,13 @@ public final class DevAutoShot {
                         Packwork.LOGGER.warn("[gallery] resize failed: {}", t.toString());
                     }
                 }
-                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                if (ticks > 40 && mc.level == null && mc.gui.screen() != null) {
                     Packwork.LOGGER.info("[gallery] creating throwaway world");
                     // 26.1: hardcore/difficulty fold into DifficultySettings; GameRules left the ctor.
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
                             new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
-                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.gui.screen());
                     phase = Phase.G_WAIT_LEVEL;
                     wait = 0;
                 }
@@ -470,7 +470,7 @@ public final class DevAutoShot {
                 placeBlocks(mc, 64);          // the six-tier row on a SKY pad, midday - clean backdrop
                                               // (64, not 26: the angled hero camera looks OVER the row,
                                               // and one seed grew a hilltop tree into that sightline)
-                mc.options.hideGui = true;    // a clean world shot: no hotbar, no crosshair
+                if (!mc.gui.hud.isHidden()) mc.gui.hud.toggle();    // a clean world shot: no hotbar, no crosshair (26.2: the flag moved onto the Hud)
                 phase = Phase.G_WPLACE; wait = 0;
             }
             case G_WPLACE -> {
@@ -482,7 +482,7 @@ public final class DevAutoShot {
             case G_HERO_W -> { if (++wait > 30) phase = Phase.G_SHOOT_LINEUP; }
             case G_SHOOT_LINEUP -> {
                 grab(mc, "gallery_lineup");   // (1) all SIX per-tier packs, daylight
-                mc.options.hideGui = false;
+                if (mc.gui.hud.isHidden()) mc.gui.hud.toggle();
                 phase = Phase.G_OPEN; wait = 0;
             }
             case G_OPEN -> {
@@ -491,14 +491,14 @@ public final class DevAutoShot {
             }
             case G_WOPEN -> {
                 if (wait == 1) parkCursor(mc);   // no hover highlight in the promo frame
-                if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_SHOOT_SORTING; wait = 0; }
+                if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.G_SHOOT_SORTING; wait = 0; }
             }
             case G_SHOOT_SORTING -> {
                 grab(mc, "gallery_sorting");  // (2) the sorting flagship, mid-sort
                 phase = Phase.G_KIT; wait = 0;
             }
             case G_KIT -> { giveKitPack(mc); phase = Phase.G_KIT_W; wait = 0; }
-            case G_KIT_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_UNROLL; wait = 0; } }
+            case G_KIT_W -> { if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.G_UNROLL; wait = 0; } }
             case G_UNROLL -> {
                 switchTab(mc, "auto:nature");
                 clickRollLatch(mc);
@@ -520,13 +520,13 @@ public final class DevAutoShot {
                 phase = Phase.G_PACK2; wait = 0;
             }
             case G_PACK2 -> { setupAndOpen(mc); phase = Phase.G_PACK2_W; wait = 0; }
-            case G_PACK2_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_TAB; wait = 0; } }
+            case G_PACK2_W -> { if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.G_TAB; wait = 0; } }
             case G_TAB -> { newTab(mc); phase = Phase.G_TAB_W; wait = 0; }
             case G_TAB_W -> { if (++wait > 8) { phase = Phase.G_QUILL; wait = 0; } }
             case G_QUILL -> { clickAt(mc, PackScreen::devQuillButtonCenter, "the quill"); phase = Phase.G_QUILL_W; wait = 0; }
             case G_QUILL_W -> { if (++wait > 10) { phase = Phase.G_WRITE; wait = 0; } }
             case G_WRITE -> {
-                if (mc.screen instanceof PackScreen ps) ps.devSetRuleValue("ingot");
+                if (mc.gui.screen() instanceof PackScreen ps) ps.devSetRuleValue("ingot");
                 clickAt(mc, PackScreen::devRuleAddNameCenter, "file 'ingot' by name");
                 clickAt(mc, ps -> ps.devRuleChipCenter(0), "the Food chip");
                 phase = Phase.G_WRITE_W; wait = 0;
@@ -559,7 +559,7 @@ public final class DevAutoShot {
                 phase = Phase.G_PICKUP; wait = 0;
             }
             case G_PICKUP -> { giveLodestonePackAndOpen(mc); phase = Phase.G_PICKUP_W; wait = 0; }
-            case G_PICKUP_W -> { if (mc.screen instanceof PackScreen && ++wait > 16) { phase = Phase.G_PICKUP_TAB; wait = 0; } }
+            case G_PICKUP_W -> { if (mc.gui.screen() instanceof PackScreen && ++wait > 16) { phase = Phase.G_PICKUP_TAB; wait = 0; } }
             case G_PICKUP_TAB -> { switchTab(mc, "auto:ores"); phase = Phase.G_PICKUP_TW; wait = 0; }
             case G_PICKUP_TW -> { if (++wait > 8) { phase = Phase.G_PICKUP_DROP; wait = 0; } }
             case G_PICKUP_DROP -> { giveCarried(mc, new ItemStack(Items.BREAD, 5)); phase = Phase.G_PICKUP_DW; wait = 0; }
@@ -577,7 +577,7 @@ public final class DevAutoShot {
                 }
             }
             case G_NIGHT -> {
-                mc.setScreen(null);
+                mc.gui.setScreen(null);
                 var server = mc.getSingleplayerServer();
                 if (server != null) server.execute(() -> {
                     if (server.getPlayerList().getPlayers().isEmpty()) return;
@@ -594,13 +594,13 @@ public final class DevAutoShot {
                                 placedLast.getZ() - 2.4, -20f, 16f);
                     }
                 });
-                mc.options.hideGui = true;
+                if (!mc.gui.hud.isHidden()) mc.gui.hud.toggle();
                 phase = Phase.G_NIGHT_W; wait = 0;
             }
             case G_NIGHT_W -> { if (++wait > 70) phase = Phase.G_SHOOT_NIGHT; } // sky + light re-render
             case G_SHOOT_NIGHT -> {
                 grab(mc, "gallery_sculkhide_night"); // (6) the glowing tiers in the dark
-                mc.options.hideGui = false;
+                if (mc.gui.hud.isHidden()) mc.gui.hud.toggle();
                 phase = Phase.G_JEI; wait = 0;
             }
             case G_JEI -> {
@@ -759,7 +759,7 @@ public final class DevAutoShot {
     /** THE click helper: a genuine press + release at a dev-exposed GUI point. Every scripted
      *  click in the harness routes through here (skips politely if the target is missing). */
     private static void clickAt(Minecraft mc, java.util.function.Function<PackScreen, int[]> where, String what) {
-        if (!(mc.screen instanceof PackScreen ps)) {
+        if (!(mc.gui.screen() instanceof PackScreen ps)) {
             Packwork.LOGGER.warn("[autoshot] pack screen not open for {}", what);
             return;
         }
@@ -787,7 +787,7 @@ public final class DevAutoShot {
      * This is the path that exercises setByPlayer -&gt; the post-click flush on both sides.
      */
     private static void clickViewSlot(Minecraft mc, boolean wantItem, int minIndex, String what) {
-        if (!(mc.screen instanceof PackScreen ps) || mc.player == null || mc.gameMode == null) {
+        if (!(mc.gui.screen() instanceof PackScreen ps) || mc.player == null || mc.gameMode == null) {
             Packwork.LOGGER.warn("[autoshot] pack screen not open for {}", what);
             return;
         }
@@ -819,7 +819,7 @@ public final class DevAutoShot {
 
     /** A real shift-click on the roll's result slot. */
     private static void craftFromRoll(Minecraft mc) {
-        if (!(mc.screen instanceof PackScreen ps) || mc.player == null) return;
+        if (!(mc.gui.screen() instanceof PackScreen ps) || mc.player == null) return;
         PackMenu menu = ps.getMenu();
         mc.gameMode.handleContainerInput(menu.containerId, menu.resultIndex(), 0,
                 net.minecraft.world.inventory.ContainerInput.QUICK_MOVE, mc.player);
@@ -1145,7 +1145,7 @@ public final class DevAutoShot {
     /** Find the first grid item, record its menu-slot index + key, and move the real cursor over it. */
     private static net.minecraft.resources.Identifier hoverFirstGridItem(Minecraft mc) {
         pinSlotIndex = -1;
-        if (!(mc.screen instanceof PackScreen ps)) return null;
+        if (!(mc.gui.screen() instanceof PackScreen ps)) return null;
         var slots = ps.getMenu().slots;
         for (int i = 0; i < slots.size(); i++) {
             net.minecraft.world.inventory.Slot s = slots.get(i);
@@ -1166,9 +1166,9 @@ public final class DevAutoShot {
     /** Dispatch a genuine key press through the screen's own input handler - the same call the
      *  GLFW key callback makes - so this exercises the real keyPressed -> pin wiring, not the data action. */
     private static void pressPin(Minecraft mc) {
-        if (mc.screen == null) return;
+        if (mc.gui.screen() == null) return;
         int scan = org.lwjgl.glfw.GLFW.glfwGetKeyScancode(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
-        boolean handled = mc.screen.keyPressed(
+        boolean handled = mc.gui.screen().keyPressed(
                 new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0));
         Packwork.LOGGER.info("[autoshot] dispatched real keyPressed(P) -> handled={}", handled);
     }
@@ -1188,7 +1188,7 @@ public final class DevAutoShot {
 
     private static void grab(Minecraft mc, String name) {
         // 1.21.6+ grab signature carries a downscale factor (1 = full size)
-        Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(), 1,
+        Screenshot.grab(mc.gameDirectory, name + ".png", mc.gameRenderer.mainRenderTarget(), 1,
                 msg -> Packwork.LOGGER.info("[autoshot] {}", msg.getString()));
         Packwork.LOGGER.info("[autoshot] grabbed {}", name);
     }

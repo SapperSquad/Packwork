@@ -126,14 +126,14 @@ public final class PackClientActions {
 
     /** Server answered LEDGER_REFRESH: hand the craftable list to the open pack screen. */
     public static void handleLedgerSync(com.sappersquad.packwork.net.LedgerSyncPayload payload) {
-        if (Minecraft.getInstance().screen instanceof PackScreen screen) {
+        if (Minecraft.getInstance().gui.screen() instanceof PackScreen screen) {
             screen.applyLedgerSync(payload);
         }
     }
 
     /** Server answered REQUEST_GHOST: chalk (or clear) the arrangement on the open screen. */
     public static void handleGhostSync(com.sappersquad.packwork.net.GhostSyncPayload payload) {
-        if (Minecraft.getInstance().screen instanceof PackScreen screen) {
+        if (Minecraft.getInstance().gui.screen() instanceof PackScreen screen) {
             screen.applyGhostSync(payload);
         }
     }
