@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:rule_editor_writes_and_strikes_ledger_gated",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

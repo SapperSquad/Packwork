@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -90,7 +90,7 @@ public final class DevAutoShot {
                     // Grow the dev window and force GUI scale 3 (what players actually use) so the
                     // search text + slots can be judged at real size, not the tiny default scale.
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1120, 900);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1120, 900);
                         mc.options.guiScale().set(3);
                         mc.resizeDisplay();
                         Packwork.LOGGER.info("[autoshot] window 1120x900 @ guiScale 3");
@@ -101,7 +101,7 @@ public final class DevAutoShot {
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[autoshot] creating throwaway world");
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                            false, Difficulty.PEACEFUL, true, new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.WAIT_LEVEL;
@@ -357,7 +357,7 @@ public final class DevAutoShot {
             case AUTOPIN_W2 -> { if (++wait > 12) phase = Phase.SHOOT_AUTOPIN; }
             case SHOOT_AUTOPIN -> {
                 withMenu(mc, m -> Packwork.LOGGER.info("[autoshot][autopin] bread pinnedTab={} (want auto:ores)",
-                        m.layout().pinnedTab(net.minecraft.resources.ResourceLocation.withDefaultNamespace("bread"))));
+                        m.layout().pinnedTab(net.minecraft.resources.Identifier.withDefaultNamespace("bread"))));
                 grab(mc, "packwork_autopin");     // bread in Ores + red ribbon + the parchment note
                 phase = Phase.RULES_TAB; wait = 0;
             }
@@ -441,7 +441,7 @@ public final class DevAutoShot {
             case G_BOOT -> {
                 if (ticks == 5) {
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1920, 1080);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1920, 1080);
                         mc.options.guiScale().set(3);
                         mc.resizeDisplay();
                         Packwork.LOGGER.info("[gallery] window 1920x1080 @ guiScale 3");
@@ -452,7 +452,7 @@ public final class DevAutoShot {
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[gallery] creating throwaway world");
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                            false, Difficulty.PEACEFUL, true, new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.G_WAIT_LEVEL;
@@ -581,7 +581,7 @@ public final class DevAutoShot {
                 if (server != null) server.execute(() -> {
                     if (server.getPlayerList().getPlayers().isEmpty()) return;
                     ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-                    sp.serverLevel().setDayTime(18000);
+                    sp.level().setDayTime(18000);
                     // Step in close on the Sculkhide so its echo-gem glow carries the frame.
                     // The Sculkhide now sits at the +0 (west) end of the row, so the camera
                     // stands on its EAST side (+1.8 past the block coord = +1.3 past centre,
@@ -644,7 +644,7 @@ public final class DevAutoShot {
                 ItemStack s = sp.getInventory().getItem(i);
                 if (s.is(Items.BUCKET) || s.is(Items.WATER_BUCKET)) sp.getInventory().setItem(i, ItemStack.EMPTY);
             }
-            sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+            sp.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
                     sp.getBoundingBox().inflate(12)).forEach(net.minecraft.world.entity.Entity::discard);
             sp.containerMenu.setCarried(copy);
             Packwork.LOGGER.info("[autoshot][bucket] round {} - cursor set to {} x{}",
@@ -671,7 +671,7 @@ public final class DevAutoShot {
                 if (s.is(Items.BUCKET)) inPockets += s.getCount();
                 if (s.is(Items.WATER_BUCKET)) waterInPockets += s.getCount();
             }
-            var ground = sp.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+            var ground = sp.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
                     sp.getBoundingBox().inflate(12));
             StringBuilder onFloor = new StringBuilder();
             for (var e : ground) onFloor.append(net.minecraft.core.registries.BuiltInRegistries.ITEM
@@ -715,8 +715,8 @@ public final class DevAutoShot {
             store.insertItem(3, new ItemStack(Items.FILLED_MAP, 2), false);
             store.insertItem(4, new ItemStack(Items.RAW_IRON, 12), false);
             store.insertItem(5, new ItemStack(Items.COAL, 4), false);
-            sp.getInventory().items.set(0, pack);
-            sp.getInventory().selected = 0;
+            sp.getInventory().setItem(0, pack);
+            sp.getInventory().setSelectedSlot(0);
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[autoshot][kit] Runed pack with Tinker's Kit + Sleeve + Creel + Furnace opened");
         });
@@ -729,7 +729,7 @@ public final class DevAutoShot {
     private static void parkCursor(Minecraft mc) {
         double px = 4, py = mc.getWindow().getHeight() - 4;
         try {
-            org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), px, py);
+            org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().handle(), px, py);
         } catch (Throwable ignored) {
         }
         try {
@@ -756,8 +756,11 @@ public final class DevAutoShot {
             Packwork.LOGGER.warn("[autoshot] no target for {}", what);
             return;
         }
-        ps.mouseClicked(c[0], c[1], 0);
-        ps.mouseReleased(c[0], c[1], 0);
+        // 1.21.9+ input events: press/release carry MouseButtonEvent records now
+        var press = new net.minecraft.client.input.MouseButtonEvent(c[0], c[1],
+                new net.minecraft.client.input.MouseButtonInfo(0, 0));
+        ps.mouseClicked(press, false);
+        ps.mouseReleased(press);
         Packwork.LOGGER.info("[autoshot] clicked {} at ({},{})", what, c[0], c[1]);
     }
 
@@ -849,7 +852,11 @@ public final class DevAutoShot {
 
             // a Sculkhide pack (5 trinket sockets) so all four store gauges + the depth are on show
             ItemStack pack = new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.SCULKHIDE).get());
-            IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
+            // (1.21.11: the standard item cap is the transactional ResourceHandler now; the
+            // harness just needs to stuff the pack, so it uses the internal store directly -
+            // the cap itself is exercised by the automation gametests)
+            IItemHandler h = new com.sappersquad.packwork.pack.PackInventory(
+                    pack, com.sappersquad.packwork.pack.PackTier.SCULKHIDE);
             ItemStack[] spread = {
                     new ItemStack(Items.BREAD, 32), new ItemStack(Items.COOKED_BEEF, 12),
                     new ItemStack(Items.APPLE, 6), new ItemStack(Items.GOLDEN_CARROT, 3),
@@ -906,8 +913,8 @@ public final class DevAutoShot {
                             com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack) / 2),
                     net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
 
-            sp.getInventory().items.set(0, pack);
-            sp.getInventory().selected = 0;
+            sp.getInventory().setItem(0, pack);
+            sp.getInventory().setSelectedSlot(0);
 
             // Curios (optional): prove the pack wears in the back slot (gated; logs the result).
             if (net.neoforged.fml.ModList.get().isLoaded("curios")) {
@@ -935,7 +942,7 @@ public final class DevAutoShot {
         server.execute(() -> {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            net.minecraft.server.level.ServerLevel lvl = sp.level();
             lvl.setDayTime(6000);
             net.minecraft.core.BlockPos base = sp.blockPosition().above(rise);
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
@@ -1012,7 +1019,7 @@ public final class DevAutoShot {
         var server = mc.getSingleplayerServer();
         if (server == null || placedLast == null) return;
         server.execute(() -> {
-            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).serverLevel();
+            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).level();
             var state = lvl.getBlockState(placedLast);
             var be = lvl.getBlockEntity(placedLast);
             var drops = net.minecraft.world.level.block.Block.getDrops(state, lvl, placedLast, be);
@@ -1028,7 +1035,7 @@ public final class DevAutoShot {
         var server = mc.getSingleplayerServer();
         if (server == null || placedLast == null) return;
         server.execute(() -> {
-            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).serverLevel();
+            net.minecraft.server.level.ServerLevel lvl = server.getPlayerList().getPlayers().get(0).level();
             placePackBlock(lvl, placedLast, com.sappersquad.packwork.pack.PackTier.LEATHER, false);
             Packwork.LOGGER.info("[autoshot] re-placed a Leather pack in the gap");
         });
@@ -1041,7 +1048,7 @@ public final class DevAutoShot {
         server.execute(() -> {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            if (sp.serverLevel().getBlockEntity(placedMiddle)
+            if (sp.level().getBlockEntity(placedMiddle)
                     instanceof com.sappersquad.packwork.block.PackContainerBlockEntity be) {
                 net.minecraft.core.BlockPos pos = placedMiddle;
                 sp.openMenu(new net.minecraft.world.SimpleMenuProvider(
@@ -1068,8 +1075,8 @@ public final class DevAutoShot {
                     pack, com.sappersquad.packwork.pack.PackTier.LEATHER);
             store.insertItem(0, new ItemStack(Items.IRON_INGOT, 24), false);
             store.insertItem(1, new ItemStack(Items.RAW_IRON, 17), false);
-            sp.getInventory().items.set(0, pack);
-            sp.getInventory().selected = 0;
+            sp.getInventory().setItem(0, pack);
+            sp.getInventory().setSelectedSlot(0);
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[gallery] Lodestone pack opened for the pickup shot");
         });
@@ -1087,8 +1094,8 @@ public final class DevAutoShot {
             for (com.sappersquad.packwork.trinket.TrinketType tt : com.sappersquad.packwork.trinket.TrinketType.values())
                 sp.getInventory().add(new ItemStack(ModItems.trinket(tt).get()));
             sp.getInventory().add(new ItemStack(ModItems.HANDBOOK.get()));
-            sp.getInventory().items.set(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.SCULKHIDE).get()));
-            sp.getInventory().selected = 0;
+            sp.getInventory().setItem(0, new ItemStack(ModItems.pack(com.sappersquad.packwork.pack.PackTier.SCULKHIDE).get()));
+            sp.getInventory().setSelectedSlot(0);
             Packwork.LOGGER.info("[autoshot] lineup handed over");
         });
     }
@@ -1111,11 +1118,11 @@ public final class DevAutoShot {
         }
     }
 
-    private static net.minecraft.resources.ResourceLocation pinItemKey = null;
+    private static net.minecraft.resources.Identifier pinItemKey = null;
     private static int pinSlotIndex = -1;
 
     /** Find the first grid item, record its menu-slot index + key, and move the real cursor over it. */
-    private static net.minecraft.resources.ResourceLocation hoverFirstGridItem(Minecraft mc) {
+    private static net.minecraft.resources.Identifier hoverFirstGridItem(Minecraft mc) {
         pinSlotIndex = -1;
         if (!(mc.screen instanceof PackScreen ps)) return null;
         var slots = ps.getMenu().slots;
@@ -1124,7 +1131,7 @@ public final class DevAutoShot {
             if (s instanceof com.sappersquad.packwork.pack.PackViewSlot vs && vs.isActive() && s.hasItem()) {
                 pinSlotIndex = i;
                 double scale = mc.getWindow().getGuiScale();
-                org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(),
+                org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().handle(),
                         (ps.getGuiLeft() + s.x + 8) * scale, (ps.getGuiTop() + s.y + 8) * scale);
                 var key = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem().getItem());
                 Packwork.LOGGER.info("[autoshot] grid item {} at menu slot {} ({},{})", key, i, s.x, s.y);
@@ -1140,7 +1147,8 @@ public final class DevAutoShot {
     private static void pressPin(Minecraft mc) {
         if (mc.screen == null) return;
         int scan = org.lwjgl.glfw.GLFW.glfwGetKeyScancode(org.lwjgl.glfw.GLFW.GLFW_KEY_P);
-        boolean handled = mc.screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0);
+        boolean handled = mc.screen.keyPressed(
+                new net.minecraft.client.input.KeyEvent(org.lwjgl.glfw.GLFW.GLFW_KEY_P, scan, 0));
         Packwork.LOGGER.info("[autoshot] dispatched real keyPressed(P) -> handled={}", handled);
     }
 
@@ -1158,7 +1166,8 @@ public final class DevAutoShot {
     }
 
     private static void grab(Minecraft mc, String name) {
-        Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(),
+        // 1.21.6+ grab signature carries a downscale factor (1 = full size)
+        Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(), 1,
                 msg -> Packwork.LOGGER.info("[autoshot] {}", msg.getString()));
         Packwork.LOGGER.info("[autoshot] grabbed {}", name);
     }

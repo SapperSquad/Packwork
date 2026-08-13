@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:fluid_interact_keeps_single_bucket_on_cursor",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

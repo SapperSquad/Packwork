@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:flask_harness_gated_chemical_component",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

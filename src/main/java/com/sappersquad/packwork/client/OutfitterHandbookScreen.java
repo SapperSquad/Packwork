@@ -225,7 +225,8 @@ public class OutfitterHandbookScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x(), mouseY = event.y();
         for (int i = 0; i < HandbookContent.CHAPTERS.size(); i++) {
             if (isOverChapterButton(mouseX, mouseY, i)) {
                 if (i != chapterIndex) {
@@ -248,7 +249,7 @@ public class OutfitterHandbookScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override

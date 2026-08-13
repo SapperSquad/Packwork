@@ -94,7 +94,7 @@ public final class TrinketEffects {
      * straight back and no embers are spent - the pack pauses, it never punishes.
      */
     private static void fieldFurnace(ServerPlayer sp, ItemStack packStack, PackInventory pack) {
-        smeltOnce(sp.serverLevel(), packStack, pack);
+        smeltOnce(sp.level(), packStack, pack);
     }
 
     /**
@@ -107,7 +107,7 @@ public final class TrinketEffects {
         var embersKey = com.sappersquad.packwork.reg.ModComponents.PACK_EMBERS.get();
         int embers = packStack.getOrDefault(embersKey, 0);
         if (embers < BURN_PER_ITEM) {
-            embers += stokeEmbers(pack);
+            embers += stokeEmbers(pack, level.fuelValues());
             if (embers < BURN_PER_ITEM) {
                 packStack.set(embersKey, embers);
                 return false;
@@ -142,18 +142,19 @@ public final class TrinketEffects {
      */
     public static final net.minecraft.tags.TagKey<Item> FURNACE_FUEL =
             net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
-                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "furnace_fuel"));
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("packwork", "furnace_fuel"));
 
     /** Burn one piece of proper fuel out of the pack; its container (a bucket, say) goes back in. */
-    private static int stokeEmbers(PackInventory pack) {
+    private static int stokeEmbers(PackInventory pack, net.minecraft.world.level.block.entity.FuelValues fuels) {
         for (int i = 0; i < pack.getSlots(); i++) {
             ItemStack s = pack.getStackInSlot(i);
             if (s.isEmpty() || !s.is(FURNACE_FUEL)) continue;
-            int burn = s.getBurnTime(net.minecraft.world.item.crafting.RecipeType.SMELTING);
+            // 1.21.2+ moved burn times off the item onto the level's FuelValues table.
+            int burn = s.getBurnTime(net.minecraft.world.item.crafting.RecipeType.SMELTING, fuels);
             if (burn <= 0) continue;
             ItemStack fuel = pack.extractItem(i, 1, false);
             if (fuel.isEmpty()) continue;
-            ItemStack remainder = fuel.getCraftingRemainingItem();
+            ItemStack remainder = fuel.getCraftingRemainder();
             if (!remainder.isEmpty()) insertAll(pack, remainder);
             return burn;
         }
@@ -162,7 +163,7 @@ public final class TrinketEffects {
 
     /** Raw ore and raw food only - see {@link #fieldFurnace}. */
     private static boolean worthCooking(ItemStack stack) {
-        if (stack.getFoodProperties(null) != null) return true;
+        if (stack.has(net.minecraft.core.component.DataComponents.FOOD)) return true;
         return stack.is(net.neoforged.neoforge.common.Tags.Items.RAW_MATERIALS)
                 || stack.is(net.neoforged.neoforge.common.Tags.Items.ORES);
     }
@@ -194,8 +195,8 @@ public final class TrinketEffects {
         for (int i = 0; i < pack.getSlots(); i++) {
             ItemStack s = pack.getStackInSlot(i);
             if (s.isEmpty()) continue;
-            var food = s.getFoodProperties(player);
-            if (food == null || !isRations(s, food)) continue;
+            var food = s.get(net.minecraft.core.component.DataComponents.FOOD);
+            if (food == null || !isRations(s)) continue;
             if (food.nutrition() < bestNutrition) {
                 bestNutrition = food.nutrition();
                 best = i;
@@ -218,10 +219,14 @@ public final class TrinketEffects {
      */
     public static final net.minecraft.tags.TagKey<Item> NEVER_AUTO_EAT =
             net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
-                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("packwork", "never_auto_eat"));
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("packwork", "never_auto_eat"));
 
-    private static boolean isRations(ItemStack stack, net.minecraft.world.food.FoodProperties food) {
-        if (!food.effects().isEmpty()) return false;   // anything with an effect on it stays yours
+    private static boolean isRations(ItemStack stack) {
+        // 1.21.2+ moved consume effects off FoodProperties onto the CONSUMABLE component.
+        var consumable = stack.get(net.minecraft.core.component.DataComponents.CONSUMABLE);
+        if (consumable != null && !consumable.onConsumeEffects().isEmpty()) {
+            return false;   // anything with an effect on it stays yours
+        }
         return !stack.is(NEVER_AUTO_EAT);
     }
 
@@ -233,7 +238,7 @@ public final class TrinketEffects {
      * there, it goes straight back in the pack.
      */
     private static void torchbearer(ServerPlayer sp, PackInventory pack) {
-        var level = sp.serverLevel();
+        var level = sp.level();
         net.minecraft.core.BlockPos pos = sp.blockPosition();
         if (level.getMaxLocalRawBrightness(pos) > 3) return;
         if (!level.getBlockState(pos).canBeReplaced()) return;
@@ -317,7 +322,7 @@ public final class TrinketEffects {
 
             net.minecraft.core.BlockPos pos = event.getPos().immutable();
             var young = crop.defaultBlockState();
-            level.getServer().tell(new net.minecraft.server.TickTask(level.getServer().getTickCount() + 1, () -> {
+            level.getServer().schedule(new net.minecraft.server.TickTask(level.getServer().getTickCount() + 1, () -> {
                 if (level.getBlockState(pos).canBeReplaced() && young.canSurvive(level, pos)) {
                     level.setBlockAndUpdate(pos, young);
                 } else {
@@ -340,24 +345,33 @@ public final class TrinketEffects {
         return ItemStack.EMPTY;
     }
 
-    /** Charge Crystal: pour stored charge into the tools you're holding that accept it. */
+    /** Charge Crystal: pour stored charge into the tools you're holding that accept it.
+     *  Ported to the 21.9+ transfer API: energy caps are {@code Capabilities.Energy.ITEM}
+     *  ({@code EnergyHandler} + {@code ItemAccess} context) and every move is transactional. */
     private static void charge(ServerPlayer sp, ItemStack packStack) {
-        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
-        if (crystal == null || crystal.getEnergyStored() <= 0) return;
-        for (ItemStack held : List.of(sp.getMainHandItem(), sp.getOffhandItem())) {
+        var crystal = packStack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
+                net.neoforged.neoforge.transfer.access.ItemAccess.forStack(packStack));
+        if (crystal == null || crystal.getAmountAsLong() <= 0) return;
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack held = sp.getItemInHand(hand);
             if (held.isEmpty() || held.getItem() instanceof PackItem) continue;
-            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.ITEM);
-            if (sink == null || !sink.canReceive()) continue;
-            int room = sink.receiveEnergy(Integer.MAX_VALUE, true);
-            if (room <= 0) continue;
-            int pulled = crystal.extractEnergy(room, false);
-            if (pulled > 0) sink.receiveEnergy(pulled, false);
+            var sink = held.getCapability(net.neoforged.neoforge.capabilities.Capabilities.Energy.ITEM,
+                    net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerInteraction(sp, hand));
+            if (sink == null) continue;
+            try (var tx = net.neoforged.neoforge.transfer.transaction.Transaction.openRoot()) {
+                net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil.move(
+                        crystal, sink, Integer.MAX_VALUE, tx);
+                tx.commit();
+            }
         }
         // Forgework interop (gated): the crystal also tops up any Forgework portable
         // terminal you're carrying, 1 Flux = 1 FE. Reached only when forgework is loaded,
         // so ForgeworkFluxBridge (and com.forgework.*) never classloads without it.
-        if (FORGEWORK_LOADED && crystal.getEnergyStored() > 0) {
-            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(sp, crystal, FLUX_PER_TICK);
+        // The bridge keeps its 1.21.1-era IEnergyStorage signature; the legacy view
+        // adapter is the sanctioned NEW->OLD direction (IEnergyStorage.of).
+        if (FORGEWORK_LOADED && crystal.getAmountAsLong() > 0) {
+            com.sappersquad.packwork.compat.forgework.ForgeworkFluxBridge.topUpCarried(
+                    sp, net.neoforged.neoforge.energy.IEnergyStorage.of(crystal), FLUX_PER_TICK);
         }
     }
 
@@ -368,7 +382,11 @@ public final class TrinketEffects {
                 .lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
                 .getOrThrow(net.minecraft.world.item.enchantment.Enchantments.MENDING);
         List<ItemStack> gear = new java.util.ArrayList<>(List.of(sp.getMainHandItem(), sp.getOffhandItem()));
-        sp.getArmorSlots().forEach(gear::add);
+        for (var slot : net.minecraft.world.entity.EquipmentSlot.VALUES) {
+            if (slot.getType() == net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) {
+                gear.add(sp.getItemBySlot(slot));
+            }
+        }
         for (ItemStack g : gear) {
             if (g.isEmpty() || !g.isDamageableItem() || !g.isDamaged()) continue;
             if (net.minecraft.world.item.enchantment.EnchantmentHelper.getItemEnchantmentLevel(mending, g) <= 0) continue;
@@ -415,7 +433,7 @@ public final class TrinketEffects {
         if (player.level().isClientSide()) return;
         // never fight an explicit decision by vanilla-to-be or another mod, and never jump
         // the pickup delay (a just-dropped item must not be re-swallowed instantly)
-        if (event.canPickup() != net.neoforged.neoforge.common.util.TriState.DEFAULT) return;
+        if (event.canPickup() != net.minecraft.util.TriState.DEFAULT) return;
         ItemEntity ie = event.getItemEntity();
         if (ie.hasPickUpDelay()) return;
         ItemStack ground = ie.getItem();
@@ -448,7 +466,7 @@ public final class TrinketEffects {
                 && layout.voids(BuiltInRegistries.ITEM.getKey(ground.getItem()))) {
             ground.setCount(0);
             ie.discard();
-            event.setCanPickup(net.neoforged.neoforge.common.util.TriState.FALSE);
+            event.setCanPickup(net.minecraft.util.TriState.FALSE);
             return true;
         }
 
@@ -463,7 +481,7 @@ public final class TrinketEffects {
         ground.shrink(moved);                        // the documented-legal mutation
         player.take(ie, moved);                      // the vanilla fly-to-player pickup cue
         if (ground.isEmpty()) {
-            event.setCanPickup(net.neoforged.neoforge.common.util.TriState.FALSE);
+            event.setCanPickup(net.minecraft.util.TriState.FALSE);
             ie.discard();
         }
         // a remainder stays on the ground stack with canPickup DEFAULT, so vanilla picks it
@@ -538,8 +556,9 @@ public final class TrinketEffects {
         for (ItemStack gear : List.of(sp.getMainHandItem(), sp.getOffhandItem())) {
             if (mendOne(gear)) return;
         }
-        for (ItemStack armor : sp.getArmorSlots()) {
-            if (mendOne(armor)) return;
+        for (var slot : net.minecraft.world.entity.EquipmentSlot.VALUES) {
+            if (slot.getType() != net.minecraft.world.entity.EquipmentSlot.Type.HUMANOID_ARMOR) continue;
+            if (mendOne(sp.getItemBySlot(slot))) return;
         }
     }
 

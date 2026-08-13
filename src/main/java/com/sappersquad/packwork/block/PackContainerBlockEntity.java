@@ -45,7 +45,7 @@ public class PackContainerBlockEntity extends BlockEntity {
         setChanged();
         if (level != null) {
             invalidateCapabilities();
-            if (!level.isClientSide) {
+            if (!level.isClientSide()) {
                 BlockState st = getBlockState();
                 // Keep the rendered tier (a blockstate property) in step with the stored pack.
                 // On normal placement getStateForPlacement already set it, so this is a no-op; it
@@ -68,15 +68,15 @@ public class PackContainerBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider provider) {
-        super.saveAdditional(tag, provider);
-        tag.put("Pack", packStack.saveOptional(provider));
+    protected void saveAdditional(net.minecraft.world.level.storage.ValueOutput output) {
+        super.saveAdditional(output);
+        output.store("Pack", ItemStack.OPTIONAL_CODEC, packStack);
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
-        super.loadAdditional(tag, provider);
-        this.packStack = ItemStack.parseOptional(provider, tag.getCompound("Pack"));
+    protected void loadAdditional(net.minecraft.world.level.storage.ValueInput input) {
+        super.loadAdditional(input);
+        this.packStack = input.read("Pack", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
         this.tier = PackItem.tierOf(packStack);
         invalidateCapabilities();
     }
@@ -91,8 +91,8 @@ public class PackContainerBlockEntity extends BlockEntity {
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
-        this.tier = PackTier.values()[tag.getInt("Tier")];
+    public void handleUpdateTag(net.minecraft.world.level.storage.ValueInput input) {
+        this.tier = PackTier.values()[input.getIntOr("Tier", tier.ordinal())];
     }
 
     @Override
@@ -108,7 +108,7 @@ public class PackContainerBlockEntity extends BlockEntity {
      */
     @Override
     public void onDataPacket(net.minecraft.network.Connection net,
-                             ClientboundBlockEntityDataPacket pkt, HolderLookup.Provider provider) {
-        handleUpdateTag(pkt.getTag(), provider);
+                             net.minecraft.world.level.storage.ValueInput input) {
+        handleUpdateTag(input);
     }
 }

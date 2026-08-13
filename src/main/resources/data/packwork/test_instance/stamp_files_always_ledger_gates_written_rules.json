@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:stamp_files_always_ledger_gates_written_rules",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

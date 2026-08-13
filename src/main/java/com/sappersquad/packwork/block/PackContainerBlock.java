@@ -23,7 +23,6 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -43,7 +42,7 @@ import java.util.List;
 public class PackContainerBlock extends BaseEntityBlock {
 
     public static final MapCodec<PackContainerBlock> CODEC = simpleCodec(PackContainerBlock::new);
-    public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     /** The material tier, set from the placed pack item so per-tier models/textures resolve
      *  statically in the world (studs/plates/runes). Contents still live on the block entity;
      *  this is render state only and never feeds the drop (see {@link #getDrops}). */
@@ -131,11 +130,11 @@ public class PackContainerBlock extends BaseEntityBlock {
 
     /** Middle-click (pick block) in creative hands back the pack with its contents. */
     @Override
-    public ItemStack getCloneItemStack(BlockState state, net.minecraft.world.phys.HitResult target,
-                                       net.minecraft.world.level.LevelReader level, BlockPos pos, Player player) {
+    protected ItemStack getCloneItemStack(net.minecraft.world.level.LevelReader level, BlockPos pos,
+                                          BlockState state, boolean includeData) {
         if (level.getBlockEntity(pos) instanceof PackContainerBlockEntity be && !be.isEmpty()) {
             return be.getPackStack().copy();
         }
-        return super.getCloneItemStack(state, target, level, pos, player);
+        return super.getCloneItemStack(level, pos, state, includeData);
     }
 }

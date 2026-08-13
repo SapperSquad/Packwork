@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:void_list_is_opt_in_and_exact",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

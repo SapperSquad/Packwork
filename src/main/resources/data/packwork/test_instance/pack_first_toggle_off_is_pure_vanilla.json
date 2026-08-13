@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:pack_first_toggle_off_is_pure_vanilla",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

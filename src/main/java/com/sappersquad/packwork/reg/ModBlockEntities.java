@@ -14,5 +14,6 @@ public class ModBlockEntities {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PackContainerBlockEntity>> PACK =
             BLOCK_ENTITIES.register("pack", () ->
-                    BlockEntityType.Builder.of(PackContainerBlockEntity::new, ModBlocks.PACK.get()).build(null));
+                    // 1.21.2+ dropped the Builder; the plain constructor is the pattern now.
+                    new BlockEntityType<>(PackContainerBlockEntity::new, ModBlocks.PACK.get()));
 }

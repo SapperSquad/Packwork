@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:anglers_creel_stows_the_catch_losing_nothing",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

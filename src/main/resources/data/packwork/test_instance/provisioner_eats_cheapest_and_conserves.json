@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:provisioner_eats_cheapest_and_conserves",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

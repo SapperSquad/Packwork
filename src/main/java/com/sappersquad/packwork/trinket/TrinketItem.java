@@ -26,8 +26,10 @@ public class TrinketItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(type.description().withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("packwork.trinket.install_hint").withStyle(ChatFormatting.DARK_GRAY));
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+                                java.util.function.Consumer<Component> tooltip, TooltipFlag flag) {
+        tooltip.accept(type.description().withStyle(ChatFormatting.GRAY));
+        tooltip.accept(Component.translatable("packwork.trinket.install_hint").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

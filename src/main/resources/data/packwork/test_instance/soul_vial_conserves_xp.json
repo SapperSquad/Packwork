@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:soul_vial_conserves_xp",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

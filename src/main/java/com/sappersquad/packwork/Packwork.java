@@ -5,7 +5,7 @@ import com.sappersquad.packwork.reg.ModComponents;
 import com.sappersquad.packwork.reg.ModCreativeTabs;
 import com.sappersquad.packwork.reg.ModItems;
 import com.sappersquad.packwork.reg.ModMenus;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -22,8 +22,8 @@ public class Packwork {
     public static final String MODID = "packwork";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MODID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MODID, path);
     }
 
     public Packwork(IEventBus modEventBus, ModContainer modContainer) {
@@ -36,6 +36,8 @@ public class Packwork {
         ModMenus.MENUS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
         com.sappersquad.packwork.reg.ModRecipes.SERIALIZERS.register(modEventBus);
+        // 1.21.5+ gametests are registry entries; the registrar scans @PackTest methods.
+        com.sappersquad.packwork.gametest.PackworkTestRegistrar.TEST_FUNCTIONS.register(modEventBus);
 
         modEventBus.addListener(PackworkCapabilities::registerCapabilities);
         modEventBus.addListener(PackworkNetwork::register);

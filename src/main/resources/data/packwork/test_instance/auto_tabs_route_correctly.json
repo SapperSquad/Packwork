@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:auto_tabs_route_correctly",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

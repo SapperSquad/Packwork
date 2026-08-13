@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:gated_compartments_follow_their_fittings",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

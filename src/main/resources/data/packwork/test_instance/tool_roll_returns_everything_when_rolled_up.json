@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:tool_roll_returns_everything_when_rolled_up",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

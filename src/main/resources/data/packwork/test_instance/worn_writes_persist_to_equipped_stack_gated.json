@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:worn_writes_persist_to_equipped_stack_gated",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

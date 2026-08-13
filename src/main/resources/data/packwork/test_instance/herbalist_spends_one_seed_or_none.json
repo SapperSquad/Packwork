@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:herbalist_spends_one_seed_or_none",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

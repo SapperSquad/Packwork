@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:fluid_interact_conserves_acarried_stack",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

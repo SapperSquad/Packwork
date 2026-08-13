@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:worn_open_binds_and_lists_gated",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

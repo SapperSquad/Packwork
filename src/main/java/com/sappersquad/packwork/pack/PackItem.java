@@ -5,7 +5,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -45,7 +44,7 @@ public class PackItem extends Item {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (!level.isClientSide()) {
             int slot = findSlot(player, held, hand);
@@ -53,7 +52,7 @@ public class PackItem extends Item {
                 openPack(player, slot);
             }
         }
-        return InteractionResultHolder.sidedSuccess(held, level.isClientSide());
+        return InteractionResult.SUCCESS;
     }
 
     /**
@@ -102,7 +101,7 @@ public class PackItem extends Item {
             return Inventory.SLOT_OFFHAND; // 40
         }
         // main hand -> currently selected hotbar slot
-        if (inv.getItem(inv.selected) == held) return inv.selected;
+        if (inv.getItem(inv.getSelectedSlot()) == held) return inv.getSelectedSlot();
         // fall back to a scan
         for (int i = 0; i < inv.getContainerSize(); i++) {
             if (inv.getItem(i) == held) return i;
@@ -201,15 +200,17 @@ public class PackItem extends Item {
             };
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+                                java.util.function.Consumer<Component> tooltip, TooltipFlag flag) {
         ItemContainerContents contents = stack.get(com.sappersquad.packwork.reg.ModComponents.PACK_CONTENTS.get());
         int used = 0;
         if (contents != null) {
             used = (int) contents.nonEmptyStream().count();
         }
-        tooltip.add(Component.translatable("packwork.pack.slots_used", used, tier.capacity())
+        tooltip.accept(Component.translatable("packwork.pack.slots_used", used, tier.capacity())
                 .withStyle(net.minecraft.ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("packwork.pack.hint")
+        tooltip.accept(Component.translatable("packwork.pack.hint")
                 .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 }

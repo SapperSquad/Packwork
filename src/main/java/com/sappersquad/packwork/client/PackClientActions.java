@@ -4,7 +4,7 @@ import com.sappersquad.packwork.net.PackAction;
 import com.sappersquad.packwork.net.PackActionPayload;
 import com.sappersquad.packwork.pack.PackMenu;
 import net.minecraft.client.Minecraft;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * Client-side glue for the pack GUI: apply every action to the open menu
@@ -21,7 +21,7 @@ public final class PackClientActions {
         if (!action.serverAuthoritative()) {
             menu.handleAction(action.ordinal(), arg, s1 == null ? "" : s1, s2 == null ? "" : s2);
         }
-        PacketDistributor.sendToServer(PackActionPayload.of(action, arg, s1, s2));
+        ClientPacketDistributor.sendToServer(PackActionPayload.of(action, arg, s1, s2));
     }
 
     public static void selectTab(PackMenu menu, String tabId) {
@@ -114,6 +114,28 @@ public final class PackClientActions {
 
     public static void togglePackFirst(PackMenu menu) {
         send(menu, PackAction.TOGGLE_PACK_FIRST, 0, "", "");
+    }
+
+    public static void ledgerRefresh(PackMenu menu) {
+        send(menu, PackAction.LEDGER_REFRESH, 0, "", "");
+    }
+
+    public static void requestGhost(PackMenu menu, String recipeId) {
+        send(menu, PackAction.REQUEST_GHOST, 0, recipeId, "");
+    }
+
+    /** Server answered LEDGER_REFRESH: hand the craftable list to the open pack screen. */
+    public static void handleLedgerSync(com.sappersquad.packwork.net.LedgerSyncPayload payload) {
+        if (Minecraft.getInstance().screen instanceof PackScreen screen) {
+            screen.applyLedgerSync(payload);
+        }
+    }
+
+    /** Server answered REQUEST_GHOST: chalk (or clear) the arrangement on the open screen. */
+    public static void handleGhostSync(com.sappersquad.packwork.net.GhostSyncPayload payload) {
+        if (Minecraft.getInstance().screen instanceof PackScreen screen) {
+            screen.applyGhostSync(payload);
+        }
     }
 
     public static PackMenu openMenu() {
