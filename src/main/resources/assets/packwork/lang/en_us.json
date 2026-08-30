@@ -31,6 +31,8 @@
   "item.packwork.outfitters_handbook": "Outfitter's Handbook",
 
   "packwork.handbook.title": "Outfitter's Handbook",
+  "packwork.handbook.hint": "Right-click to read it. Six chapters, no crafting required.",
+  "packwork.handbook.report": "Bugs and ideas: github.com/SapperSquad/Packwork/issues, or the Discord.",
 
   "packwork.jei.pack.info": "A humble adventurer's pack that sorts itself. Stamped leather tabs are compartments; a rules engine files each item the moment it lands, and a Loose tab catches the rest so nothing is ever lost. Right-click to open, or sneak-click a block face to set it down. Craft it up the tiers, then fit trinkets for magnet, repair, restock, and the fluid/XP/charge stores.",
   "packwork.jei.pack.tier": "This tier: %s compartment slots, %s trinket sockets.",
