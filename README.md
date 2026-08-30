@@ -144,3 +144,11 @@ and the Outfitter's Handbook — is always there, no mods required.
 
 Built by **SapperSquad**. Sits beside Coinkeep, Highroller, Forgework, PhytoForge,
 Gunsmith, Pantrywork, and Reel Rivals.
+
+## License
+
+The source code in this repository is MIT-licensed - see [LICENSE](LICENSE).
+The brand assets in [promo/](promo/) (banner, icon, gallery art) and the
+store-page copy in [PUBLISHING.md](PUBLISHING.md) are (c) SapperSquad, all
+rights reserved - see [promo/LICENSE](promo/LICENSE). Store listings on
+Modrinth/CurseForge are published All Rights Reserved by policy.
