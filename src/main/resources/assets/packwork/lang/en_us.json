@@ -35,7 +35,7 @@
   "packwork.jei.pack.info": "A humble adventurer's pack that sorts itself. Stamped leather tabs are compartments; a rules engine files each item the moment it lands, and a Loose tab catches the rest so nothing is ever lost. Right-click to open, or sneak-click a block face to set it down. Craft it up the tiers, then fit trinkets for magnet, repair, restock, and the fluid/XP/charge stores.",
   "packwork.jei.pack.tier": "This tier: %s compartment slots, %s trinket sockets.",
   "packwork.jei.trinket.header": "Pack fitting - slot it into a trinket socket:",
-  "packwork.jei.handbook.info": "The in-house guide. Right-click to open five chapters on sorting, trinkets, tiers, and the stores.",
+  "packwork.jei.handbook.info": "The in-house guide. Right-click to open six chapters on sorting, trinkets, tiers, the stores, and where to send a field report.",
   "packwork.jei.upgrade.preserves": "Everything inside carries up: contents, compartments, pins, trinkets, name, and every store.",
 
   "packwork.trinket.install_hint": "Slot it into a pack's trinket socket to fit it.",
