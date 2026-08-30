@@ -682,7 +682,14 @@ public final class DevAutoShot {
                     if (wornShot >= WORN_SHOTS.length) {
                         phase = Phase.DONE;
                         mc.options.hideGui = false;
-                        Packwork.LOGGER.info("[wornshot] done - {} shots written", WORN_SHOTS.length);
+                        if (wornFailures > 0) {
+                            Packwork.LOGGER.error("[wornshot] done - {} of {} shots REFUSED; the "
+                                    + "written frames are the only ones worth looking at",
+                                    wornFailures, WORN_SHOTS.length);
+                        } else {
+                            Packwork.LOGGER.info("[wornshot] done - {} shots written, every scene checked",
+                                    WORN_SHOTS.length);
+                        }
                     } else {
                         applyWornShot(mc, WORN_SHOTS[wornShot]);
                         phase = Phase.WS_SHOOT;
@@ -692,9 +699,16 @@ public final class DevAutoShot {
             }
             case WS_SHOOT -> {
                 if (++wait > 30) {
-                    grab(mc, "worn_" + WORN_SHOTS[wornShot].name());
-                    Packwork.LOGGER.info("[wornshot] {} -> {}", WORN_SHOTS[wornShot].name(),
-                            WORN_SHOTS[wornShot].expect());
+                    String wrong = wornCheck(mc, WORN_SHOTS[wornShot]);
+                    if (wrong != null) {
+                        wornFailures++;
+                        Packwork.LOGGER.error("[wornshot] {} NOT SHOT - the scene is wrong: {}",
+                                WORN_SHOTS[wornShot].name(), wrong);
+                    } else {
+                        grab(mc, "worn_" + WORN_SHOTS[wornShot].name());
+                        Packwork.LOGGER.info("[wornshot] {} -> {}", WORN_SHOTS[wornShot].name(),
+                                WORN_SHOTS[wornShot].expect());
+                    }
                     wornShot++;
                     phase = Phase.WS_STEP;
                     wait = 0;
@@ -1304,7 +1318,48 @@ public final class DevAutoShot {
     };
 
     private static int wornShot = 0;
+    private static int wornFailures = 0;
     private static net.minecraft.core.BlockPos wornPad = null;
+
+    /**
+     * Look at the scene before believing the pixels. A worn-render shot is only evidence if
+     * the pack is actually worn, the armour the shot asked for is actually on, and the player
+     * is actually standing on the pad - and every one of those can be knocked out from
+     * OUTSIDE this harness (a stray {@code /clear} strips the back slot and the armour row, a
+     * stray {@code /tp} walks the player off the pad, and both were seen happening in a
+     * session where another tool was matching dev windows with a loose wildcard). A wrong
+     * scene produces a bare back or an empty frame - which is exactly what a broken renderer
+     * looks like, so it must never be written as a PNG and mistaken for a finding.
+     *
+     * @return null when the scene is what the shot asked for, else what is wrong with it
+     */
+    private static String wornCheck(Minecraft mc, WornShot shot) {
+        if (mc.player == null) return "no client player";
+        ItemStack worn = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(mc.player);
+        if (!(worn.getItem() instanceof com.sappersquad.packwork.pack.PackItem)) {
+            return "the back slot holds " + worn + ", not a pack (was it cleared?)";
+        }
+        var wornTier = com.sappersquad.packwork.pack.PackItem.tierOf(worn);
+        if (wornTier != shot.tier()) {
+            return "the back slot holds a " + wornTier + " pack, not the " + shot.tier() + " this shot is of";
+        }
+        ItemStack want = shot.chest().get();
+        ItemStack have = mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+        if (!ItemStack.isSameItem(want, have)) {
+            return "the chest slot holds " + have + ", but this shot needs " + want;
+        }
+        if (wornPad == null) return "the pad was never staged";
+        double dx = mc.player.getX() - (wornPad.getX() + 0.5);
+        double dz = mc.player.getZ() - (wornPad.getZ() + 0.5);
+        double dy = mc.player.getY() - wornPad.getY();
+        if (dx * dx + dz * dz > 4.0 || Math.abs(dy) > 3.0) {
+            return String.format(java.util.Locale.ROOT,
+                    "the player is at %.1f, %.1f, %.1f - off the pad at %d, %d, %d (was it teleported?)",
+                    mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    wornPad.getX(), wornPad.getY(), wornPad.getZ());
+        }
+        return null;
+    }
 
     /** A floating stone-brick pad in open sky, so the backdrop never depends on the seed. */
     private static void wornStage(Minecraft mc) {
