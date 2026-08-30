@@ -49,14 +49,13 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 > file with the same keys, same three death modes, same Field Reports page, same ten
 > locales — so this release is one wave across both loaders, not a NeoForge-only one.
 >
-> **Where the worn pack renders, honestly:** all six **NeoForge** builds (1.21.1, 1.21.8,
-> 1.21.10, 1.21.11, 26.1, 26.2), with Curios, each one shot and looked at. The layer is in
-> the two **Fabric** jars as well, but it has NOT been seen working there: the shoot
-> harness cannot get a pack into the wearer's own client-side Trinkets slot, so there is
-> nothing to photograph (details in PROJECT_HANDOFF — it is a harness/equip-path problem,
-> not a renderer one, and everything server-side reads that slot correctly). **The store
-> copy's worn-pack section says "on NeoForge, with Curios" for exactly that reason. Leave
-> it that way until someone has watched it work on Fabric.**
+> **Where the worn pack renders:** **all eight builds** — the six **NeoForge** ones
+> (1.21.1, 1.21.8, 1.21.10, 1.21.11, 26.1, 26.2) with Curios, and both **Fabric** ones
+> with Trinkets. Every one shot and looked at, seven framed checks each: two tiers from
+> behind, over a chestplate, crouching, from the front, under an elytra, and with the
+> toggle off. The old hedge here said Fabric had never been seen working; that was the
+> shoot harness stripping the slot it had just filled, not the renderer (2026-08-30, see
+> PROJECT_HANDOFF). The store copy says "Curios or Trinkets" now, and it is earned.
 
 The loader column matters now — same version string, different loader tag per file.
 Needed on both sides: on servers, install on the server and every client. Each port
@@ -178,7 +177,7 @@ live from the code.
 
 ## 🎽 Wear it, and let people see it
 
-Wearing a pack in a back slot (Curios, on NeoForge)? It shows up
+Wearing a pack in a back slot (Curios on NeoForge, Trinkets on Fabric)? It shows up
 **on your back** — the same leather, buckle and trim your tier is wearing, right down to
 the Sculkhide's echo veins. It rides your shoulders, tips forward when you crouch, gets
 out of the way of an elytra, and disappears when you do. Turn it off in one line if

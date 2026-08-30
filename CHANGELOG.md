@@ -31,8 +31,8 @@ loaders: all eight builds — six NeoForge, two Fabric — carry it.
   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
   aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
   in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
-  Seen and checked on every NeoForge build, with Curios; the layer is in the Fabric jars
-  too but has not been watched working there yet.
+  Seen and checked on **all eight builds** — Curios on the six NeoForge jars, Trinkets on
+  the two Fabric ones.
 - **The Outfitter's Handbook has a last page: Field Reports.** Where to send a bug, what
   to put in it, and two brass-ruled links — GitHub issues and the Discord — that open in
   your browser after your game asks you first. Nothing pops up, nothing nags; the page is

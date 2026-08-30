@@ -295,9 +295,8 @@ client items, test registry, GUI pipeline) is already on the 26.x-era foundation
 >
 > **All eight branches now carry 1.1.0** (see the port-sweep table below): six NeoForge and
 > both Fabric, each green on its own suite and each jar's metadata read back by extraction.
-> The worn pack renders on every NeoForge build and has been looked at on each; the Fabric
-> layer ships but has not been photographed — see "The Fabric worn render, and why it is not
-> verified".
+> The worn pack renders on **all eight** and has been looked at on each — the last two
+> (Fabric) on 2026-08-30; see "The Fabric worn render — VERIFIED".
 
 **2026-08-30 — the ADOPTION WAVE (1.1.0 "Field Kit"). Master done; ports pending.**
 The wave that makes the mod easy to run, easy to tune, and easy to talk about. Nothing is
@@ -364,13 +363,12 @@ deserves a framing pass before it displaces one of the six store picks.
 | `port/1.21.11` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc1.21.11.jar` |
 | `port/26.1` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc26.1.2.jar` |
 | `port/26.2` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc26.2.jar` |
-| `fabric/26.1` | **yes** | shipped, **not yet seen** | 67 × 3 combos | `packwork-1.1.0+mc26.1-fabric.jar` |
-| `fabric/26.2` | **yes** | shipped, **not yet seen** | 67 × 3 combos | `packwork-1.1.0+mc26.2-fabric.jar` |
+| `fabric/26.1` | **yes** | **yes** (shares 26.2's layer + fixed harness) | 67 × 3 combos | `packwork-1.1.0+mc26.1-fabric.jar` |
+| `fabric/26.2` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc26.2-fabric.jar` |
 
 All eight branches are stamped 1.1.0, green, and build a jar whose own metadata was read
-back out by extraction. The one open item is the Fabric worn render — the layer is written
-and registered but has never been photographed; see "The Fabric worn render, and why it is
-not verified" below before touching it.
+back out by extraction. The worn render is now looked at on all eight — see "The Fabric
+worn render — VERIFIED" below for what the last two cost.
 
 **Scope discovery worth knowing up front:** the config core (`117b1e6` + `d7120e8`) had
 never been swept to the ports either, so each port branch had to take BOTH the config core
@@ -480,10 +478,52 @@ branches) adapted to Fabric: `claimDeathDrop(player, stack)` in place of `sweepP
 `getAttachedOrCreate` in place of `getData`, `PackFluidContent.getAmount()` in place of the
 NeoForge `FluidStack`, and droplet-vs-millibucket arithmetic in the waterskin assertion.
 
-### The Fabric worn render, and why it is not verified
+### The Fabric worn render — VERIFIED (2026-08-30), and what it actually was
 
-The layer exists on both Fabric branches and compiles, and it uses the same 26.x two-step
-draw as `port/26.x`. Two Fabric-specific choices:
+**Verdict: it renders, and the layer was never the problem.** All seven framed checks on
+`fabric/26.2` wrote frames and every one was inspected as pixels: Canvas from behind (weave
+and the twine V-stitch facing out, seated on the shoulders), Sculkhide from behind (echo
+veins, no gap at the spine), Sculkhide over a diamond chestplate (sits proud of the plate,
+no z-fighting), crouching (tips forward with the torso, still seated), from the front
+(nothing pokes through the chest), under an elytra (wings own the back, no pack), and with
+`show_worn_pack = false` (no pack). `fabric/26.1` carries the identical layer and the
+identical fixed harness.
+
+**The bug was in the harness, and it was a strip-order bug — not a sync gap.** Trinkets
+Updated `@Inject`s into `Inventory.clearContent()`'s TAIL and calls
+`LivingEntityTrinketAttachment.clearContents()`, so on Fabric a `clearContent()` empties the
+**trinket slots** as well as the pockets. `applyWornShot` equipped the pack and *then*
+stripped, so every shot ran against a back slot that had been emptied a tick after it was
+filled. The misleading part: `devEquip` logs `[trinkets] equipped in back slot -> Canvas
+Pack` from *inside* itself, before the strip lands — so the log said "equipped" and the
+scene said "empty", and the two were both telling the truth about different moments.
+Curios keeps its inventory off `Inventory` entirely, which is why the same ordering has
+always been harmless on the six NeoForge branches (the comment there only warns about the
+armour and offhand rows, which is all it costs on that loader).
+
+Fix: **strip first, dress second** — `clearContent()` and the chestplate now run ahead of
+`devEquip`. Nothing else changed. No render-layer edit, no `impl`-class import, no fifth
+mixin, and the `markUpdate()` experiment the last pass backed out was never needed.
+
+**The old diagnosis was wrong and it is worth knowing why**, because the reasoning looked
+sound. It read "the SLOT syncs, the CONTENTS do not", which is a real thing that happens —
+and Trinkets Updated genuinely does not push a wearer their own item contents through its
+render-sync path (`LivingEntityMixin` sends `SyncInventoryPayload` via
+`ServerChunkCache.sendToTrackingPlayers`, which excludes the entity itself, and the
+self-directed send on the next line carries `Map.of()` for items, sizes only). What it
+*does* do is hang its slots off `player.inventoryMenu`
+(`InventoryMenuMixin.trinkets$updateTrinketSlots` adds `SurvivalTrinketSlot`s wrapping the
+live `TrinketInventoryImpl`), so the wearer's own client is fed by the **ordinary container
+slot sync** — `broadcastChanges()` → `ClientboundContainerSetSlotPacket`. That path works
+for a direct `TrinketSlotAccess.set`, which is why no equip-path change was needed either.
+
+**The harness change that keeps this from recurring:** `wornCheck` now prints **both sides**
+when it refuses a frame — `CLIENT sees: …` and `SERVER sees: …`, the latter read off the
+integrated server player through the new `serverSideSlots(mc)`. A bare back has two very
+different causes and printing only the client's view cannot tell them apart; that omission
+is exactly what sent the last reader into the render layer.
+
+**Two Fabric-specific choices in the layer itself, unchanged and now proven:**
 
 - Registration is `LivingEntityRenderLayerRegistrationCallback.EVENT`, filtered on
   `renderer instanceof AvatarRenderer`; the callback hands over the
@@ -495,37 +535,9 @@ draw as `port/26.x`. Two Fabric-specific choices:
   Fabric's `RenderStateDataKey` + `FabricRenderState.setData/getData` (its analogue of
   NeoForge's `ContextKey`) is used for the baked `BlockModelRenderState`.
 
-**What blocks the shoot, and it is not the renderer.** The `-Pwornshot` chain equips through
-`TrinketsCompat.equipWorn`, which writes the slot through its `TrinketSlotAccess` — and the
-wearer's own client is never told. The scene check refused all seven frames and printed what
-the client actually holds:
-
-```
-[wornshot] canvas_back NOT SHOT - the scene is wrong: the back slot holds 0 minecraft:air,
-not a pack (was it cleared?) - this side sees: chest/back[1]=0 minecraft:air |
-```
-
-…while the server-side line immediately above it reads `[trinkets] equipped in back slot ->
-Canvas Pack`. So the SLOT syncs (its size is right) and the CONTENTS do not. Raising the
-inventory's own `TrinketInventoryImpl.markUpdate()` flag changed nothing, and that change was
-backed out rather than shipped as an unproven `impl`-class import. Everything server-side —
-pack-first pickup routing, the worn GUI host, the gametests — reads that slot correctly.
-
-**Next steps for whoever picks this up, in order:**
-
-1. Trinkets Updated renders trinkets on players itself (`TrinketRenderer`,
-   `TrinketRendererRegistry`), so its *normal* equip path almost certainly does sync. Equip
-   through that path in the harness — a Trinkets container menu, or whatever supported
-   programmatic equip the mod exposes — before assuming anything is broken.
-2. `TrinketsCompat.devDescribeSlots(player)` is already there for exactly this: it prints
-   what the calling side holds, so the next run says "sync" instead of leaving a bare back to
-   be misread as a broken renderer.
-3. Only if 1 and 2 say the contents genuinely never reach the wearer: the layer would still
-   draw on OTHER players (they track you), and the gap would be your own third-person view.
-   That is a real product question for SapperSquad, not a silent one.
-
-Do **not** start by rewriting the layer. The harness is what is failing, and it is failing
-loudly on purpose.
+**Standing lesson for this repo:** on Fabric, `Inventory.clearContent()` is not a
+pocket-only operation once Trinkets is installed. Any harness or gametest that stages a
+scene by clearing must clear *before* it equips a trinket, not after.
 
 **2026-07-26 release stamping — 1.0.0 (SapperSquad's final calls after his confirm pass).**
 Version **1.0.0** stamped everywhere: `gradle.properties mod_version` (the single source —
