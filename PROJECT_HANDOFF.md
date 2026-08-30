@@ -294,6 +294,50 @@ client items, test registry, GUI pipeline) is already on the 26.x-era foundation
 > The worn pack renders on **all eight** branches and has been looked at on each — the
 > last two (Fabric) on 2026-08-30; see "The Fabric worn render — VERIFIED".
 
+**2026-08-30 — the promo wave: three moving assets and a real worn hero.**
+All in `promo/`, all built by new legs on the `DevAutoShot` harness plus the Java-only
+`tools/GifEncoder.java`. All three GIFs are under Discord's 10 MB embed cap.
+
+| Asset | Chain | Size |
+|---|---|---|
+| `packwork-sorting.gif` | `runClient -Pgifshot` | 640x360, 21 s, 6.8 MB |
+| `packwork-worn-spin.gif` | `runClient -Pwornhero -Pcurios` | 640x360, 5.0 s, 4.2 MB |
+| `packwork-death-place.gif` | `runClient -Pdeathclip` | 640x360, 5.0 s, 4.7 MB |
+| `gallery-9/10/11-worn-*.png` | `runClient -Pwornhero -Pcurios` | 1440x810 |
+
+`GifEncoder` is `javax.imageio` GIF89a: one global median-cut palette (per-frame palettes
+bloat the file and shimmer on flat leather), **no dithering** (it scatters noise across
+surfaces meant to be flat), integer nearest downscale, hand-written NETSCAPE2.0 loop block.
+Every finished GIF was **decoded back out** and its frames inspected — the writer's word is
+not evidence.
+
+**The harness lessons, all of which will bite the next capture too** (long form in
+`promo/README.md`):
+
+- **There is no cursor in a framebuffer capture.** Minecraft never draws one; the OS does.
+  Move the REAL cursor (`glfwSetCursorPos`) and let vanilla's slot HIGHLIGHT be the pointer.
+  `devHover` is useless for this — the screen recomputes the hovered slot from the mouse
+  every frame.
+- **The dump has to run FLATTENED.** Filed into compartments, most of what you shift-click
+  lands on a tab you are not looking at: the first cut showed items vanish from the pockets
+  and never reappear, which reads as "it ate them".
+- **You cannot orbit your own back.** Vanilla's third-person camera is always directly
+  behind. Turn the AVATAR under a fixed camera instead: the camera reads `yRot`, the
+  renderer reads `yBodyRot`/`yHeadRot`. Override those two **every tick** (`tickHeadTurn`
+  drags the body back) including the `…O` previous-tick fields, or it shivers. Sweeping the
+  angle 0→360 is the turntable.
+- **Vanilla's FOV option floors at 30** (`OptionInstance.IntRange(30, 110)`), and a lower
+  value is refused and falls back to the **default 70**, silently.
+- **The real framing control is a wall behind the camera.** It collision-checks its way in
+  from 4 blocks, so a wall four blocks back pulls it to ~3.2 and the subject grows by half
+  again. At three blocks it cropped the pack.
+- **Freeze the frame counter on `ReceivingLevelScreen`.** A single-player respawn parks the
+  client on "Loading terrain…" for seconds of real time.
+- **`pauseOnLostFocus = false` on every chain.** A run that loses focus records the Game
+  Menu over a frozen world.
+- **Flip config for a capture with `setRemote`, not `setLocalForTesting`** — on an
+  integrated server `get()` prefers the remote overlay the client took on login.
+
 **2026-08-30 — 1.2.0 "Haul Less": the Overflow Valve and the Compacting Press.**
 Competitor read: magnet + void + compact is the trio that makes a backpack the default
 mining companion in a kitchen-sink pack. Packwork had the magnet (with pack-first routing
