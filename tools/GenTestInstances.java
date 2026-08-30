@@ -23,7 +23,7 @@ public class GenTestInstances {
             "src/main/java/com/sappersquad/packwork/gametest/PackworkGameTests.java");
     private static final Path OUT_DIR = Path.of("src/main/resources/data/packwork/test_instance");
     private static final Pattern TEST_METHOD = Pattern.compile(
-            "@PackTest\\s+public static void (\\w+)\\(GameTestHelper");
+            "@PackTest\\s+public static void (\\w+)\\((?:GameTestHelper|PackHelper)");
 
     public static void main(String[] args) throws IOException {
         String src = Files.readString(SOURCE, StandardCharsets.UTF_8);

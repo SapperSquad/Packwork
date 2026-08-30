@@ -1874,7 +1874,7 @@ public class PackworkGameTests {
 
     /** The pack's standard fluid cap, or null when not exposed (no Waterskin). */
     private static net.neoforged.neoforge.fluids.capability.IFluidHandler fluidCap(ItemStack pack) {
-        return fluidCap(pack);
+        return pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM);
     }
 
     /** The pack's standard energy cap, or null when not exposed (no Crystal). */
