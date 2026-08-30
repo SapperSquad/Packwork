@@ -26,11 +26,12 @@ public class HandbookItem extends Item {
      */
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context,
-                                java.util.List<net.minecraft.network.chat.Component> tooltip,
+                                net.minecraft.world.item.component.TooltipDisplay tooltipDisplay,
+                                java.util.function.Consumer<net.minecraft.network.chat.Component> tooltip,
                                 net.minecraft.world.item.TooltipFlag flag) {
-        tooltip.add(net.minecraft.network.chat.Component.translatable("packwork.handbook.hint")
+        tooltip.accept(net.minecraft.network.chat.Component.translatable("packwork.handbook.hint")
                 .withStyle(net.minecraft.ChatFormatting.GRAY));
-        tooltip.add(net.minecraft.network.chat.Component.translatable("packwork.handbook.report")
+        tooltip.accept(net.minecraft.network.chat.Component.translatable("packwork.handbook.report")
                 .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
     }
 
