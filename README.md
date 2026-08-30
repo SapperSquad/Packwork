@@ -8,6 +8,11 @@ Backpacks" — the sorting is the whole point. NeoForge 1.21.1.
 
 Leather, brass, canvas, glass vials. Never a circuit board.
 
+**Full manual: [docs/](docs/)** — [sorting](docs/sorting.md) ·
+[tiers & fittings](docs/tiers-and-fittings.md) ·
+[stores & automation](docs/stores-and-automation.md) ·
+[every config key](docs/config.md) · [for packmakers](docs/for-packmakers.md)
+
 ## The sorting (the reason it exists)
 
 Open a pack and you get a rail of stamped leather tabs, a stitched search bar, and a

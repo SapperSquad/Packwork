@@ -21,6 +21,11 @@ talk about.
   compartment name, button and keybind. These are **machine-drafted first passes**, not
   yet read by native speakers; if one reads wrong to you, a one-line pull request is very
   welcome (see the README). The Handbook's long prose stays English for now.
+- **A manual you can read in a browser** — `docs/`: sorting, tiers and fittings, stores and
+  automation, plus two pages the in-game book can't hold. **Every config key** with its
+  default and its range, and a **packmaker's page**: what to turn off, the item tags the
+  auto-sorter reads, and how to fold your own mod's items into a compartment from a
+  datapack.
 
 ## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
 
