@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:death_place_sets_the_pack_down",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}
