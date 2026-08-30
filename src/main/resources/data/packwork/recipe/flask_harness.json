@@ -1,5 +1,6 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
-  "neoforge:conditions": [ { "type": "neoforge:mod_loaded", "modid": "mekanism" } ],
+  "neoforge:conditions": [ { "type": "neoforge:mod_loaded", "modid": "mekanism" },
+                           { "type": "packwork:trinket_enabled", "trinket": "flask_harness" } ],
   "pattern": ["GLG", "LBL", "GLG"],
   "key": {
     "G": "minecraft:glass_bottle",

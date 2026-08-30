@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "quill_and_ledger" } ],
   "pattern": [" Q ", "BLB"],
   "key": { "Q": "minecraft:feather", "B": "minecraft:book", "L": "minecraft:leather" },
   "result": { "id": "packwork:quill_and_ledger", "count": 1 } }
