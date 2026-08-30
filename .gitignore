@@ -46,7 +46,7 @@ tools/pack_small_preview.png
 tools/block_preview.png
 
 ### Packwork dev harness ###
-# transient launch logs from the runClient/-Pautoshot screenshot harness
-run_client.log
-run_client.err.log
-run_autoshot.log
+# transient launch logs from the runClient harness chains (autoshot, gallery, wornshot,
+# wornhero, gifshot). Named individually once; a glob now, because a new chain adds a new
+# log and one of them got swept into a commit by `git add -A`.
+run_*.log
