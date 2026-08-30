@@ -1031,6 +1031,196 @@ public class PackworkGameTests {
         return 0;
     }
 
+    // =====================================================================
+    //  1.2.0 - the Overflow Valve and the Compacting Press
+    // =====================================================================
+
+    /**
+     * The Valve bleeds ONLY what the player marked, only the surplus above the keep level, and
+     * never a unit more. The unmarked item in the pack is the control: if the valve is ever
+     * loose enough to touch it, this test says so before a player finds out the hard way.
+     */
+    @PackTest
+    public static void valveBleedsOnlyTheMarkedSurplus(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        store.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+        store.insertItem(1, new ItemStack(Items.COBBLESTONE, 64), false);
+        store.insertItem(2, new ItemStack(Items.COBBLESTONE, 30), false);
+        store.insertItem(3, new ItemStack(Items.DIAMOND, 40), false);      // never marked
+
+        Identifier cobble = BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE);
+        Identifier diamond = BuiltInRegistries.ITEM.getKey(Items.DIAMOND);
+
+        // nothing marked at all: the valve is a no-op, however full the pack is
+        pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.bleedSurplus(pack, store) == 0,
+                "an unmarked pack bleeds nothing");
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 158, "and touches nothing");
+
+        // marked at 2 stacks: 158 held, 128 kept, 30 bled - and the diamonds are untouched
+        pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY
+                .withVoidList(List.of(cobble)).withKeepStacks(cobble, 2));
+        int bled = com.sappersquad.packwork.trinket.TrinketEffects.bleedSurplus(pack, store);
+        helper.assertTrue(bled == 30, "exactly the surplus bled, got " + bled);
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 128,
+                "the keep level is held exactly, got " + countPack(pack, Items.COBBLESTONE));
+        helper.assertTrue(countPack(pack, Items.DIAMOND) == 40,
+                "an unmarked item is never touched, got " + countPack(pack, Items.DIAMOND));
+
+        // at the keep level it stops: a second pass takes nothing
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.bleedSurplus(pack, store) == 0,
+                "the valve never digs below the keep level");
+        helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 128, "still exactly the keep level");
+
+        // marking something and NOT giving it a level is the Rose's contract, not the valve's:
+        // the valve leaves it entirely alone (the Rose bins it at the door instead)
+        pack.set(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY.withVoidList(List.of(diamond)));
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.bleedSurplus(pack, store) == 0,
+                "a mark with no keep level is the Rose's business, not the valve's");
+        helper.assertTrue(countPack(pack, Items.DIAMOND) == 40, "and the diamonds are still there");
+        helper.succeed();
+    }
+
+    /**
+     * One list, one concept: {@code voids()} - the "bin it at the door" question the Compass
+     * Rose asks - must stay false for anything the player gave a keep level, or the two
+     * fittings would fight and the Rose would bin what the Valve was told to carry.
+     */
+    @PackTest
+    public static void keepLevelTakesTheItemOffTheRosesBinList(GameTestHelper helper) {
+        Identifier cobble = BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE);
+        PackLayout binned = PackLayout.EMPTY.withVoidList(List.of(cobble));
+        helper.assertTrue(binned.voids(cobble), "a bare mark bins at the door, as it always has");
+        helper.assertTrue(binned.keepStacks(cobble) == 0, "and its keep level is zero");
+
+        PackLayout kept = binned.withKeepStacks(cobble, 4);
+        helper.assertTrue(kept.listed(cobble), "still on the one list");
+        helper.assertTrue(!kept.voids(cobble), "but no longer binned at the door");
+        helper.assertTrue(kept.keepStacks(cobble) == 4, "it carries four stacks now");
+
+        // and dialling back to zero hands it straight back to the Rose
+        helper.assertTrue(kept.withKeepStacks(cobble, 0).voids(cobble), "zero is the Rose again");
+        // taking it off the list drops the orphaned level with it
+        helper.assertTrue(kept.withVoidList(List.of()).keepStacks(cobble) == 0,
+                "a keep level never outlives its listing");
+        helper.succeed();
+    }
+
+    /** The keep-level ladder wraps back to "bin it outright" so O and Shift+O can't strand you. */
+    @PackTest
+    public static void keepLevelLadderWrapsToZero(GameTestHelper helper) {
+        int[] want = {1, 2, 4, 8, 16, 0};
+        int at = 0;
+        for (int expected : want) {
+            at = com.sappersquad.packwork.pack.PackMenu.nextKeepStacks(at);
+            helper.assertTrue(at == expected, "ladder step expected " + expected + ", got " + at);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The press conserves iron to the unit and only touches what presses back. Nine ingots in,
+     * one block out, and the block uncrafts to nine - so the pack's total iron is unchanged.
+     */
+    @PackTest
+    public static void pressCompactsAndConservesValue(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        // 64 loose is the shipped keep_loose, so 73 means exactly one block's worth is surplus
+        store.insertItem(0, new ItemStack(Items.IRON_INGOT, 64), false);
+        store.insertItem(1, new ItemStack(Items.IRON_INGOT, 9), false);
+        store.insertItem(2, new ItemStack(Items.DIRT, 64), false);       // no reverse recipe
+
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.pressOnce(
+                helper.getLevel(), store), "nine surplus ingots press into a block");
+        int ingots = countPack(pack, Items.IRON_INGOT);
+        int blocks = countPack(pack, Items.IRON_BLOCK);
+        helper.assertTrue(ingots == 64 && blocks == 1,
+                "64 loose + 1 block, got " + ingots + " ingots and " + blocks + " blocks");
+        helper.assertTrue(ingots + blocks * 9 == 73,
+                "iron conserved to the unit, got " + (ingots + blocks * 9));
+
+        // at the keep-loose line it stops - your working stack stays loose
+        helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketEffects.pressOnce(
+                helper.getLevel(), store), "the press leaves the loose stack alone");
+        helper.assertTrue(countPack(pack, Items.IRON_INGOT) == 64, "still 64 loose");
+        helper.assertTrue(countPack(pack, Items.DIRT) == 64, "and it never touched the dirt");
+        helper.succeed();
+    }
+
+    /**
+     * The one rule that keeps the press safe: it only presses what presses BACK. Sugar canes
+     * make paper 3-into-3 and glowstone dust makes a block that uncrafts to only 2-4 dust -
+     * neither survives the round trip, so neither is ever squeezed.
+     */
+    @PackTest
+    public static void pressRefusesWhatCannotBeUndone(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory store = new PackInventory(pack, PackTier.LEATHER);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(
+                configWith(p -> p[13] = 0));   // keep_loose = 0: nothing left loose to hide behind
+        try {
+            store.insertItem(0, new ItemStack(Items.GLOWSTONE_DUST, 64), false);
+            store.insertItem(1, new ItemStack(Items.SUGAR_CANE, 64), false);
+            helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketEffects.pressOnce(
+                    helper.getLevel(), store), "a lossy squeeze is refused outright");
+            helper.assertTrue(countPack(pack, Items.GLOWSTONE_DUST) == 64,
+                    "glowstone dust is left alone - its block gives back fewer than nine");
+            helper.assertTrue(countPack(pack, Items.SUGAR_CANE) == 64, "and so is the sugar cane");
+
+            // ...while a reversible family still goes through with nothing held back
+            store.insertItem(2, new ItemStack(Items.GOLD_NUGGET, 9), false);
+            helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.pressOnce(
+                    helper.getLevel(), store), "nine nuggets press into an ingot");
+            helper.assertTrue(countPack(pack, Items.GOLD_NUGGET) == 0
+                    && countPack(pack, Items.GOLD_INGOT) == 1, "nine nuggets in, one ingot out");
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.succeed();
+    }
+
+    /** A full pack means the press does not fire - never a half-taken batch stranded. */
+    @PackTest
+    public static void pressDoesNotFireWithNoRoomForTheBlock(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.CANVAS).get());
+        PackInventory store = new PackInventory(pack, PackTier.CANVAS);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(
+                configWith(p -> { p[13] = 0; p[0] = new int[]{2, 108, 162, 216, 256, 256}; }));
+        try {
+            // both slots full of ingots: nine could come out, but the block has nowhere to land
+            store.insertItem(0, new ItemStack(Items.IRON_INGOT, 64), false);
+            store.insertItem(1, new ItemStack(Items.IRON_INGOT, 64), false);
+            helper.assertTrue(store.getSlots() == 2, "the test pack really is two slots wide");
+            helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketEffects.pressOnce(
+                    helper.getLevel(), store), "no room for the block means no press");
+            helper.assertTrue(countPack(pack, Items.IRON_INGOT) == 128,
+                    "and every ingot is exactly where it was, got "
+                            + countPack(pack, Items.IRON_INGOT));
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.succeed();
+    }
+
+    /** A pack written before the keep levels existed still decodes, and behaves as it did. */
+    @PackTest
+    public static void oldLayoutsDecodeWithNoKeepLevels(GameTestHelper helper) {
+        HolderLookup.Provider reg = helper.getLevel().registryAccess();
+        Identifier cobble = BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE);
+        // the pre-1.2.0 shape: a discard list and no `spill` field at all
+        PackLayout before = new PackLayout(List.of(), List.of(), List.of(), List.of(cobble));
+        var encoded = PackLayout.CODEC.encodeStart(
+                net.minecraft.nbt.NbtOps.INSTANCE, before).getOrThrow();
+        PackLayout after = PackLayout.CODEC.parse(
+                net.minecraft.nbt.NbtOps.INSTANCE, encoded).getOrThrow();
+        helper.assertTrue(after.spill().isEmpty(), "no keep levels appear out of nowhere");
+        helper.assertTrue(after.voids(cobble), "and the Rose still bins what it always did");
+        helper.assertTrue(reg != null, "registries were available");
+        helper.succeed();
+    }
+
     private static int countPack(ItemStack pack, net.minecraft.world.item.Item item) {
         PackInventory store = new PackInventory(pack, com.sappersquad.packwork.pack.PackItem.tierOf(pack));
         int n = 0;
@@ -1705,7 +1895,7 @@ public class PackworkGameTests {
             }
         }
         boolean mekanism = net.neoforged.fml.ModList.get().isLoaded("mekanism");
-        int expected = mekanism ? 25 : 24; // canvas + 5 rings + trinkets (flask gated) + handbook
+        int expected = mekanism ? 27 : 26; // canvas + 5 rings + trinkets (flask gated) + handbook
         helper.assertTrue(packworkRecipes == expected,
                 "all packwork recipes loaded, want " + expected + ", got " + packworkRecipes);
         for (var entry : BuiltInRegistries.ITEM.entrySet()) {
@@ -1916,14 +2106,16 @@ public class PackworkGameTests {
         Object[] parts = {d.slots().clone(), d.stacksPerSlot().clone(), d.fluidMb().clone(),
                 d.xpPoints().clone(), d.energyFe().clone(), d.vaporMb().clone(),
                 d.trinketEnabled().clone(), d.deathHandling(), d.magnetRange(),
-                d.magnetEveryTicks(), d.packFirstDefault(), d.neverAutoEat()};
+                d.magnetEveryTicks(), d.packFirstDefault(), d.neverAutoEat(),
+                d.valveDefaultKeepStacks(), d.pressKeepLoose(), d.pressIncludes2x2()};
         mutate.accept(parts);
         return new com.sappersquad.packwork.config.PackworkConfig.Values(
                 (int[]) parts[0], (int[]) parts[1], (int[]) parts[2], (int[]) parts[3],
                 (int[]) parts[4], (long[]) parts[5], (boolean[]) parts[6],
                 (com.sappersquad.packwork.config.PackworkConfig.DeathHandling) parts[7],
                 (Double) parts[8], (Integer) parts[9], (Boolean) parts[10],
-                (java.util.Set<Identifier>) parts[11]);
+                (java.util.Set<Identifier>) parts[11],
+                (Integer) parts[12], (Integer) parts[13], (Boolean) parts[14]);
     }
 
     /** The shipped defaults are byte-identical to First Haul behaviour - the do-no-harm bar. */
