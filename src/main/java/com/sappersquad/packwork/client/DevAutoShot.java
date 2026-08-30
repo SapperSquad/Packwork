@@ -658,7 +658,7 @@ public final class DevAutoShot {
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[wornshot] creating throwaway world");
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                            false, Difficulty.PEACEFUL, true, new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures()), WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.WS_WAIT_LEVEL;
@@ -1309,7 +1309,7 @@ public final class DevAutoShot {
         server.execute(() -> {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            net.minecraft.server.level.ServerLevel lvl = sp.level();
             lvl.setDayTime(6000);
             net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();

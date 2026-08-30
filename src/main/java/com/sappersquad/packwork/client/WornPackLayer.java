@@ -9,13 +9,14 @@ import com.sappersquad.packwork.pack.PackTier;
 import com.sappersquad.packwork.reg.ModBlocks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.entity.state.PlayerRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
@@ -27,31 +28,42 @@ import net.neoforged.fml.ModList;
  * trim, the Sculkhide's echo-lit hide), scaled onto the shoulders and riding the body's
  * crouch/swim pose. Every screenshot of a worn pack is the mod's own art.
  *
- * <p>Gates: the layer is only registered when Curios is loaded (see {@code ClientSetup}),
- * and the worn stack is read through {@code CuriosCompat} - the one-class rule holds.
- * It steps aside for an elytra (wings own the back; no z-fighting, no clipping), hides
- * with invisibility, and the client can turn it off in {@code packwork-client.toml}
- * ({@code show_worn_pack = false}).
+ * <p>(1.21.8+ port) Layers get a render STATE, not the entity, so the worn stack cannot be
+ * read here - it is attached each frame in {@code ClientSetup}'s render-state modifier and
+ * picked back up through {@link #WORN_PACK}. The elytra check and the invisibility check
+ * read fields the state already carries.
+ *
+ * <p>Gates: the layer and the modifier are only registered when Curios is loaded (see
+ * {@code ClientSetup}), and the worn stack is read through {@code CuriosCompat} - the
+ * one-class rule holds. It steps aside for an elytra (wings own the back; no z-fighting,
+ * no clipping), hides with invisibility, and the client can turn it off in
+ * {@code packwork-client.toml} ({@code show_worn_pack = false}).
  */
-public class WornPackLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
+public class WornPackLayer extends RenderLayer<PlayerRenderState, PlayerModel> {
+
+    /**
+     * The worn pack, carried on the render state. Always set (EMPTY when there is none)
+     * rather than left absent, so a stale value from a previous frame can never draw a
+     * pack onto a player who just took theirs off.
+     */
+    public static final ContextKey<ItemStack> WORN_PACK = new ContextKey<>(
+            ResourceLocation.fromNamespaceAndPath("packwork", "worn_pack"));
 
     /** Kept as a field so the gate is checked once, not per frame. */
     private static final boolean CURIOS_LOADED = ModList.get().isLoaded("curios");
 
-    public WornPackLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
+    public WornPackLayer(RenderLayerParent<PlayerRenderState, PlayerModel> parent) {
         super(parent);
     }
 
     @Override
     public void render(PoseStack pose, MultiBufferSource buffers, int packedLight,
-                       AbstractClientPlayer player, float limbSwing, float limbSwingAmount,
-                       float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
+                       PlayerRenderState state, float yRot, float xRot) {
         if (!CURIOS_LOADED || !PackworkConfig.showWornPack()) return;
-        if (player.isInvisible()) return;
-        ItemStack chestGear = player.getItemBySlot(EquipmentSlot.CHEST);
-        if (chestGear.is(Items.ELYTRA)) return; // wings own the back - hide, never clip
-        ItemStack pack = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
-        if (!(pack.getItem() instanceof PackItem)) return;
+        if (state.isInvisible) return;
+        if (state.chestEquipment.is(Items.ELYTRA)) return; // wings own the back - hide, never clip
+        ItemStack pack = state.getRenderData(WORN_PACK);
+        if (pack == null || !(pack.getItem() instanceof PackItem)) return;
         PackTier tier = PackItem.tierOf(pack);
 
         pose.pushPose();
@@ -63,18 +75,18 @@ public class WornPackLayer extends RenderLayer<AbstractClientPlayer, PlayerModel
         // on, not a wardrobe strapped to your spine. Sitting the pack's inner face a hair
         // INSIDE the back (0.0825 against a 0.125 surface) kills the gap without clipping
         // through the chest; a chestplate inflates the body, so the pack rides out to match.
-        pose.translate(0.0F, 0.30F, chestGear.isEmpty() ? 0.27F : 0.32F);
+        pose.translate(0.0F, 0.30F, state.chestEquipment.isEmpty() ? 0.27F : 0.32F);
         // One X-flip turns block space (y up) into body space (y down) with the block's
         // north-facing front (the flap and trim) pointing outward, away from the spine.
         pose.mulPose(Axis.XP.rotationDegrees(180.0F));
         float s = 0.50F;
         pose.scale(s, s, s);
         pose.translate(-0.5F, -0.5F, -0.5F);
-        BlockState state = ModBlocks.PACK.get().defaultBlockState()
+        BlockState blockState = ModBlocks.PACK.get().defaultBlockState()
                 .setValue(PackContainerBlock.FACING, Direction.NORTH)
                 .setValue(PackContainerBlock.TIER, tier);
         Minecraft.getInstance().getBlockRenderer()
-                .renderSingleBlock(state, pose, buffers, packedLight, OverlayTexture.NO_OVERLAY);
+                .renderSingleBlock(blockState, pose, buffers, packedLight, OverlayTexture.NO_OVERLAY);
         pose.popPose();
     }
 }

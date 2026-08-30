@@ -33,4 +33,26 @@ public class ClientSetup {
             }
         }
     }
+
+    /**
+     * (1.21.8+ port) Layers see a render STATE, not the entity, so the worn pack has to be
+     * carried across: this puts it on the state every frame the player is extracted. It
+     * always writes a value - EMPTY when nothing is worn - because a state object is reused
+     * between frames and a leftover pack would keep drawing after you took it off.
+     */
+    @SubscribeEvent
+    public static void registerRenderStateModifiers(
+            net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent event) {
+        if (!net.neoforged.fml.ModList.get().isLoaded("curios")) return;
+        event.registerEntityModifier(
+                net.minecraft.client.renderer.entity.player.PlayerRenderer.class,
+                (net.minecraft.client.player.AbstractClientPlayer player,
+                 net.minecraft.client.renderer.entity.state.PlayerRenderState state) -> {
+                    var pack = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(player);
+                    state.setRenderData(WornPackLayer.WORN_PACK,
+                            pack.getItem() instanceof com.sappersquad.packwork.pack.PackItem
+                                    ? pack : net.minecraft.world.item.ItemStack.EMPTY);
+                });
+    }
+
 }
