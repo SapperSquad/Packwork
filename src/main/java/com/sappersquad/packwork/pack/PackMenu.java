@@ -826,6 +826,7 @@ public class PackMenu extends AbstractContainerMenu {
             case PIN_ITEM -> applyPin(s1, s2);
             case UNPIN_ITEM -> applyUnpin(s2);
             case VOID_TOGGLE -> applyVoidToggle(s2);
+            case SPILL_CYCLE -> applySpillCycle(s2);
             case FLUID_INTERACT -> applyFluidInteract();
             case XP_SIPHON -> applyXpSiphon();
             case XP_POUR -> applyXpPour();
@@ -1294,15 +1295,52 @@ public class PackMenu extends AbstractContainerMenu {
         return PackFluidHandler.capacityFor(liveStack());
     }
 
-    /** Add/remove an item from the Compass Rose discard list. */
+    /**
+     * Add/remove an item from the discard list. Adding it with an Overflow Valve fitted starts
+     * it at the configured keep level rather than at "bin it outright" - with a Valve on the
+     * pack, marking a thing means "carry a sensible amount", and Shift+O then dials it.
+     * With only a Compass Rose fitted, marking means what it always has: bin it at the door.
+     */
     public void applyVoidToggle(String itemId) {
         net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
         if (r == null) return;
         PackLayout cur = currentLayout();
         List<net.minecraft.resources.ResourceLocation> voids = new ArrayList<>(cur.voidList());
-        if (voids.contains(r)) voids.remove(r);
-        else voids.add(r);
-        saveLayout(cur.withVoidList(voids));
+        if (voids.contains(r)) {
+            voids.remove(r);
+            saveLayout(cur.withVoidList(voids));   // withVoidList drops the orphaned keep level
+            return;
+        }
+        voids.add(r);
+        PackLayout next = cur.withVoidList(voids);
+        if (hasTrinket(com.sappersquad.packwork.trinket.TrinketType.OVERFLOW_VALVE)) {
+            next = next.withKeepStacks(r,
+                    com.sappersquad.packwork.config.PackworkConfig.valveDefaultKeepStacks());
+        }
+        saveLayout(next);
+    }
+
+    /**
+     * Step a listed item's keep level up the ladder, wrapping back to "bin it outright" (0).
+     * Refused without an Overflow Valve fitted and for an item that is not on the list - a
+     * keep level with no listing behind it would be a rule nobody can see.
+     */
+    public void applySpillCycle(String itemId) {
+        if (!hasTrinket(com.sappersquad.packwork.trinket.TrinketType.OVERFLOW_VALVE)) return;
+        net.minecraft.resources.ResourceLocation r = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+        if (r == null) return;
+        PackLayout cur = currentLayout();
+        if (!cur.listed(r)) return;
+        saveLayout(cur.withKeepStacks(r, nextKeepStacks(cur.keepStacks(r))));
+    }
+
+    /** The keep-level ladder, shared with the screen so the tooltip and the action agree. */
+    public static int nextKeepStacks(int current) {
+        int[] ladder = PackLayout.Spill.LADDER;
+        for (int step : ladder) {
+            if (current < step) return step;
+        }
+        return 0;   // past the top of the ladder: back to binning it outright
     }
 
     public void applySelectTab(String id) {

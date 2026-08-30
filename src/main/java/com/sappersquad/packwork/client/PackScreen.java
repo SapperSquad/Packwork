@@ -148,6 +148,15 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
         this.pinNoteTicks = 70;
     }
 
+    /** What the stitched note says when the discard list changes: bin it, or keep this much. */
+    private static Component spillNote(net.minecraft.world.item.ItemStack stack, int keepStacks) {
+        return keepStacks <= 0
+                ? Component.translatable("packwork.ui.spill_bin", stack.getHoverName())
+                // count first, then the name - the lang line is plain "%s ... %s" like every
+                // other note in the file, so translators never meet a positional index
+                : Component.translatable("packwork.ui.spill_keep", keepStacks, stack.getHoverName());
+    }
+
     /** The parchment pin note, centred over the seam between the grid and your pockets. */
     private void drawPinNote(GuiGraphics g) {
         if (pinNote == null) return;
@@ -1452,12 +1461,35 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 }
             }
             case GLFW.GLFW_KEY_R -> { if (isActiveCustom()) { beginRename(); return true; } }
-            case GLFW.GLFW_KEY_O -> { // toggle hovered item on the Compass Rose void list
-                if (overGrid && menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE)) {
-                    String id = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem()).toString();
-                    PackClientActions.voidToggle(menu, id);
+            case GLFW.GLFW_KEY_O -> {
+                // O marks the hovered item on the discard list; Shift+O dials how much of it
+                // the pack still carries. Same list, one concept: the Rose bins what is marked
+                // at zero, the Valve gives it a keep level instead.
+                boolean rose = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE);
+                boolean valve = menu.hasTrinket(com.sappersquad.packwork.trinket.TrinketType.OVERFLOW_VALVE);
+                if (!overGrid || !(rose || valve)) break;
+                var itemId = BuiltInRegistries.ITEM.getKey(hovered.getItem().getItem());
+                String id = itemId.toString();
+                boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
+                if (shift && valve && menu.layout().listed(itemId)) {
+                    int next = com.sappersquad.packwork.pack.PackMenu.nextKeepStacks(
+                            menu.layout().keepStacks(itemId));
+                    PackClientActions.spillCycle(menu, id);
+                    showPinNote(spillNote(hovered.getItem(), next));
                     return true;
                 }
+                if (shift && !valve) break;   // no Valve: Shift+O is not a thing yet, say nothing
+                boolean wasListed = menu.layout().listed(itemId);
+                PackClientActions.voidToggle(menu, id);
+                if (wasListed) {
+                    showPinNote(Component.translatable("packwork.ui.spill_cleared",
+                            hovered.getItem().getHoverName()));
+                } else {
+                    showPinNote(spillNote(hovered.getItem(), valve
+                            ? com.sappersquad.packwork.config.PackworkConfig.valveDefaultKeepStacks()
+                            : 0));
+                }
+                return true;
             }
             case GLFW.GLFW_KEY_LEFT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), -1); return true; }
             case GLFW.GLFW_KEY_RIGHT_BRACKET -> { PackClientActions.moveTab(menu, menu.activeTab(), 1); return true; }

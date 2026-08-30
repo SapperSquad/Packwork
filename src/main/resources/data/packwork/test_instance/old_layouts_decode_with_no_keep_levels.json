@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:old_layouts_decode_with_no_keep_levels",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

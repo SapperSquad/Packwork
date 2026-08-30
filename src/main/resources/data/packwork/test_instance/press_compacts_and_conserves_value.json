@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:press_compacts_and_conserves_value",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}
