@@ -50,11 +50,15 @@ public final class PackworkDeathHandling {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onPlayerDrops(LivingDropsEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+        // Deliberately Player, not ServerPlayer: the event is server-side by contract and
+        // gametest mock players are bare Players - the narrow gate silently disabled
+        // pack-first pickup in tests once already; don't repeat it here.
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide()) return;
+        if (!(player.level() instanceof ServerLevel level)) return;
         if (event.isCanceled()) return; // a grave/corpse mod took custody; respect it
         PackworkConfig.DeathHandling mode = PackworkConfig.get().deathHandling();
         if (mode == PackworkConfig.DeathHandling.DROP) return;
-        sweepPackDrops(sp, sp.level(), sp.blockPosition(), event.getDrops(), mode);
+        sweepPackDrops(player, level, player.blockPosition(), event.getDrops(), mode);
     }
 
     /**
