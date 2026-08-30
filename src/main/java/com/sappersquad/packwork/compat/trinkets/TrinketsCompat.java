@@ -141,13 +141,15 @@ public final class TrinketsCompat {
             access = attachment.getSlotAccess(SLOT, 0);
         }
         if (access == null || !access.isValid()) return false;
-        // NOTE (2026-08-30): a slot written straight through its access is a change the
-        // WEARER'S OWN client is never told about - the worn-render shoot found the back
-        // slot reading `chest/back[1]=0 minecraft:air` client-side while the server held a
-        // Canvas Pack, and raising the inventory's own `markUpdate()` flag did not change
-        // that. Everything server-side (pickup routing, the worn GUI host, the gametests)
-        // reads correctly, so this only bites things that need the stack on the client -
-        // today that is exactly one thing, the worn-render layer. See PROJECT_HANDOFF.
+        // NOTE (2026-08-30, corrected): an earlier note here claimed a slot written straight
+        // through its access never reaches the WEARER'S OWN client. That was wrong, and it was
+        // the harness lying. Trinkets Updated @Injects into `Inventory.clearContent()`'s TAIL
+        // and clears the trinket slots along with the pockets, so the worn-render shoot - which
+        // equipped and THEN stripped - was wiping the back slot on the server one tick after
+        // filling it. Both sides were empty and agreeing. With the strip moved ahead of the
+        // dress, the pack syncs to the wearer's own client through the ordinary inventory-menu
+        // slot sync (Trinkets hangs its slots off `player.inventoryMenu`), and the worn layer
+        // draws. Verified as pixels on fabric/26.2, 2026-08-30: all seven framed checks.
         return access.set(stack);
     }
 

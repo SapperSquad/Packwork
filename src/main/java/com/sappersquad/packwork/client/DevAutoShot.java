@@ -1350,13 +1350,20 @@ public final class DevAutoShot {
         server.execute(() -> {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devEquip(sp,
-                    new ItemStack(ModItems.pack(shot.tier()).get()));
-            // Strip FIRST, dress second: Inventory.clearContent() empties the armor and
-            // offhand rows too, so clearing after equipping quietly wipes the chestplate and
-            // the elytra - two shots that look fine and prove nothing.
+            // Strip FIRST, dress second - and on Fabric the strip reaches FURTHER than it does
+            // on NeoForge. Inventory.clearContent() empties the armor and offhand rows (so
+            // clearing after equipping quietly wipes the chestplate and the elytra), and
+            // Trinkets Updated additionally @Injects into clearContent's TAIL to call
+            // LivingEntityTrinketAttachment.clearContents() - so on this branch it also strips
+            // the BACK SLOT. Equipping before the clear equips into a slot that is about to be
+            // emptied: the server logs "equipped -> Canvas Pack", the clear lands a tick later,
+            // and every shot then sees a bare back that looks exactly like a broken renderer.
+            // (Curios keeps its inventory off Inventory entirely, which is why the identical
+            // ordering is harmless on the six NeoForge branches.)
             sp.getInventory().clearContent();
             sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, shot.chest().get());
+            com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devEquip(sp,
+                    new ItemStack(ModItems.pack(shot.tier()).get()));
             // Re-anchor every shot: an elytra or a stray nudge drifts the player off the pad,
             // and one drifted frame ruins the shot it lands on.
             if (wornPad != null) {
@@ -1382,8 +1389,15 @@ public final class DevAutoShot {
         if (mc.player == null) return "no client player";
         ItemStack worn = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(mc.player);
         if (!(worn.getItem() instanceof PackItem)) {
-            return "the back slot holds " + worn + ", not a pack (was it cleared?) - this side sees: "
-                    + com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devDescribeSlots(mc.player);
+            // Name the SIDE. A bare back has two very different causes - the server never
+            // holds the pack (a strip order bug, which is what it turned out to be), or the
+            // server holds it and the wearer's client is never told (a sync gap). Printing
+            // only the client's view cannot tell them apart, and the wrong one sends the next
+            // reader into the render layer, which is fine.
+            return "the back slot holds " + worn + ", not a pack (was it cleared?)"
+                    + " - CLIENT sees: "
+                    + com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devDescribeSlots(mc.player)
+                    + " - SERVER sees: " + serverSideSlots(mc);
         }
         var wornTier = PackItem.tierOf(worn);
         if (wornTier != shot.tier()) {
@@ -1405,6 +1419,20 @@ public final class DevAutoShot {
                     wornPad.getX(), wornPad.getY(), wornPad.getZ());
         }
         return null;
+    }
+
+    /**
+     * The integrated server's view of the same player's trinket slots. Read straight off the
+     * server player from the client thread - a race in principle, but this is a dev harness
+     * and it only runs on the failure path, where an approximate answer that names the side
+     * beats a precise answer that does not.
+     */
+    private static String serverSideSlots(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return "no integrated server";
+        if (server.getPlayerList().getPlayers().isEmpty()) return "no server player";
+        return com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devDescribeSlots(
+                server.getPlayerList().getPlayers().get(0));
     }
 
     private static void grab(Minecraft mc, String name) {
