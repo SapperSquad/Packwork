@@ -27,6 +27,16 @@ public class Packwork {
     }
 
     public Packwork(IEventBus modEventBus, ModContainer modContainer) {
+        // The packmaker's lever: config/packwork-server.toml, read before anything else
+        // consults it (same file, same keys on the Fabric build). The client cosmetics
+        // file only exists on the client dist.
+        com.sappersquad.packwork.config.PackworkConfig.loadServer(
+                net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get());
+        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
+            com.sappersquad.packwork.config.PackworkConfig.loadClient(
+                    net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get());
+        }
+
         // Components before items: the pack item's inventory capability leans on
         // its data component types being registered.
         ModComponents.COMPONENTS.register(modEventBus);
@@ -38,6 +48,8 @@ public class Packwork {
         com.sappersquad.packwork.reg.ModRecipes.SERIALIZERS.register(modEventBus);
         // 1.21.5+ gametests are registry entries; the registrar scans @PackTest methods.
         com.sappersquad.packwork.gametest.PackworkTestRegistrar.TEST_FUNCTIONS.register(modEventBus);
+        com.sappersquad.packwork.reg.ModConditions.CONDITIONS.register(modEventBus);
+        com.sappersquad.packwork.reg.ModAttachments.ATTACHMENTS.register(modEventBus);
 
         modEventBus.addListener(PackworkCapabilities::registerCapabilities);
         modEventBus.addListener(PackworkNetwork::register);

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "restock_strap" } ],
   "pattern": ["LBL", "L L"],
   "key": { "L": "minecraft:leather", "B": "minecraft:iron_ingot" },
   "result": { "id": "packwork:restock_strap", "count": 1 } }
