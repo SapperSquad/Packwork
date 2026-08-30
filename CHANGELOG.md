@@ -7,11 +7,14 @@ All notable changes, newest first. Dates are the suite's working dates.
 The adoption wave: the things that make a pack easy to run, easy to tune, and easy to
 talk about.
 
-- **Your pack shows up on your back.** Wear one in a back slot and it renders there —
+- **Your pack shows up on your back** (NeoForge 1.21.1 and 1.21.8 for now). Wear one in a
+  back slot and it renders there —
   the same per-tier leather, buckle and trim a set-down pack shows, right down to the
   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
   aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
   in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
+  Minecraft 1.21.10 rebuilt the entity renderer, so the newer NeoForge builds are waiting
+  on a second implementation of the layer; everything else in 1.1.0 is on all six.
 - **The Outfitter's Handbook has a last page: Field Reports.** Where to send a bug, what
   to put in it, and two brass-ruled links — GitHub issues and the Discord — that open in
   your browser after your game asks you first. Nothing pops up, nothing nags; the page is

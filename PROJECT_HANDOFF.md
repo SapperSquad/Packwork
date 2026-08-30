@@ -348,6 +348,103 @@ taken away and no existing pack changes. Six items, each its own commit:
 frames (a stone pad and a lot of sky) — the worn pack is this release's headline and
 deserves a framing pass before it displaces one of the six store picks.
 
+### 1.1.0 port sweep — where every branch actually stands
+
+| Branch | 1.1.0? | Worn render | Suite | Jar |
+|---|---|---|---|---|
+| `master` (1.21.1) | **yes** | **yes, pixel-verified** | 66 × 3 combos | `packwork-1.1.0.jar` |
+| `port/1.21.8` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc1.21.8.jar` |
+| `port/1.21.10` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc1.21.10.jar` |
+| `port/1.21.11` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc1.21.11.jar` |
+| `port/26.1` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc26.1.2.jar` |
+| `port/26.2` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc26.2.jar` |
+| `fabric/26.1` | **no — still 1.0.0** | no | (untouched) | 1.0.0 jar stands |
+| `fabric/26.2` | **no — still 1.0.0** | no | (untouched) | 1.0.0 jar stands |
+
+Nothing on the two Fabric branches was changed; they are exactly as 1.0.0 left them.
+Everything on the six NeoForge branches is green and stamped.
+
+**Scope discovery worth knowing up front:** the config core (`117b1e6` + `d7120e8`) had
+never been swept to the ports either, so each port branch had to take BOTH the config core
+and the adoption wave. The config core is the expensive half — 39 files, new registries
+(`ModConditions`, `ModAttachments`), death handling on `LivingDropsEvent`, and a
+`neoforge:conditions` line in all 18 fitting recipes (which on the port branches must be
+merged onto the branch's own plain-string ingredient shape, not master's `{"item":...}`).
+
+**The 26.x-era drift checklist, in the order it bites** (identical on 1.21.8 → 26.2 unless
+noted; every entry javap'd out of the branch's own classes, not remembered):
+`ResourceLocation` → `Identifier` (1.21.11+ only) · `readResourceLocation()` →
+`readIdentifier()` · `sp.serverLevel()` → `sp.level()` · `getMinBuildHeight()/getMaxBuildHeight()`
+→ `getMinY()/getMaxY()` · `AttachmentType.Builder.serialize` takes a **MapCodec**, so the
+kept-packs codec needs `.fieldOf("packs")` · `FMLEnvironment.dist` → `FMLEnvironment.getDist()` ·
+`appendHoverText` takes `TooltipDisplay` + a `Consumer` · `mouseClicked` takes a
+`MouseButtonEvent` · `GuiGraphics.drawString` → `GuiGraphicsExtractor.text` (26.x) ·
+`mc.screen`/`mc.setScreen` → `mc.gui.screen()`/`mc.gui.setScreen` (26.2 only) ·
+`mc.getWindow().getWindow()` → `.handle()` · `mc.resizeDisplay()` → `mc.resizeGui()` (26.x) ·
+`options.hideGui` → `mc.gui.hud.toggle()/isHidden()` (26.x) · `LevelSettings` takes
+`DifficultySettings` and no GameRules (26.x) / `new GameRules(enabledFeatures)` (1.21.8–11) ·
+world time via `server.clockManager().setTotalTicks` (26.x).
+
+**Gametest conventions per branch, and two traps that cost real time:**
+- Every port branch registers tests as registry entries: `@GameTest(template="empty")` →
+  `@PackTest`, then re-run `java tools/GenTestInstances.java`.
+- **1.21.8 and 1.21.10 take `PackHelper`, not `GameTestHelper`** (those versions dropped the
+  String assert overloads). The incoming config tests take `GameTestHelper` and must be
+  converted — AND `tools/GenTestInstances.java`'s regex only matched `(GameTestHelper`, so it
+  found 9 tests, **wiped the 57 committed instance JSONs** (it clears the directory), and wrote
+  9. The regex accepts either helper type now on both branches.
+- The standard-capability assertions differ: master uses `Capabilities.FluidHandler.ITEM`
+  directly, the ports use their own `fluidCap()/itemCap()/energyCap()` helpers. A blanket
+  rename of the token to `fluidCap(pack)` also rewrites the BODY of `fluidCap` into infinite
+  recursion — it compiles clean and the suite dies on a StackOverflowError in the server tick
+  loop. Fixed on 1.21.8; every other branch's suite proves it isn't there.
+
+### The two pieces of 1.1.0 still to build
+
+**1. The worn layer for the new render pipeline (1.21.10 / 1.21.11 / 26.1 / 26.2).**
+Minecraft **1.21.10** — not 26.x — is where it changed. 1.21.8 kept
+`RenderLayer.render(PoseStack, MultiBufferSource, int, S, float, float)` and
+`BlockRenderDispatcher.renderSingleBlock`, so the layer ported there as-is. From 1.21.10 on:
+`RenderLayer.submit(PoseStack, SubmitNodeCollector, int, S, float, float)` is the abstract
+method, `BlockRenderDispatcher` is gone, and (26.x) `PlayerRenderer` → `AvatarRenderer`,
+`PlayerRenderState` → `AvatarRenderState`, `net.minecraft.client.model.PlayerModel` →
+`net.minecraft.client.model.player.PlayerModel` (no longer generic).
+The API map, already gathered:
+- `event.getSkins()` returns `Set<PlayerModelType>`; the renderer comes from
+  `event.getPlayerRenderer(type)` on 26.x (`event.getSkin(type)` on 1.21.10/11).
+- Block drawing goes: `mc.getModelManager().getBlockStateModelSet().get(blockState)` →
+  `BlockStateModel.collectParts(RandomSource, List<BlockStateModelPart>)`, where the list
+  comes from `BlockModelRenderState.setupModel(Matrix4fc, boolean)`; then set
+  `brs.blockLightCoords` and call `brs.submit(pose, collector, light, overlay, outline)`.
+  **The exact semantics of `clear()`/`setupModel` are the one unknown left** — worth reading
+  `CarriedBlockLayer` / `EndermanRenderState.carriedBlock` before writing it, since vanilla
+  keeps its `BlockModelRenderState` ON the render state precisely because the collector
+  defers drawing (a layer-local scratch would corrupt across entities in a frame).
+- The worn stack still has to ride the render state, exactly as on 1.21.8:
+  `RegisterRenderStateModifiersEvent` (`registerEntityModifier(Class, BiConsumer)`, or
+  `registerAvatarEntityModifier(AvatarRenderStateModifier)` on 26.x) →
+  `state.setRenderData(ContextKey, value)`. Always write a value (EMPTY, never absent):
+  states are reused between frames and a leftover pack keeps drawing after you unequip.
+- `HumanoidRenderState.chestEquipment` and `EntityRenderState.isInvisible` are already on the
+  state, so the elytra and invisibility gates need no extra data.
+Then it needs the pixel pass per branch (`./gradlew runClient -Pwornshot -Pcurios`).
+
+**2. The Fabric 1.1.0 port (`fabric/26.1`, `fabric/26.2`).** Three genuinely new pieces, not
+drift:
+- **Recipe gating.** `neoforge:conditions` → `fabric:load_conditions`, and
+  `TrinketEnabledCondition` has to implement Fabric's `ResourceCondition`
+  (`getType()` + `test(RegistryOps.RegistryInfoLookup)`), with
+  `ResourceConditionType.create(Identifier, MapCodec)` registered through
+  `ResourceConditions.register(...)` from the mod initializer. The 18 recipe JSONs take
+  `{"condition": "packwork:trinket_enabled", "trinket": "<id>"}`; the Flask Harness already
+  carries a `fabric:all_mods_loaded` entry to sit beside.
+- **The death stash.** No NeoForge attachments; Fabric API's
+  `fabric-data-attachment-api-v1` (`AttachmentRegistry` + `copyOnDeath`) is the analogue.
+- **Sweeping packs out of the drop list.** Fabric has no `LivingDropsEvent`. This needs a
+  FOURTH mixin (the branches have exactly three today) — most likely on the player's
+  inventory-drop path, taking the packs out before they become item entities.
+Everything else on Fabric is the same text as the ports.
+
 **2026-07-26 release stamping — 1.0.0 (SapperSquad's final calls after his confirm pass).**
 Version **1.0.0** stamped everywhere: `gradle.properties mod_version` (the single source —
 `neoforge.mods.toml` takes `${mod_version}`), PUBLISHING's placeholders + upload table

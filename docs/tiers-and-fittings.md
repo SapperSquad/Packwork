@@ -129,6 +129,8 @@ Its fittings keep ticking while worn, **B** finds it when your pockets hold no p
 **Shift-B** opens the worn one outright.
 
 A worn pack also **renders on your back**, showing its tier's own leather and trim. It steps
-aside for an elytra and hides with invisibility. If you'd rather not see it, set
+aside for an elytra and hides with invisibility. (On **NeoForge 1.21.1 and 1.21.8** so far -
+Minecraft 1.21.10 rebuilt the entity renderer and the newer builds are waiting on a second
+implementation of the layer.) If you'd rather not see it, set
 `show_worn_pack = false` in `packwork-client.toml` — that's your setting alone and never
 leaves your machine.
