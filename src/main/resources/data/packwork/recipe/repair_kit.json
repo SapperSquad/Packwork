@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "fabric:load_conditions": [ { "condition": "packwork:trinket_enabled", "trinket": "repair_kit" } ],
   "pattern": ["IHI", "LLL"],
   "key": { "I": "minecraft:iron_ingot", "H": "minecraft:anvil", "L": "minecraft:leather" },
   "result": { "id": "packwork:repair_kit", "count": 1 } }

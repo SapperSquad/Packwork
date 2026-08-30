@@ -45,10 +45,10 @@ public class PackFluidHandler implements SingleSlotStorage<FluidVariant> {
         this.capacityMb = capacityMb;
     }
 
-    /** Tank size for a pack, in mB: scales with the material tier. */
+    /** Tank size for a pack, in mB: per-tier, packmaker-tunable ({@code tiers.<name>.fluid_mb}). */
     public static int capacityFor(ItemStack pack) {
-        PackTier tier = PackItem.tierOf(pack);
-        return 8000 * tier.step(); // Canvas 8 buckets ... Sculkhide 48 buckets
+        return com.sappersquad.packwork.config.PackworkConfig.get()
+                .fluidMbFor(PackItem.tierOf(pack)); // default: Canvas 8 buckets ... Sculkhide 48
     }
 
     private PackFluidContent content() {

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "fabric:load_conditions": [ { "condition": "packwork:trinket_enabled", "trinket": "soul_vial" } ],
   "pattern": ["GBG", "LEL", "GBG"],
   "key": { "G": "minecraft:glass_bottle", "B": "minecraft:experience_bottle", "L": "minecraft:leather", "E": "minecraft:amethyst_shard" },
   "result": { "id": "packwork:soul_vial", "count": 1 } }

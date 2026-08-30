@@ -95,6 +95,12 @@ loom {
             if (project.hasProperty('gallery')) {
                 property 'packwork.gallery', '1'
             }
+            // Worn-render shoot: ./gradlew runClient -Pwornshot -Ptrinkets - equips packs in
+            // the Trinkets back slot and screenshots the third-person back view (tiers,
+            // chestplate, crouch, elytra-hides) so the layer is verified as pixels.
+            if (project.hasProperty('wornshot')) {
+                property 'packwork.wornshot', '1'
+            }
             if (project.hasProperty('quickPlay')) {
                 programArgs '--quickPlaySingleplayer', project.property('quickPlay').toString()
             }

@@ -7,6 +7,7 @@ import com.sappersquad.packwork.net.PackActionPayload;
 import com.sappersquad.packwork.pack.PackItem;
 import com.sappersquad.packwork.pack.PackMenu;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -27,6 +28,15 @@ public final class PackworkNetwork {
         // 1.21.2, so the craftable list and the chalk arrangement are server-computed.
         PayloadTypeRegistry.clientboundPlay().register(LedgerSyncPayload.TYPE, LedgerSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GhostSyncPayload.TYPE, GhostSyncPayload.STREAM_CODEC);
+        // Server -> client on login: the server's packwork-server.toml values, so gauges,
+        // slot counts and trinket gates draw exactly what the server enforces.
+        PayloadTypeRegistry.clientboundPlay().register(
+                com.sappersquad.packwork.net.ConfigSyncPayload.TYPE,
+                com.sappersquad.packwork.net.ConfigSyncPayload.STREAM_CODEC);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                ServerPlayNetworking.send(handler.getPlayer(),
+                        new com.sappersquad.packwork.net.ConfigSyncPayload(
+                                com.sappersquad.packwork.config.PackworkConfig.localValues())));
 
         // Fabric play handlers already run on the server thread.
         ServerPlayNetworking.registerGlobalReceiver(PackActionPayload.TYPE, (payload, ctx) -> {

@@ -2,6 +2,57 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.1.0 "Field Kit" — 2026-08-30
+
+The adoption wave: the things that make a pack easy to run, easy to tune, and easy to
+talk about. Nothing is taken away and no existing pack changes.
+
+- **A config file, and it is the same file on both loaders.** `config/packwork-server.toml`
+  writes itself the first time you run, with its documentation in the comments. Per-tier
+  slot counts and slot depth, every store's capacity, an on/off switch for each of the
+  eighteen fittings, the Lodestone's magnet range and cadence, whether a fresh pack starts
+  with pack-first pickup, and a blocklist the Provisioner's Pouch will never eat from.
+  The server's copy is the authority — clients are handed its values on login, so the
+  gauges and slot counts you see are the ones the server enforces. Ship one edited file in
+  a modpack and every install agrees, NeoForge or Fabric.
+- **Nothing in that file can cost you what you already stored.** Shrink a capacity and the
+  store simply stops accepting and pays out normally; a retired fitting goes to sleep in
+  its socket — still visible, still removable, everything it held intact — and wakes with
+  all of it when you turn it back on. Its recipe and its shelf entry go with it, so there
+  are never dead craftables sitting in JEI.
+- **What death does to a pack is yours to choose.** `death.handling` is `"drop"` by default
+  — exactly what 1.0.0 did, so nothing changes unless you ask. `"keep"` carries your packs
+  through and hands them back on respawn. `"place"` sets each one down as its own block
+  where you fell, contents untouched, and falls back to `"keep"` when there is nowhere
+  honest to put it. Never the void.
+- **Your pack shows up on your back.** Wear one in a Trinkets back slot and it renders
+  there — the same per-tier leather, buckle and trim a set-down pack shows, right down to
+  the Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
+  aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
+  in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
+- **The Outfitter's Handbook has a last page: Field Reports.** Where to send a bug, what
+  to put in it, and two brass-ruled links — GitHub issues and the Discord — that open in
+  your browser after your game asks you first. Nothing pops up, nothing nags; the page is
+  just there when you want it.
+- **Ten more languages.** Simplified Chinese, Russian, Brazilian Portuguese, German,
+  French, Spanish, Japanese, Korean, Polish and Ukrainian — every item, tooltip,
+  compartment name, button and keybind. These are **machine-drafted first passes**, not
+  yet read by native speakers; if one reads wrong to you, a one-line pull request is very
+  welcome (see the README). The Handbook's long prose stays English for now.
+- **A manual you can read in a browser** — `docs/`: sorting, tiers and fittings, stores and
+  automation, plus two pages the in-game book can't hold. **Every config key** with its
+  default and its range, and a **packmaker's page**: what to turn off, the item tags the
+  auto-sorter reads, and how to fold your own mod's items into a compartment from a
+  datapack.
+- Internal, for the curious: the recipe gate is a Fabric `ResourceCondition`
+  (`packwork:trinket_enabled`) in each fitting's `fabric:load_conditions`, the death stash
+  is a persistent copy-on-death data attachment, and death handling needed a **fourth
+  mixin** — Fabric has no drops event, so one narrow injection sits at the choke point
+  every death drop funnels through (the pockets, the armour row, and a worn trinket all
+  reach it). The TOML parser is hand-rolled and shared with the NeoForge builds, so the
+  two loaders' keys cannot drift apart.
+
+
 ## 1.0.0 "First Haul" — 2026-07-26
 
 The first public release. Everything below this header up to the internal 0.1.0

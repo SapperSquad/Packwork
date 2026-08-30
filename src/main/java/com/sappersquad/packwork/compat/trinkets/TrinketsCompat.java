@@ -141,6 +141,13 @@ public final class TrinketsCompat {
             access = attachment.getSlotAccess(SLOT, 0);
         }
         if (access == null || !access.isValid()) return false;
+        // NOTE (2026-08-30): a slot written straight through its access is a change the
+        // WEARER'S OWN client is never told about - the worn-render shoot found the back
+        // slot reading `chest/back[1]=0 minecraft:air` client-side while the server held a
+        // Canvas Pack, and raising the inventory's own `markUpdate()` flag did not change
+        // that. Everything server-side (pickup routing, the worn GUI host, the gametests)
+        // reads correctly, so this only bites things that need the stack on the client -
+        // today that is exactly one thing, the worn-render layer. See PROJECT_HANDOFF.
         return access.set(stack);
     }
 
@@ -156,5 +163,22 @@ public final class TrinketsCompat {
         boolean took = equipWorn(sp, pack.copy());
         com.sappersquad.packwork.Packwork.LOGGER.info("[trinkets] equipped in back slot -> {}",
                 took ? wornPack(sp).getHoverName().getString() : "FAILED");
+    }
+
+    /**
+     * Dev harness only: everything this side knows about the player's trinket slots. Called
+     * from the worn-render shoot when a scene check fails, so a sync problem reads as a sync
+     * problem instead of looking like a broken renderer.
+     */
+    public static String devDescribeSlots(net.minecraft.world.entity.player.Player player) {
+        TrinketAttachment attachment = TrinketsApi.getAttachment(player);
+        if (attachment == null) return "no trinket attachment on this side";
+        StringBuilder sb = new StringBuilder();
+        attachment.getInventories().forEach((name, inv) -> {
+            sb.append(name).append('[').append(inv.getContainerSize()).append("]=");
+            for (int i = 0; i < inv.getContainerSize(); i++) sb.append(inv.getItem(i)).append(' ');
+            sb.append("| ");
+        });
+        return sb.length() == 0 ? "attachment present but no inventories" : sb.toString();
     }
 }

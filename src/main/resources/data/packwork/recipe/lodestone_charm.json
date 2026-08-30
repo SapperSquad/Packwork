@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "fabric:load_conditions": [ { "condition": "packwork:trinket_enabled", "trinket": "lodestone_charm" } ],
   "pattern": [" I ", "ILI", " I "],
   "key": { "I": "minecraft:iron_nugget", "L": "minecraft:lodestone" },
   "result": { "id": "packwork:lodestone_charm", "count": 1 } }

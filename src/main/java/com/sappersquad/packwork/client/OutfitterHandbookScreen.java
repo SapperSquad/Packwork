@@ -95,6 +95,10 @@ public class OutfitterHandbookScreen extends Screen {
                 }
                 wrappedLines.add(SPACER);
                 addParagraphGap();
+            } else if (entry instanceof HandbookContent.LinkEntry linkEntry) {
+                if (LINES_PER_PAGE - (wrappedLines.size() % LINES_PER_PAGE) < 2) padToPageBoundary();
+                wrappedLines.add(linkEntry);
+                addParagraphGap();
             }
         }
         pageIndex = Math.min(pageIndex, maxPage());
@@ -165,6 +169,8 @@ public class OutfitterHandbookScreen extends Screen {
                 g.text(font, seq, contentX(), lineY, PARCHMENT, false);
             } else if (line instanceof HandbookContent.ItemsEntry itemsEntry) {
                 renderItemRow(g, itemsEntry, contentX(), lineY);
+            } else if (line instanceof HandbookContent.LinkEntry linkEntry) {
+                renderLink(g, linkEntry, lineY, mouseX, mouseY);
             }
         }
 
@@ -225,6 +231,28 @@ public class OutfitterHandbookScreen extends Screen {
         }
     }
 
+    /**
+     * A link line, drawn as brass with a rule under it - the book's own stamped-leather
+     * language, not a blue web link. Brightens on hover so it reads as pressable.
+     */
+    private void renderLink(GuiGraphicsExtractor g, HandbookContent.LinkEntry link, int y, int mouseX, int mouseY) {
+        boolean hovered = isOverLink(mouseX, mouseY, y, link);
+        String label = linkLabel(link);
+        g.text(font, label, contentX(), y, hovered ? BRASS_HI : BRASS, false);
+        g.fill(contentX(), y + 9, contentX() + font.width(label), y + 10,
+            hovered ? BRASS_HI : BRASS_LO);
+    }
+
+    private static String linkLabel(HandbookContent.LinkEntry link) {
+        return "> " + link.label();
+    }
+
+    private boolean isOverLink(double mouseX, double mouseY, int y, HandbookContent.LinkEntry link) {
+        int w = font.width(linkLabel(link));
+        return mouseX >= contentX() - 1 && mouseX < contentX() + w + 1
+            && mouseY >= y - 1 && mouseY < y + LINE_HEIGHT - 1;
+    }
+
     private int chapterButtonY(int index) {
         return panelTop + 4 + HEADER_HEIGHT + 6 + index * CHAPTER_BUTTON_HEIGHT;
     }
@@ -238,6 +266,16 @@ public class OutfitterHandbookScreen extends Screen {
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x(), mouseY = event.y();
+        // Links first: they sit inside the page body, where nothing else takes a click.
+        int start = pageIndex * LINES_PER_PAGE;
+        for (int i = 0; i < LINES_PER_PAGE && start + i < wrappedLines.size(); i++) {
+            if (!(wrappedLines.get(start + i) instanceof HandbookContent.LinkEntry link)) continue;
+            if (!isOverLink(mouseX, mouseY, contentY() + i * LINE_HEIGHT, link)) continue;
+            // Vanilla's own confirm screen: the player sees the URL and says yes or no, and
+            // either way it hands the book back. Packwork never opens a browser on its own.
+            net.minecraft.client.gui.screens.ConfirmLinkScreen.confirmLinkNow(this, link.url());
+            return true;
+        }
         for (int i = 0; i < HandbookContent.CHAPTERS.size(); i++) {
             if (isOverChapterButton(mouseX, mouseY, i)) {
                 if (i != chapterIndex) {
@@ -279,6 +317,21 @@ public class OutfitterHandbookScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    /**
+     * Dev harness: the screen point of the first link on the page showing right now, so the
+     * shoot can hover a real link instead of guessing coordinates. Null when there is none.
+     */
+    public int[] devFirstLinkPoint() {
+        int start = pageIndex * LINES_PER_PAGE;
+        for (int i = 0; i < LINES_PER_PAGE && start + i < wrappedLines.size(); i++) {
+            if (wrappedLines.get(start + i) instanceof HandbookContent.LinkEntry link) {
+                return new int[]{contentX() + font.width(linkLabel(link)) / 2,
+                    contentY() + i * LINE_HEIGHT + 4};
+            }
+        }
+        return null;
     }
 
     /** Jump to a chapter by index. Used by the dev screenshot harness; harmless otherwise. */
