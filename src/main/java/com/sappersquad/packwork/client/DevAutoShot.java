@@ -39,7 +39,9 @@ public final class DevAutoShot {
     private static final boolean WORNSHOT = System.getProperty("packwork.wornshot") != null;
     /** The sorting-GIF capture (-Pgifshot): one framebuffer PNG per tick, scripted. */
     private static final boolean GIFSHOT = System.getProperty("packwork.gifshot") != null;
-    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT || GIFSHOT;
+    /** The worn-pack HERO shoot (-Pwornhero -Pcurios): store frames + the turntable clip. */
+    private static final boolean WORNHERO = System.getProperty("packwork.wornhero") != null;
+    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT || GIFSHOT || WORNHERO;
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
@@ -78,10 +80,13 @@ public final class DevAutoShot {
         // ---- the worn-render shoot (runs INSTEAD of the above under -Pwornshot) ----
         WS_BOOT, WS_WAIT_LEVEL, WS_STEP, WS_SHOOT,
         // ---- the sorting-GIF capture (runs INSTEAD of the above under -Pgifshot) ----
-        GIF_BOOT, GIF_WAIT_LEVEL, GIF_STAGE, GIF_ROLL
+        GIF_BOOT, GIF_WAIT_LEVEL, GIF_STAGE, GIF_ROLL,
+        // ---- the worn-pack HERO shoot (runs INSTEAD of the above under -Pwornhero) ----
+        WH_BOOT, WH_WAIT_LEVEL, WH_STEP, WH_SHOOT, WH_SPIN_PREP, WH_SPIN
     }
 
-    private static Phase phase = GIFSHOT ? Phase.GIF_BOOT
+    private static Phase phase = WORNHERO ? Phase.WH_BOOT
+            : GIFSHOT ? Phase.GIF_BOOT
             : WORNSHOT ? Phase.WS_BOOT : (GALLERY ? Phase.G_BOOT : Phase.BOOT);
     private static int ticks = 0;
     private static int wait = 0;
@@ -95,6 +100,10 @@ public final class DevAutoShot {
         if (!ENABLED || phase == Phase.DONE) return;
         Minecraft mc = Minecraft.getInstance();
         ticks++;
+        // Re-assert the hero shoot's turntable angle every tick, after vanilla's own head/body
+        // turn has run - it drags the body back toward the head yaw, so setting it once is not
+        // enough. No-op unless the hero shoot is running.
+        holdHeroYaw(mc);
 
         switch (phase) {
             case BOOT -> {
@@ -755,6 +764,106 @@ public final class DevAutoShot {
                     phase = Phase.WS_STEP;
                     wait = 0;
                 }
+            }
+            // ================= the worn-pack HERO shoot (-Pwornhero -Pcurios) =================
+            case WH_BOOT -> {
+                if (ticks == 5) {
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1920, 1080);
+                        mc.options.guiScale().set(3);
+                        // FOV 30 is the LONGEST lens vanilla has: the option is an
+                        // OptionInstance.IntRange(30, 110) (checked in Options.java, not
+                        // remembered), and anything below 30 is refused and falls back to the
+                        // DEFAULT 70 - silently. A take shot at "26" came out wider than one
+                        // shot at 34, which is the only way that failure ever announces itself.
+                        // The other half of the framing is the backstop wall in heroStage.
+                        mc.options.fov().set(30);
+                        mc.resizeDisplay();
+                        Packwork.LOGGER.info("[wornhero] window 1920x1080 @ fov 30 (the longest lens vanilla allows)");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[wornhero] resize failed: {}", t.toString());
+                    }
+                }
+                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                    Packwork.LOGGER.info("[wornhero] creating throwaway world");
+                    LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
+                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                    mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                    phase = Phase.WH_WAIT_LEVEL;
+                    wait = 0;
+                }
+            }
+            case WH_WAIT_LEVEL -> {
+                if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
+                    if (!net.neoforged.fml.ModList.get().isLoaded("curios")) {
+                        Packwork.LOGGER.warn("[wornhero] Curios absent - nothing to wear; run with -Pcurios");
+                        phase = Phase.DONE;
+                    } else {
+                        heroStage(mc);
+                        phase = Phase.WH_STEP;
+                    }
+                    wait = 0;
+                }
+            }
+            case WH_STEP -> {
+                if (++wait > 25) {
+                    if (heroShot >= HERO_SHOTS.length) {
+                        phase = Phase.WH_SPIN_PREP;
+                        wait = 0;
+                    } else {
+                        applyHeroShot(mc, HERO_SHOTS[heroShot]);
+                        phase = Phase.WH_SHOOT;
+                        wait = 0;
+                    }
+                }
+            }
+            case WH_SHOOT -> {
+                if (++wait > 30) {
+                    HeroShot shot = HERO_SHOTS[heroShot];
+                    String wrong = heroCheck(mc, shot);
+                    if (wrong != null) {
+                        heroFailures++;
+                        Packwork.LOGGER.error("[wornhero] {} NOT SHOT - the scene is wrong: {}",
+                                shot.name(), wrong);
+                    } else {
+                        grab(mc, "hero_" + shot.name());
+                        Packwork.LOGGER.info("[wornhero] {} -> {}", shot.name(), shot.expect());
+                    }
+                    heroShot++;
+                    phase = Phase.WH_STEP;
+                    wait = 0;
+                }
+            }
+            case WH_SPIN_PREP -> {
+                // The turntable clip wants a smaller frame and a rounder rate than the stills
+                if (ticks % 1 == 0 && wait == 0) {
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1280, 720);
+                        mc.resizeDisplay();
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[wornhero] spin resize failed: {}", t.toString());
+                    }
+                    applyHeroShot(mc, HERO_SHOTS[0]);   // Sculkhide, no armour
+                }
+                if (++wait > 30) { phase = Phase.WH_SPIN; spinFrame = 0; wait = 0; }
+            }
+            case WH_SPIN -> {
+                if (spinFrame >= SPIN_FRAMES) {
+                    phase = Phase.DONE;
+                    if (heroFailures > 0) {
+                        Packwork.LOGGER.error("[wornhero] done - {} of {} stills REFUSED",
+                                heroFailures, HERO_SHOTS.length);
+                    } else {
+                        Packwork.LOGGER.info("[wornhero] done - {} stills, {} spin frames",
+                                HERO_SHOTS.length, spinFrame);
+                    }
+                    break;
+                }
+                // 0 -> 360 over the clip: a full turntable that loops seamlessly
+                heroBodyYaw = 360f * spinFrame / SPIN_FRAMES;
+                spinCapture(mc);
+                spinFrame++;
             }
             // ================= the sorting-GIF capture (-Pgifshot) =================
             case GIF_BOOT -> {
@@ -1524,6 +1633,200 @@ public final class DevAutoShot {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
             action.accept(menu);
         }
+    }
+
+    // =====================================================================
+    //  the worn-pack HERO shoot (-Pwornhero -Pcurios)
+    // =====================================================================
+    //
+    //  The proof shoot (-Pwornshot) answers "does it render". This one answers "is it a
+    //  store frame", and the difference is entirely composition: closer lens, a camp to
+    //  stand in instead of a bare slab, and a THREE-QUARTER angle.
+    //
+    //  That angle needed a trick, because vanilla's third-person camera always sits directly
+    //  behind you - you cannot orbit your own back. What you CAN do is turn the avatar under
+    //  a fixed camera: for a Player the camera reads `yRot`, while the renderer reads
+    //  `yBodyRot` and `yHeadRot`. Overriding the latter two every client tick spins the body
+    //  in place and leaves the camera where it is. Same trick drives the turntable clip.
+
+    private record HeroShot(String name, com.sappersquad.packwork.pack.PackTier tier,
+                            java.util.function.Supplier<ItemStack> chest, float bodyYaw,
+                            String expect) {}
+
+    private static final HeroShot[] HERO_SHOTS = {
+            new HeroShot("worn_sculkhide", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> ItemStack.EMPTY, 34f,
+                    "Sculkhide three-quarter: echo veins catching the light, camp behind"),
+            new HeroShot("worn_canvas", com.sappersquad.packwork.pack.PackTier.CANVAS,
+                    () -> ItemStack.EMPTY, 34f,
+                    "Canvas three-quarter: weave and twine, the other end of the ladder"),
+            new HeroShot("worn_over_armor", com.sappersquad.packwork.pack.PackTier.RUNED,
+                    () -> new ItemStack(Items.NETHERITE_CHESTPLATE), -30f,
+                    "Runed over netherite plate, turned the other way - it rides proud of armour"),
+    };
+
+    private static int heroShot = 0;
+    private static int heroFailures = 0;
+    private static net.minecraft.core.BlockPos heroPad = null;
+    /** Live override for the rendered body/head yaw; NaN leaves the avatar alone. */
+    private static float heroBodyYaw = Float.NaN;
+    private static final int SPIN_FRAMES = 100;   // 5s at 20fps
+    private static int spinFrame = 0;
+    private static java.io.File spinDir = null;
+
+    /**
+     * A camp on a sky pad, not a slab in the sky. Grass underfoot, a lit campfire and a
+     * barrel off to one side, a low bank of oak leaves behind - enough that the frame has
+     * depth and a warm light source, without anything crossing the pack's silhouette.
+     */
+    private static void heroStage(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            lvl.setDayTime(1200);                       // low morning sun: long light, warm
+            net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
+            var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            var grass = net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState();
+            for (int dx = -8; dx <= 8; dx++)
+                for (int dz = -8; dz <= 8; dz++) {
+                    for (int dy = 0; dy <= 8; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
+                    lvl.setBlock(base.offset(dx, -1, dz), grass, 2);
+                }
+            // The camp goes at +z - the player faces +z (yaw 0) and the third-person camera
+            // sits at -z, so +z is what ends up BEHIND the subject in frame. The first cut put
+            // it at -z, "behind the camera line", which is another way of saying invisible.
+            // Everything is pushed wide so nothing crosses the pack's own outline.
+            put(lvl, base.offset(4, 0, 7), net.minecraft.world.level.block.Blocks.CAMPFIRE);
+            put(lvl, base.offset(5, 0, 6), net.minecraft.world.level.block.Blocks.BARREL);
+            littleTree(lvl, base.offset(6, 0, 8));
+            littleTree(lvl, base.offset(-6, 0, 7));
+            for (int dx = -7; dx <= 7; dx += 2) {
+                if (Math.abs(dx) < 3) continue;                       // keep the centre clear
+                put(lvl, base.offset(dx, 0, 4), net.minecraft.world.level.block.Blocks.SHORT_GRASS);
+                put(lvl, base.offset(dx + 1, 0, 6), net.minecraft.world.level.block.Blocks.POPPY);
+            }
+            // The camera BACKSTOP, and it is the real framing control. Vanilla's third-person
+            // camera wants to sit 4 blocks back but collision-checks its way in, so a wall
+            // four blocks behind the player pulls it to about 3.2 and the subject grows by
+            // half again. At three blocks it came in too far and cropped the pack. It sits behind the camera, so it is never in shot. Without
+            // it the longest legal lens still leaves a store frame two-thirds empty sky.
+            for (int dx = -4; dx <= 4; dx++)
+                for (int dy = 0; dy <= 4; dy++) {
+                    put(lvl, base.offset(dx, dy, -4), net.minecraft.world.level.block.Blocks.GRASS_BLOCK);
+                }
+            heroPad = base;
+            // pitch 10: the camera rises just above the shoulders and looks slightly DOWN -
+            // the lineup hero's vantage. At the first cut's -4 it looked up instead, and two
+            // thirds of a 1920x1080 frame came out empty sky.
+            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 14f);
+            Packwork.LOGGER.info("[wornhero] camp staged at {}", base);
+        });
+    }
+
+    private static void put(net.minecraft.server.level.ServerLevel lvl,
+                            net.minecraft.core.BlockPos bp,
+                            net.minecraft.world.level.block.Block block) {
+        lvl.setBlock(bp, block.defaultBlockState(), 2);
+    }
+
+    /** A two-block trunk with a leaf cap: scenery that reads as a tree, not floating foliage. */
+    private static void littleTree(net.minecraft.server.level.ServerLevel lvl,
+                                   net.minecraft.core.BlockPos foot) {
+        var log = net.minecraft.world.level.block.Blocks.OAK_LOG;
+        var leaves = net.minecraft.world.level.block.Blocks.OAK_LEAVES;
+        put(lvl, foot, log);
+        put(lvl, foot.above(), log);
+        put(lvl, foot.above(2), leaves);
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            put(lvl, foot.above(2).relative(d), leaves);
+            put(lvl, foot.above(1).relative(d), leaves);
+        }
+        put(lvl, foot.above(3), leaves);
+    }
+
+    private static void applyHeroShot(Minecraft mc, HeroShot shot) {
+        if (!mc.options.hideGui) mc.options.hideGui = true;
+        mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        com.sappersquad.packwork.config.PackworkConfig.setShowWornPack(true);
+        heroBodyYaw = shot.bodyYaw();
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            // strip first, dress second (and on Fabric the strip reaches the trinket slot too)
+            sp.getInventory().clearContent();
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, shot.chest().get());
+            com.sappersquad.packwork.compat.curios.CuriosCompat.devEquip(sp,
+                    new ItemStack(ModItems.pack(shot.tier()).get()));
+            if (heroPad != null) {
+                sp.connection.teleport(heroPad.getX() + 0.5, heroPad.getY(),
+                        heroPad.getZ() + 0.5, 0f, 14f);
+            }
+        });
+    }
+
+    /** Same contract as the proof shoot's check: never write a frame the scene doesn't back. */
+    private static String heroCheck(Minecraft mc, HeroShot shot) {
+        if (mc.player == null) return "no client player";
+        ItemStack worn = com.sappersquad.packwork.compat.curios.CuriosCompat.wornPack(mc.player);
+        if (!(worn.getItem() instanceof PackItem)) {
+            return "the back slot holds " + worn + ", not a pack";
+        }
+        if (PackItem.tierOf(worn) != shot.tier()) {
+            return "the back slot holds a " + PackItem.tierOf(worn) + ", not the " + shot.tier();
+        }
+        ItemStack want = shot.chest().get();
+        ItemStack have = mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+        if (!ItemStack.isSameItem(want, have)) {
+            return "the chest slot holds " + have + ", but this shot needs " + want;
+        }
+        if (heroPad == null) return "the pad was never staged";
+        double dx = mc.player.getX() - (heroPad.getX() + 0.5);
+        double dz = mc.player.getZ() - (heroPad.getZ() + 0.5);
+        if (dx * dx + dz * dz > 4.0) return "the player has drifted off the camp";
+        return null;
+    }
+
+    /** One turntable frame, written synchronously (same reasoning as the GIF capture). */
+    private static void spinCapture(Minecraft mc) {
+        var target = mc.getMainRenderTarget();
+        if (target.width < 64 || target.height < 64) {
+            Packwork.LOGGER.error("[wornhero] render target is {}x{} - refusing a blank frame",
+                    target.width, target.height);
+            return;
+        }
+        if (spinDir == null) {
+            spinDir = new java.io.File(new java.io.File(mc.gameDirectory, "screenshots"), "wornspin");
+            if (!spinDir.exists() && !spinDir.mkdirs()) {
+                Packwork.LOGGER.error("[wornhero] could not create {}", spinDir);
+                return;
+            }
+        }
+        try (var img = Screenshot.takeScreenshot(target)) {
+            img.writeToFile(new java.io.File(spinDir,
+                    String.format(java.util.Locale.ROOT, "frame_%04d.png", spinFrame)));
+        } catch (Exception e) {
+            Packwork.LOGGER.error("[wornhero] spin frame {} failed", spinFrame, e);
+        }
+    }
+
+    /**
+     * Hold the avatar at the shoot's angle. Runs at the END of every client tick, after
+     * vanilla has had its say - {@code tickHeadTurn} drags the body back toward the head
+     * yaw, so this has to be re-asserted rather than set once. Both the "O" (previous) and
+     * current fields are written, or the renderer interpolates between the old angle and
+     * the new one and the avatar shivers.
+     */
+    private static void holdHeroYaw(Minecraft mc) {
+        if (Float.isNaN(heroBodyYaw) || mc.player == null) return;
+        mc.player.yBodyRot = heroBodyYaw;
+        mc.player.yBodyRotO = heroBodyYaw;
+        mc.player.yHeadRot = heroBodyYaw;
+        mc.player.yHeadRotO = heroBodyYaw;
     }
 
     // =====================================================================

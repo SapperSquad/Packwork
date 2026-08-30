@@ -36,13 +36,11 @@ and swapping that in stays SapperSquad's call.
 
 ## 1.1.0 additions
 
-- **Worn-pack frames**: `./gradlew runClient -Pwornshot -Pcurios` stages seven framed
-  checks of the on-your-back render at 1920x1080 with a long lens (FOV 38) on a sky pad —
-  two tiers, over a chestplate, crouching, from the front, under an elytra, and with
-  `show_worn_pack` off. Shots land in `run/client/screenshots/worn_*.png`. Two of them are
-  committed here as **extras**: `gallery-9-worn-sculkhide.png` and
-  `gallery-10-worn-canvas.png`. They are proof, not a hero frame — see the note in
-  `../PUBLISHING.md` before putting either on the store page.
+- **Worn-pack PROOF frames**: `./gradlew runClient -Pwornshot -Pcurios` stages seven framed
+  checks of the on-your-back render at 1920x1080 on a bare sky pad - two tiers, over a
+  chestplate, crouching, from the front, under an elytra, and with `show_worn_pack` off.
+  Shots land in `run/client/screenshots/worn_*.png`. This chain answers "does it render".
+  None of its frames are committed any more; the HERO shoot below supersedes them.
 
 ## 1.2.0 additions — the sorting GIF
 
@@ -79,3 +77,43 @@ Regenerate in two steps:
 Size check, since it was measured rather than guessed: the same 300 frames at full 1280x720
 come to **18.5 MB** — under Reddit's budget but three times the size and over Discord's
 10 MB embed cap, for detail nobody sees at post scale. 640x360 is the right answer.
+
+## 1.2.0 additions — the worn-pack HERO frames and the turntable
+
+`./gradlew runClient -Pwornhero -Pcurios` shoots the store frames the proof chain never
+could, then captures a turntable clip. Three stills at 1920x1080 (cropped here to
+1440x810), plus 100 spin frames.
+
+| File | Store | What it is |
+|---|---|---|
+| `gallery-9-worn-sculkhide.png` | **candidate** | Sculkhide worn, three-quarter, echo veins lit; camp and campfire behind. |
+| `gallery-10-worn-canvas.png` | extra | Canvas worn, same framing — the other end of the ladder. |
+| `gallery-11-worn-over-armor.png` | extra | Runed over a netherite chestplate: it rides proud of plate, no z-fighting. |
+| `packwork-worn-spin.gif` | — | 640x360, 100 frames at 5cs = 20 fps, 5.0 s, 4.2 MB. A full 360° turntable that loops seamlessly. Discord/pitch asset. |
+
+**The three-quarter angle needed a trick, and it is the useful part of this chain.** Vanilla's
+third-person camera always sits directly behind you — you cannot orbit your own back. What you
+*can* do is turn the avatar under a fixed camera: for a Player the camera reads `yRot`, while
+the renderer reads `yBodyRot` and `yHeadRot`. Overriding the latter two **every client tick**
+(vanilla's `tickHeadTurn` drags the body back toward the head, so once is not enough, and both
+the `…O` previous-tick fields must be written or the avatar shivers between the old angle and
+the new) turns the body in place and leaves the camera where it is. Sweeping that angle
+0→360 over the clip is the turntable.
+
+**Two framing gotchas, both of which cost a take:**
+
+- **Vanilla's FOV option floors at 30.** It is an `OptionInstance.IntRange(30, 110)`
+  (`Options.java`), and a value below 30 is refused and falls back to the **default 70** —
+  silently. A take shot at "26" came out wider than one shot at 34, which is the only way that
+  failure ever announces itself.
+- **The real framing control is a wall behind the camera.** With the longest legal lens the
+  subject still left a 1920x1080 frame two-thirds empty sky. The third-person camera wants to
+  sit 4 blocks back but collision-checks its way in, so a block wall four blocks behind the
+  player pulls it to about 3.2 and the subject grows by half again. It is behind the camera,
+  so it is never in shot. At three blocks it came in too far and cropped the pack.
+
+**Recommendation, for SapperSquad to accept or ignore:** `gallery-9-worn-sculkhide.png` has
+earned a store slot — worn rendering is 1.1.0's headline and this is the first frame of it
+worth posting. The natural swap is for `gallery-8-jei-ring.png` (pick 6), which sells a
+compatibility detail rather than the mod. The six picks are his call, so nothing has been
+changed in the PUBLISHING table.

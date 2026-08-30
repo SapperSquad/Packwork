@@ -78,6 +78,11 @@ runs {
         if (project.hasProperty('gifshot')) {
             systemProperty 'packwork.gifshot', '1'
         }
+        // The worn-pack HERO shoot: ./gradlew runClient -Pwornhero -Pcurios stages a camp,
+        // shoots three-quarter store frames, then captures a turntable clip.
+        if (project.hasProperty('wornhero')) {
+            systemProperty 'packwork.wornhero', '1'
+        }
     }
 
     server {

@@ -265,17 +265,31 @@ Upload these six, in this order (plus the banner as featured and the icon as pro
 
 **Not store picks** (kept in `promo/` as extras for posts and update galleries):
 `promo/gallery-5-keep.png` (keep-my-layout holding an arrangement),
-`promo/gallery-6-pickup-pin.png` (drop-to-pin note + the pack-first pickup toggle), and
-the two 1.1.0 worn-pack frames below.
+`promo/gallery-6-pickup-pin.png` (drop-to-pin note + the pack-first pickup toggle),
+`promo/gallery-10-worn-canvas.png` and `promo/gallery-11-worn-over-armor.png`.
 
-**Wants SapperSquad's eyes before it goes on the store page:** `promo/gallery-9-worn-sculkhide.png`
-and `promo/gallery-10-worn-canvas.png` are the new worn-render shots, straight out of
-`./gradlew runClient -Pwornshot -Pcurios` (1920x1080, long lens, sky pad). They are honest
-and readable — the trim and buckle are unmistakable at full size — but they are a stone-brick
-pad and a lot of sky, not a hero frame, and the worn pack is 1.1.0's headline. Worth a
-framing pass (a real camp, dusk, something behind the player) before it displaces one of the
-six picks. Suggested caption if it goes up: *"Wear it and it shows — every tier's own
-leather and trim, right where you'd expect it."*
+**One swap wants SapperSquad's yes.** The worn-pack frames have been **re-shot as heroes**
+(`./gradlew runClient -Pwornhero -Pcurios`): closer lens, a camp with a lit campfire instead
+of a stone slab, morning light, and a genuine **three-quarter** angle on the pack rather than
+the dead-on rear view the proof shoot could manage. `promo/gallery-9-worn-sculkhide.png` is
+now a frame worth posting, and worn rendering is 1.1.0's headline feature with nothing in the
+six selling it.
+
+> **The recommendation:** put `gallery-9-worn-sculkhide.png` in at **pick 6**, displacing
+> `gallery-8-jei-ring.png` — the JEI ring sells a compatibility detail to people already
+> reading the page, where the worn pack sells the mod to people scrolling past.
+> Caption: *"Wear it and it shows — every tier's own leather and trim, right where you'd
+> expect it."*
+> The six picks are SapperSquad's call (see DECISIONS), so the table above is **unchanged**
+> until he says so.
+
+**Moving pictures** (not store gallery entries — Modrinth accepts GIFs, but these are sized
+for posts and Discord):
+
+| File | What it is |
+|---|---|
+| `promo/packwork-sorting.gif` | 640x360, 21 s, 6.8 MB. The one that answers "why not Sophisticated" without a word: a messy inventory, a shift-click dump, the compartments proving they were filled all along, bread pinned where the player put it, and a close on the pack standing in the world. Loops back to the open GUI. |
+| `promo/packwork-worn-spin.gif` | 640x360, 5.0 s, 4.2 MB. A full 360° turntable of a worn Sculkhide pack. Both are under Discord's 10 MB embed cap. |
 
 **Art carrying version-specific claims** (trinket counts, tier list, MC version): keep it
 in step with the changelog. All four resource stores ship (fluids, XP, energy always; gas
