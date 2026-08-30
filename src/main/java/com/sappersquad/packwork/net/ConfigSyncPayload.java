@@ -52,6 +52,9 @@ public record ConfigSyncPayload(PackworkConfig.Values values) implements CustomP
         for (ResourceLocation id : v.neverAutoEat()) {
             buf.writeResourceLocation(id);
         }
+        buf.writeVarInt(v.valveDefaultKeepStacks());
+        buf.writeVarInt(v.pressKeepLoose());
+        buf.writeBoolean(v.pressIncludes2x2());
     }
 
     private static ConfigSyncPayload read(RegistryFriendlyByteBuf buf) {
@@ -95,8 +98,12 @@ public record ConfigSyncPayload(PackworkConfig.Values values) implements CustomP
         for (int i = 0; i < noEatCount; i++) {
             noEat.add(buf.readResourceLocation());
         }
+        int valveKeep = buf.readVarInt();
+        int pressKeep = buf.readVarInt();
+        boolean press2x2 = buf.readBoolean();
         return new ConfigSyncPayload(new PackworkConfig.Values(slots, depth, fluid, xp, fe, vapor,
-                enabled, death, magnetRange, magnetTicks, packFirst, Set.copyOf(noEat)));
+                enabled, death, magnetRange, magnetTicks, packFirst, Set.copyOf(noEat),
+                valveKeep, pressKeep, press2x2));
     }
 
     @Override

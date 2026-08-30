@@ -57,6 +57,28 @@ nothing.
 For a modpack, prefer the tag — it merges with other packs and doesn't need a config edit.
 See [For packmakers](for-packmakers.md).
 
+### `[overflow_valve]`
+
+| Key | Default | Range | What it does |
+|---|---|---|---|
+| `default_keep_stacks` | `4` | 1–64 | The keep level a marked item lands on the first time a player gives it one, in vanilla stacks. They dial it per item in the pack GUI with **Shift+O** (1, 2, 4, 8, 16, then back round to "bin it outright"); this is only the starting number. |
+
+The Valve never touches an item the player has not marked, and never takes the count below
+the keep level. See [the one discard list](tiers-and-fittings.md) for how it and the Compass
+Rose share one list.
+
+### `[compacting_press]`
+
+| Key | Default | Range | What it does |
+|---|---|---|---|
+| `keep_loose` | `64` | 0–4096 | How many of an item the press leaves uncompacted, so there's always some to hand. `0` squeezes everything it can. |
+| `include_2x2` | `true` | — | Whether the press also does 2×2 families (nuggets → ingots and the like). `false` leaves it to 3×3 only. |
+
+The press only ever squeezes a family whose result **uncrafts back into exactly what went
+in** — that check is vanilla recipe data, so every modded ingot ladder that plays by the
+normal rules works with no config, and anything one-way is refused with no blocklist to
+maintain.
+
 ### `[trinkets]`
 
 One `true`/`false` line per fitting. Setting one to `false` pulls its recipe (JEI and the
@@ -78,6 +100,8 @@ cartographers_sleeve = true
 anglers_creel = true
 torchbearers_loop = true
 herbalists_bundle = true
+overflow_valve = true
+compacting_press = true
 waterskin_rack = true
 soul_vial = true
 charge_crystal = true

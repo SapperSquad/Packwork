@@ -61,7 +61,8 @@ public final class PackworkConfig {
             boolean[] trinketEnabled,
             DeathHandling deathHandling,
             double magnetRange, int magnetEveryTicks, boolean packFirstDefault,
-            Set<ResourceLocation> neverAutoEat) {
+            Set<ResourceLocation> neverAutoEat,
+            int valveDefaultKeepStacks, int pressKeepLoose, boolean pressIncludes2x2) {
 
         public int slotsFor(PackTier t) { return slots[t.ordinal()]; }
         public int stacksPerSlotFor(PackTier t) { return stacksPerSlot[t.ordinal()]; }
@@ -71,6 +72,9 @@ public final class PackworkConfig {
         public long vaporMbFor(PackTier t) { return vaporMb[t.ordinal()]; }
         public boolean enabled(TrinketType t) { return trinketEnabled[t.ordinal()]; }
     }
+
+    /** Convenience readers for the two 1.2.0 fittings, so call sites stay short. */
+    public static int valveDefaultKeepStacks() { return get().valveDefaultKeepStacks(); }
 
     /**
      * The shipped defaults - byte-identical to pre-config behaviour, and the single
@@ -98,7 +102,7 @@ public final class PackworkConfig {
         boolean[] trinkets = new boolean[TrinketType.values().length];
         java.util.Arrays.fill(trinkets, true);
         return new Values(slots, depth, fluid, xp, fe, vapor, trinkets,
-                DeathHandling.DROP, 5.0, 4, true, Set.of());
+                DeathHandling.DROP, 5.0, 4, true, Set.of(), 4, 64, true);
     }
 
     private static volatile Values local = defaults();
@@ -223,8 +227,13 @@ public final class PackworkConfig {
             if (id != null) noEat.add(id);
             else problems.add("'provisioner.never_auto_eat' entry \"" + s + "\" is not an item id; skipped");
         }
+        int valveKeep = SimpleToml.readInt(map, "overflow_valve.default_keep_stacks", 4, 1,
+                com.sappersquad.packwork.sort.PackLayout.Spill.MAX_KEEP, problems);
+        int pressKeep = SimpleToml.readInt(map, "compacting_press.keep_loose", 64, 0, 4096, problems);
+        boolean press2x2 = SimpleToml.readBool(map, "compacting_press.include_2x2", true, problems);
         return new Values(slots, depth, fluid, xp, fe, vapor, trinkets,
-                death, magnetRange, magnetTicks, packFirst, Set.copyOf(noEat));
+                death, magnetRange, magnetTicks, packFirst, Set.copyOf(noEat),
+                valveKeep, pressKeep, press2x2);
     }
 
     // ------------------------------------------------------------------
@@ -271,6 +280,23 @@ public final class PackworkConfig {
                 # Extra items the Provisioner's Pouch must never auto-eat, on top of the
                 # packwork:never_auto_eat item tag. Item ids, e.g. ["minecraft:golden_carrot"].
                 never_auto_eat = []
+
+                [overflow_valve]
+                # The keep level a marked item starts at when you give it one, in vanilla
+                # stacks. The player sets it per item in the pack GUI (Shift+O over the item
+                # cycles 1, 2, 4, 8, 16 stacks and back round to "bin it outright"); this is
+                # only the number the first press lands on. Range 1..64.
+                # The Valve NEVER touches an item the player has not marked, and never takes
+                # the count below the keep level.
+                default_keep_stacks = 4
+
+                [compacting_press]
+                # How many of an item the press leaves loose before it starts squeezing, so
+                # you always have some to hand. 0 = squeeze everything it can. Range 0..4096.
+                keep_loose = 64
+                # Whether the press also does 2x2 families (nuggets -> ingots, and the like).
+                # false leaves it to 3x3 only.
+                include_2x2 = true
 
                 [trinkets]
                 # Set any fitting to false to retire it: its recipe is pulled (JEI and the

@@ -151,7 +151,10 @@ public final class HandbookContent {
                 trinket(TrinketType.COMPASS_ROSE), trinket(TrinketType.QUILL_LEDGER),
                 trinket(TrinketType.QUICK_DRAW)),
             text("COMPASS ROSE is the only way a pack throws anything away, and it's opt-in: hover an "
-                + "item and press O to mark it, and only marked items are voided on the way in."),
+                + "item and press O to mark it, and only marked items are voided on the way in. That "
+                + "marked list is the pack's ONE discard list - fit an OVERFLOW VALVE and the same "
+                + "list grows a dial, so a marked thing can mean 'keep this much' instead of 'keep "
+                + "none'. See the last shelf of this chapter."),
             text("QUILL & LEDGER is the rule editor. Fit it, open a custom compartment, and click "
                 + "the quill under the grid: a parchment sheet where you write your own filters - "
                 + "by name ('ingot'), by mod, or by category chip - and strike them off again. "
@@ -189,7 +192,22 @@ public final class HandbookContent {
                 + "its items re-route, because a tab was only ever a filter."),
             text("HERBALIST'S BUNDLE replants a grown crop the instant you pull it, spending one seed "
                 + "out of your own stock. If the ground is taken by the time it gets there, the seed "
-                + "comes home."))),
+                + "comes home."),
+            row("hauling less of it",
+                trinket(TrinketType.OVERFLOW_VALVE), trinket(TrinketType.COMPACTING_PRESS)),
+            text("OVERFLOW VALVE is the other half of the Compass Rose, and it reads the same list. "
+                + "Hover a thing and press O to mark it; with a Valve fitted, marking means 'carry "
+                + "some of this and no more', and SHIFT+O dials how much - 1, 2, 4, 8, 16 stacks, "
+                + "then round again to nothing at all. At nothing at all it's the Rose's old "
+                + "contract: binned at the door, never let in. At any other setting the pack takes "
+                + "it, files it, and lets the surplus run out of the valve as you walk. One list, "
+                + "one dial, and it never touches a thing you didn't mark - or takes you below the "
+                + "number you set."),
+            text("COMPACTING PRESS squeezes nine into one down in the pack's floor - ingots to "
+                + "blocks, nuggets to ingots, and whatever your other mods stack the same way. Its "
+                + "one rule keeps it safe: it only presses what presses BACK, so anything you can't "
+                + "undo on a bench it won't touch. It leaves a stack of each loose so you've always "
+                + "got some to hand, and if the block wouldn't fit it doesn't take the ingots."))),
 
         // =================================================================
         new Chapter("Tiers & Upgrades", List.of(
