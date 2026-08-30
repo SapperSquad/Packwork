@@ -3,7 +3,7 @@ package com.sappersquad.packwork.config;
 import com.sappersquad.packwork.pack.PackTier;
 import com.sappersquad.packwork.sort.PackLayout;
 import com.sappersquad.packwork.trinket.TrinketType;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +61,7 @@ public final class PackworkConfig {
             boolean[] trinketEnabled,
             DeathHandling deathHandling,
             double magnetRange, int magnetEveryTicks, boolean packFirstDefault,
-            Set<ResourceLocation> neverAutoEat) {
+            Set<Identifier> neverAutoEat) {
 
         public int slotsFor(PackTier t) { return slots[t.ordinal()]; }
         public int stacksPerSlotFor(PackTier t) { return stacksPerSlot[t.ordinal()]; }
@@ -217,9 +217,9 @@ public final class PackworkConfig {
         double magnetRange = SimpleToml.readDouble(map, "lodestone.magnet_range", 5.0, 0.0, 16.0, problems);
         int magnetTicks = SimpleToml.readInt(map, "lodestone.magnet_every_ticks", 4, 1, 200, problems);
         boolean packFirst = SimpleToml.readBool(map, "lodestone.pack_first_default", true, problems);
-        Set<ResourceLocation> noEat = new HashSet<>();
+        Set<Identifier> noEat = new HashSet<>();
         for (String s : SimpleToml.readStringList(map, "provisioner.never_auto_eat", List.of(), problems)) {
-            ResourceLocation id = ResourceLocation.tryParse(s);
+            Identifier id = Identifier.tryParse(s);
             if (id != null) noEat.add(id);
             else problems.add("'provisioner.never_auto_eat' entry \"" + s + "\" is not an item id; skipped");
         }
