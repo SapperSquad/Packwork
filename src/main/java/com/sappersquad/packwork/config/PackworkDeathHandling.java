@@ -54,7 +54,7 @@ public final class PackworkDeathHandling {
         if (event.isCanceled()) return; // a grave/corpse mod took custody; respect it
         PackworkConfig.DeathHandling mode = PackworkConfig.get().deathHandling();
         if (mode == PackworkConfig.DeathHandling.DROP) return;
-        sweepPackDrops(sp, sp.serverLevel(), sp.blockPosition(), event.getDrops(), mode);
+        sweepPackDrops(sp, sp.level(), sp.blockPosition(), event.getDrops(), mode);
     }
 
     /**
@@ -91,8 +91,8 @@ public final class PackworkDeathHandling {
      * somewhere sensible). Returns false when nothing honest exists (void, solid rock).
      */
     public static boolean placePackAt(ServerLevel level, BlockPos deathPos, ItemStack pack) {
-        int minY = level.getMinBuildHeight();
-        int maxY = level.getMaxBuildHeight() - 1;
+        int minY = level.getMinY();
+        int maxY = level.getMaxY() - 1;
         BlockPos start = new BlockPos(deathPos.getX(),
                 Math.max(minY, Math.min(maxY, deathPos.getY())), deathPos.getZ());
         int[] yOffsets = {0, 1, -1, 2, -2, 3, 4, 5, 6, 7, 8};
