@@ -32,8 +32,10 @@ public record PackChemical(String chemical, long amount) {
         return chemical.isEmpty() || amount <= 0;
     }
 
-    /** Tank size in mB, tier-scaled. Dist-neutral so the gauge can read it without Mekanism. */
+    /** Tank size in mB: per-tier, packmaker-tunable ({@code tiers.<name>.vapor_mb}).
+     *  Dist-neutral so the gauge can read it without Mekanism. */
     public static long capacityFor(ItemStack pack) {
-        return 16_000L * PackItem.tierOf(pack).step(); // Canvas 16k mB .. Sculkhide 96k mB
+        return com.sappersquad.packwork.config.PackworkConfig.get()
+                .vaporMbFor(PackItem.tierOf(pack)); // default: Canvas 16k mB .. Sculkhide 96k
     }
 }

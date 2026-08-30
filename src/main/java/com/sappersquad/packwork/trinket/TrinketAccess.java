@@ -22,15 +22,20 @@ public final class TrinketAccess {
         EnumSet<TrinketType> set = EnumSet.noneOf(TrinketType.class);
         ItemContainerContents c = pack.get(ModComponents.PACK_TRINKETS.get());
         if (c != null) {
+            var config = com.sappersquad.packwork.config.PackworkConfig.get();
             c.nonEmptyStream().forEach(s -> {
                 TrinketType t = TrinketType.of(s);
-                if (t != null) set.add(t);
+                // A config-disabled fitting sleeps in its socket: still visible, still
+                // removable, but "not installed" to every effect, gate, gauge and
+                // capability - and it wakes with everything intact when re-enabled.
+                if (t != null && config.enabled(t)) set.add(t);
             });
         }
         return set;
     }
 
     public static boolean has(ItemStack pack, TrinketType type) {
+        if (!com.sappersquad.packwork.config.PackworkConfig.get().enabled(type)) return false;
         ItemContainerContents c = pack.get(ModComponents.PACK_TRINKETS.get());
         if (c == null) return false;
         return c.nonEmptyStream().anyMatch(s -> TrinketType.of(s) == type);

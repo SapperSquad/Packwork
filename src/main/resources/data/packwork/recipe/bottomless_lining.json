@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "bottomless_lining" } ],
   "pattern": ["WLW", "LEL", "WLW"],
   "key": { "W": "minecraft:phantom_membrane", "L": "minecraft:leather", "E": "minecraft:ender_pearl" },
   "result": { "id": "packwork:bottomless_lining", "count": 1 } }

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "provisioners_pouch" } ],
   "pattern": [" S ", "LBL", "LLL"],
   "key": { "S": "minecraft:string", "B": "minecraft:bread",
            "L": "minecraft:leather" },
