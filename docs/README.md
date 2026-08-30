@@ -12,7 +12,7 @@ Leather, brass, canvas, glass vials. Never a circuit board.
 | Page | What's in it |
 |---|---|
 | [Sorting](sorting.md) | Compartments, the rules engine, pins, search, Tidy vs. Keep-my-layout. The reason the mod exists. |
-| [Tiers & fittings](tiers-and-fittings.md) | The six-step material ladder, per-slot depth, and all 18 fittings with what each one actually does. |
+| [Tiers & fittings](tiers-and-fittings.md) | The six-step material ladder, per-slot depth, and all 20 fittings with what each one actually does. |
 | [Stores & automation](stores-and-automation.md) | Fluids, XP, arcane charge and bottled vapors — and how hoppers, pipes and cables talk to a placed pack. |
 | [Configuration](config.md) | Every key in `packwork-server.toml` and `packwork-client.toml`: default, range, what it changes. |
 | [For packmakers](for-packmakers.md) | What to turn off, the tags the sorter reads, and adding your own compartment categories from a datapack. |

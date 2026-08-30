@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:keep_level_takes_the_item_off_the_roses_bin_list",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

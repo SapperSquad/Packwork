@@ -80,6 +80,10 @@ public final class PackClientActions {
         send(menu, PackAction.VOID_TOGGLE, 0, "", itemId);
     }
 
+    public static void spillCycle(PackMenu menu, String itemId) {
+        send(menu, PackAction.SPILL_CYCLE, 0, "", itemId);
+    }
+
     public static void fluidInteract(PackMenu menu) {
         send(menu, PackAction.FLUID_INTERACT, 0, "", "");
     }
