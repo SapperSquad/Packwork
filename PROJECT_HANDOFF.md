@@ -284,12 +284,69 @@ have `ResourceHandlerSlot` waiting). Likely also gone by 26.x: the compatibility
 String overloads and other 1.21.x grace shims. Everything else (recipes, ledger sync,
 client items, test registry, GUI pipeline) is already on the 26.x-era foundations.
 
-## Status — 1.0.0 stamped, awaiting SapperSquad's upload
+## Status — 1.1.0 stamped on master, awaiting SapperSquad's upload
 
-> Newest first. Full source map and roadmap below. Version is **1.0.0** (SapperSquad's call,
-> stamped 2026-07-26; jar = `packwork-1.0.0.jar`); the upload itself is SapperSquad's, from
-> `PUBLISHING.md`. **57 GameTests green** (with no optional deps AND with
-> -Pforgework -Pmekanism -Pcurios combined); `runData` and the full jar build clean.
+> Newest first. Full source map and roadmap below. Version is **1.1.0** (stamped
+> 2026-08-30; jar = `packwork-1.1.0.jar`); the upload itself is SapperSquad's, from
+> `PUBLISHING.md`. **66 GameTests green** (plain, `-Pcurios`, and
+> `-Pcurios -Pjei -Pmekanism -Pforgework` combined); `runData` and the full jar build
+> clean; the built jar's own `neoforge.mods.toml` reads `version="1.1.0"` and all
+> eleven lang files are inside it (verified by extraction).
+
+**2026-08-30 — the ADOPTION WAVE (1.1.0 "Field Kit"). Master done; ports pending.**
+The wave that makes the mod easy to run, easy to tune, and easy to talk about. Nothing is
+taken away and no existing pack changes. Six items, each its own commit:
+
+1. **The worn pack renders on your back** (`client/WornPackLayer`, registered from
+   `ClientSetup.addPlayerLayers` only when Curios is loaded; the worn stack is read through
+   `CuriosCompat`, so the one-class gate holds). It reuses the per-tier **BLOCK model**, so
+   every tier's trim carries onto the shoulders for free. It rides `PlayerModel.body`
+   (crouch/swim/mount poses come along), steps aside for an elytra, hides with invisibility,
+   and honours the client-only `show_worn_pack`.
+   **The geometry, since it is fiddly:** after `body.translateAndRotate` the pose is in
+   BLOCK units, y-DOWN, back at +z. `translate(0, 0.30, chest.isEmpty() ? 0.27 : 0.32)` then
+   `Axis.XP.rotationDegrees(180)` maps block-space up→up and the block's NORTH face (the
+   flap, which carries the trim) outward; `scale(0.50)` then `translate(-0.5,-0.5,-0.5)`
+   centres it. The first pass (0.62 / y 0.36 / z 0.16) swallowed the whole torso and sat
+   buried in the spine — **found only in the pixels**.
+   **Verified as pixels** via a new `-Pwornshot` DevAutoShot chain (sky pad, third-person
+   back and front, 1920x1080 at FOV 38, seven framed checks): Canvas and Sculkhide, over a
+   diamond chestplate, crouching, from the front, under an elytra, and with the toggle off.
+   Two harness traps found in the doing, both of which FAKE a pass: `Inventory.clearContent()`
+   empties the armor row (clearing after equipping silently wiped the chestplate and the
+   elytra), and a minimised dev window writes a 70-byte PNG that logs as a success — `grab()`
+   now refuses below 64x64 and logs an error.
+2. **Handbook chapter 6: Field Reports.** `HandbookContent` gained a `LinkEntry` to its
+   sealed union plus `ISSUES_URL`/`DISCORD_URL` constants; the screen draws links in brass
+   with a rule, brightening on hover, and routes clicks through vanilla's
+   `ConfirmLinkScreen.confirmLinkNow` (the player sees the URL and says yes; it hands the
+   book back either way). Entries are ordered so **both links land on the page the chapter
+   opens on** — the first shoot put Discord behind a pager click.
+3. **Ten machine-drafted locales** (zh_cn, ru_ru, pt_br, de_de, fr_fr, es_es, ja_jp, ko_kr,
+   pl_pl, uk_ua), 133 keys each, every file carrying a `packwork.translation.status` line
+   saying it has not had a native pass. New `tools/CheckLang.java` (Java-only) fails on a
+   missing key, an orphan from a rename, and on a drifted `%s` count — the one translation
+   mistake that crashes a screen. New `packwork.handbook.report` lang key on the Handbook
+   item's tooltip so a translator can point players at the door that reaches the author;
+   zh_cn's says GitHub/Discord and that the author cannot see MC百科 comments. **Verified as
+   pixels**: the whole autoshot chain ran under `lang:zh_cn`, CJK renders in the pack GUI
+   with no overflow. **Scope call left open for SapperSquad:** the Handbook's long prose stays
+   English (see DECISIONS).
+4. **`docs/`** — index, sorting, tiers & fittings, stores & automation, **every config key
+   with default and range**, and a **for-packmakers** page (what to turn off, the exact tag
+   list each compartment reads and the order they are checked in, datapack tag conventions).
+   `docs/README.md` is the folder index, so the GitHub tree URL renders as the manual: that
+   is the Modrinth `wiki_url`.
+5. **Store copy** — modpack permission stated outright, a **verified** Fabric positioning
+   line (Sophisticated Backpacks' Modrinth project lists `forge`,`neoforge` and no fabric,
+   checked 2026-08-30, and it is otherwise current with 26.1.2/26.2 builds), the upload
+   table at 1.1.0 across all 8 rows, a 1.1.0 changelog block, and a paste-ready table for
+   the empty Modrinth fields (issues / source / wiki / discord).
+6. **Stamped 1.1.0** on `gradle.properties mod_version` (the single source).
+
+**Open for SapperSquad:** the two worn-render frames in `promo/` are honest proof but not hero
+frames (a stone pad and a lot of sky) — the worn pack is this release's headline and
+deserves a framing pass before it displaces one of the six store picks.
 
 **2026-07-26 release stamping — 1.0.0 (SapperSquad's final calls after his confirm pass).**
 Version **1.0.0** stamped everywhere: `gradle.properties mod_version` (the single source —

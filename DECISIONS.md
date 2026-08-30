@@ -716,3 +716,43 @@ dep; runtime inclusion is opt-in per gradle flag). Maven wiring lives in `build.
   (+ its maven repo) which isn't in the local cache; native inventory-use + the B keybind
   already satisfy "wear it," so this is an enhancement, gated `ModList.isLoaded("curios")`
   when added.
+
+## 2026-08-30 — the adoption wave (1.1.0): five calls made while building
+
+- **The worn pack reuses the BLOCK model, not a new one.** A bespoke worn model would be a
+  seventh art asset per tier that could drift from the other six. Rendering
+  `ModBlocks.PACK` at the worn tier means every trim pass — studs, plates, glyphs, echo
+  veins — lands on the player's back the same day it lands on the ground, for free. The
+  cost is that the pack reads as a slightly boxy block rather than a soft slouched bag.
+  Judged worth it; reopen if SapperSquad wants a softer worn silhouette badly enough to accept
+  six more textures and a model that can drift.
+
+- **The worn render hides under an elytra rather than moving aside.** Both back-slot
+  occupants want the same 0.2 blocks of space; overlaying them z-fights, and shifting the
+  pack down onto the belt to make room looks like a bug in every other pose. Vanishing is
+  the only reading a player interprets correctly ("wings are on"). Same reason it hides on
+  invisibility.
+
+- **`show_worn_pack` is CLIENT-only and never synced.** It is a cosmetic about your own
+  screen; a server has no business deciding whether you can see your own pack. It lives in
+  `packwork-client.toml` alongside nothing else, deliberately — the server file is for the
+  things the server must actually agree on.
+
+- **The Handbook's long-form prose stays ENGLISH; the 133 UI keys get translated.** The
+  book is several thousand words and is plain Java strings on purpose (the numbers
+  interpolate from `PackTier` and the store helpers so they cannot go stale). Machine-
+  translating that much narrative, unreviewed, reads worse than leaving it in a language
+  the reader can at least recognise as foreign — and `docs/` covers the same ground in a
+  browser where a reader can use their own translator. The UI strings are different: they
+  are short, they are what a player sees a hundred times an hour, and a rough translation
+  there still beats English. **Flagged for SapperSquad**: if he wants the book translated too,
+  it needs the prose extracted to lang keys with the interpolated numbers passed as `%s`
+  arguments — a real refactor, not a copy-paste, and worth doing only if a native speaker
+  is actually going to review the result.
+
+- **Locales ship machine-drafted and SAY SO, rather than waiting for native speakers.**
+  Every file carries a `packwork.translation.status` line (an unused key; never rendered).
+  A rough translation a player can read beats an English-only mod they bounce off, and the
+  honest label is what turns "this is bad" into "I'll fix it" — which is the point of the
+  README's Languages section. The failure mode this guards against is claiming a quality of
+  translation that has not happened.

@@ -2,7 +2,7 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
-## 1.1.0 — 2026-08-30 (in progress)
+## 1.1.0 "Field Kit" — 2026-08-30
 
 The adoption wave: the things that make a pack easy to run, easy to tune, and easy to
 talk about.
