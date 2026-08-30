@@ -16,6 +16,11 @@ talk about.
   to put in it, and two brass-ruled links — GitHub issues and the Discord — that open in
   your browser after your game asks you first. Nothing pops up, nothing nags; the page is
   just there when you want it.
+- **Ten more languages.** Simplified Chinese, Russian, Brazilian Portuguese, German,
+  French, Spanish, Japanese, Korean, Polish and Ukrainian — every item, tooltip,
+  compartment name, button and keybind. These are **machine-drafted first passes**, not
+  yet read by native speakers; if one reads wrong to you, a one-line pull request is very
+  welcome (see the README). The Handbook's long prose stays English for now.
 
 ## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
 
