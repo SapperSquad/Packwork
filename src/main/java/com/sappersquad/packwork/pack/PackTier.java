@@ -44,8 +44,13 @@ public enum PackTier implements StringRepresentable {
         this.lightLevel = lightLevel;
     }
 
-    /** Total backing slots this tier can hold. */
+    /** Total backing slots this tier can hold. Packmaker-tunable ({@code tiers.<name>.slots}). */
     public int capacity() {
+        return com.sappersquad.packwork.config.PackworkConfig.get().slotsFor(this);
+    }
+
+    /** The shipped default slot count - what {@code capacity()} returns untuned. Config seeds from this. */
+    public int baseCapacity() {
         return capacity;
     }
 
@@ -69,7 +74,7 @@ public enum PackTier implements StringRepresentable {
      * scale by the same multiplier (pearls: 16, 32, ...); unstackables never stack.
      */
     public int depthMultiplier() {
-        return step();
+        return com.sappersquad.packwork.config.PackworkConfig.get().stacksPerSlotFor(this);
     }
 
     /** The one depth rule: a slot holds {@code itemMaxStack x step}, and unstackables never stack. */

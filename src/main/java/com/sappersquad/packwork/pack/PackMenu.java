@@ -157,6 +157,7 @@ public class PackMenu extends AbstractContainerMenu {
         this.liveSupplier = hostContainer != null
                 ? () -> hostContainer.getItem(0)
                 : () -> playerInv.getItem(boundSlot);
+
         // 26.1: the internals ride the transfer API, so the store binds to a live
         // ItemAccess per host - the player-inventory slot (carried) or the one-slot
         // host container (placed / worn / client mirror). Both resolve the CURRENT
@@ -168,7 +169,9 @@ public class PackMenu extends AbstractContainerMenu {
                 : net.neoforged.neoforge.transfer.access.ItemAccess.forPlayerSlot(playerInv.player, boundSlot);
         this.packInv = new PackInventory(hostAccess, tier);
         this.trinketInv = new PackTrinketInventory(hostAccess, tier);
-        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        // The layout DEFAULT now comes from config (pack_first_default), not a constant.
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
         this.tabs = SortEngine.tabsFor(layout, fitted());
         this.activeTab = firstRealTab();
 
@@ -493,7 +496,8 @@ public class PackMenu extends AbstractContainerMenu {
     /** Recompute which backing slots each grid cell shows. Runs identically on both sides. */
     public void rebuildView() {
         // Re-read the durable layout from the (synced) live stack so both sides stay current.
-        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
         this.tabs = SortEngine.tabsFor(layout, fitted());
         int visible = visibleSlots();
         List<Integer> order = new ArrayList<>();
@@ -1521,7 +1525,8 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     private PackLayout currentLayout() {
-        return liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        return liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
     }
 
     private List<String> ensureOrder(PackLayout cur) {

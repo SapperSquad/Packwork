@@ -167,6 +167,9 @@ public class PackworkJeiPlugin implements IModPlugin {
                     Component.translatable("packwork.jei.pack.tier", tier.capacity(), tier.trinketSlots()));
         }
         for (TrinketType type : TrinketType.values()) {
+            // A config-retired fitting keeps no info page either - its recipe is already
+            // condition-pulled, so JEI shows nothing of it at all.
+            if (!com.sappersquad.packwork.config.PackworkConfig.get().enabled(type)) continue;
             reg.addItemStackInfo(new ItemStack(ModItems.trinket(type).get()),
                     Component.translatable("packwork.jei.trinket.header"),
                     type.description());

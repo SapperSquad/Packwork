@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "waterskin_rack" } ],
   "pattern": ["BLB", "LCL", "BLB"],
   "key": { "B": "minecraft:glass_bottle", "L": "minecraft:leather", "C": "minecraft:copper_ingot" },
   "result": { "id": "packwork:waterskin_rack", "count": 1 } }

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "quick_draw_straps" } ],
   "pattern": ["L L", "BLB", "L L"],
   "key": { "L": "minecraft:leather", "B": "minecraft:copper_ingot" },
   "result": { "id": "packwork:quick_draw_straps", "count": 1 } }

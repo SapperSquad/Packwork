@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "compass_rose" } ],
   "pattern": [" C ", "CLC", " R "],
   "key": { "C": "minecraft:copper_ingot", "L": "minecraft:compass", "R": "minecraft:redstone" },
   "result": { "id": "packwork:compass_rose", "count": 1 } }
