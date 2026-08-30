@@ -2,6 +2,89 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.1.0 — 2026-08-30 (in progress)
+
+The adoption wave: the things that make a pack easy to run, easy to tune, and easy to
+talk about.
+
+- **Your pack shows up on your back.** Wear one in a back slot and it renders there —
+  the same per-tier leather, buckle and trim a set-down pack shows, right down to the
+  Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
+  aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
+  in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
+
+## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
+
+Packwork crosses the loader line: the same 1.0.0 "First Haul" on **Fabric**, for the
+26.1.x and 26.2 lines. Nothing gameplay-visible changed; each build passes the same
+58-test suite (plain, with Trinkets, with JEI + Trinkets) plus a pixel-inspected GUI
+pass — sorting grid, deep counts, gauges, rule editor, Recipe Ledger, six-tier
+placed trim, handbook, and the JEI upgrade ring.
+
+- **New:** Fabric **26.1.x** and **26.2** builds (loader 0.19.3+, Fabric API), from
+  `fabric/26.1` and `fabric/26.2`, jars named `packwork-1.0.0+mc<ver>-fabric.jar`.
+- **Wear on Fabric = Trinkets** (the maintained Trinkets Updated fork): the pack rides
+  the chest/back slot, B / Shift-B behave exactly as with Curios on NeoForge, worn
+  trinkets keep ticking, and everything works without it (both wear mods stay optional).
+- **Energy on Fabric = Team Reborn Energy**, the ecosystem's standard, bundled inside
+  the jar (never a mod to install). Same reservoir, same numbers: 1 E = 1 FE.
+- **JEI renders the pack ladder on Fabric too** — the full nine-cell ring, pack
+  centered. Under the hood the upgrade recipes now opt into Fabric's client recipe
+  sync, so any viewer reading synced recipes can see them.
+- Hoppers, pipes, and cables feed a placed pack through Fabric's own transfer API —
+  same standard-first story as NeoForge, no bridge blocks.
+- **Mekanism and Forgework are NeoForge-only mods**, so the gas store and the Flux
+  bridge stay dark on Fabric (no dead craftables; the Flask Harness recipe requires
+  Mekanism present and stays off the creative shelf there).
+- Internal, for the curious: the storage internals mapped straight onto Fabric's
+  transactional transfer API (the design NeoForge's 21.9 rework shares), with the
+  same three rules — per-slot depth, nesting refusal, one-stack pulls — enforced at
+  the same native choke points, pinned by the same conservation gametests. Exactly
+  three mixins where Fabric has no event: pack-first pickup, the Angler's Creel
+  catch, and Quick-Draw's broken-tool refill (break-only on Fabric, documented).
+
+## 1.0.0+mc26.1.2 / +mc26.2 — 2026-08-13 (version ports, wave 2)
+
+The same 1.0.0 "First Haul" on Minecraft's 26.x lines. Nothing gameplay-visible
+changed; each port passes the same 58-test suite (plain, with Curios, with JEI +
+Curios) plus a pixel-inspected GUI pass against the master gallery.
+
+- **New:** NeoForge **26.1.2** (26.1.2.95) and **26.2** (26.2.0.59) builds, from
+  `port/26.1` and `port/26.2`, jars named `packwork-1.0.0+mc<ver>.jar`.
+- Per-version soft deps: JEI (29 / 30) and Curios (15 / 16) light up on both lines.
+  **Mekanism and Forgework stay 1.21.1-only** - the gas store and the Flux bridge
+  simply stay dark on 26.x (no dead craftables).
+- Internal, for the curious: 26.1 rebuilt vanilla's item-container component on
+  templates that reject oversized stacks on read, so the pack's DEEP store now rides
+  its own holder (`PackContents`) - same save format, same 384-a-slot depth - and
+  the storage internals went fully native on NeoForge's transactional transfer API:
+  one handler now backs the standard capability AND the menu/trinkets/sorting, so
+  the depth clamp, nesting refusal, and one-stack pulls are provably the same rules
+  inside and out. Conservation is pinned by the same gametests as every other line.
+- Fixed in passing (all versions): a handbook caption that clipped at the panel edge
+  ("one ladder, every pack") now sits whole on its own line above the pack row.
+
+## 1.0.0+mc1.21.8 / +mc1.21.10 / +mc1.21.11 — 2026-08-13 (version ports, wave 1)
+
+The same 1.0.0 "First Haul", ported to three more NeoForge lines so more players can
+carry one. Nothing gameplay-visible changed - the sorting, trinkets, stores, ledger,
+and worn-slot opening all behave exactly as on 1.21.1, and each port passes the same
+57-test suite (plain, with Curios, with JEI + Curios) plus a pixel-inspected GUI pass.
+
+- **New:** NeoForge **1.21.8** (21.8.54), **1.21.10** (21.10.64), and **1.21.11**
+  (21.11.45) builds, each from its own `port/` branch with the jar named
+  `packwork-1.0.0+mc<ver>.jar`.
+- Per-version soft deps: JEI and Curios light up on every line (JEI 24/26/27,
+  Curios 12/13/14). **Mekanism and Forgework stay 1.21.1-only** - neither ships for
+  the newer lines yet, so the gas store and the Flux bridge simply stay dark there
+  (no dead craftables; the Flask Harness recipe still requires Mekanism present).
+- Internal, for the curious: the newer lines rebuilt several foundations underneath
+  the same behavior - recipes are placement/display-based, the Recipe Ledger's
+  craftable scan runs server-side (clients stopped receiving recipes in 1.21.2),
+  gametests are registry entries, and on 1.21.10+ the standard capabilities are the
+  transactional transfer API. Conservation guarantees (depth clamps, no nesting,
+  one-stack pulls, pause-never-punish) are pinned by the same gametests everywhere.
+
 ## 1.0.0 "First Haul" — 2026-07-26
 
 The first public release. Everything below this header up to the internal 0.1.0

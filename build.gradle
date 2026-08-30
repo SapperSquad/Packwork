@@ -70,6 +70,12 @@ runs {
         if (project.hasProperty('gallery')) {
             systemProperty 'packwork.gallery', '1'
         }
+        // Worn-render shoot: ./gradlew runClient -Pwornshot -Pcurios - equips packs in the
+        // Curios back slot and screenshots the third-person back view (tiers, chestplate,
+        // crouch, elytra-hides) so the layer is verified as pixels.
+        if (project.hasProperty('wornshot')) {
+            systemProperty 'packwork.wornshot', '1'
+        }
     }
 
     server {
