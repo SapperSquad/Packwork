@@ -26,7 +26,8 @@ public class ModAttachments {
             ATTACHMENTS.register("kept_packs", () -> AttachmentType.<List<ItemStack>>builder(
                             (Supplier<List<ItemStack>>) ArrayList::new)
                     .serialize(ItemStack.CODEC.listOf()
-                            .xmap(l -> (List<ItemStack>) new ArrayList<>(l), l -> l), list -> !list.isEmpty())
+                            .xmap(l -> (List<ItemStack>) new ArrayList<>(l), l -> l)
+                            .fieldOf("packs"), list -> !list.isEmpty())
                     .copyOnDeath()
                     .build());
 }

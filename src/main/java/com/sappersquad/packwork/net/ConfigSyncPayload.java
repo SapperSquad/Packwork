@@ -7,7 +7,7 @@ import com.sappersquad.packwork.trinket.TrinketType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -49,8 +49,8 @@ public record ConfigSyncPayload(PackworkConfig.Values values) implements CustomP
         buf.writeVarInt(v.magnetEveryTicks());
         buf.writeBoolean(v.packFirstDefault());
         buf.writeVarInt(v.neverAutoEat().size());
-        for (ResourceLocation id : v.neverAutoEat()) {
-            buf.writeResourceLocation(id);
+        for (Identifier id : v.neverAutoEat()) {
+            buf.writeIdentifier(id);
         }
     }
 
@@ -91,9 +91,9 @@ public record ConfigSyncPayload(PackworkConfig.Values values) implements CustomP
         int magnetTicks = buf.readVarInt();
         boolean packFirst = buf.readBoolean();
         int noEatCount = buf.readVarInt();
-        Set<ResourceLocation> noEat = new HashSet<>();
+        Set<Identifier> noEat = new HashSet<>();
         for (int i = 0; i < noEatCount; i++) {
-            noEat.add(buf.readResourceLocation());
+            noEat.add(buf.readIdentifier());
         }
         return new ConfigSyncPayload(new PackworkConfig.Values(slots, depth, fluid, xp, fe, vapor,
                 enabled, death, magnetRange, magnetTicks, packFirst, Set.copyOf(noEat)));
