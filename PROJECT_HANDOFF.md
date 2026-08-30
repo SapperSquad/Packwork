@@ -284,19 +284,49 @@ have `ResourceHandlerSlot` waiting). Likely also gone by 26.x: the compatibility
 String overloads and other 1.21.x grace shims. Everything else (recipes, ledger sync,
 client items, test registry, GUI pipeline) is already on the 26.x-era foundations.
 
-## Status — 1.1.0 on all eight branches, awaiting SapperSquad's upload
+## Status — 1.2.0 stamped, awaiting SapperSquad's upload
 
-> Newest first. Full source map and roadmap below. Version is **1.1.0** (stamped
-> 2026-08-30; jar = `packwork-1.1.0.jar`); the upload itself is SapperSquad's, from
-> `PUBLISHING.md`. **66 GameTests green** (plain, `-Pcurios`, and
-> `-Pcurios -Pjei -Pmekanism -Pforgework` combined); `runData` and the full jar build
-> clean; the built jar's own `neoforge.mods.toml` reads `version="1.1.0"` and all
-> eleven lang files are inside it (verified by extraction).
+> Newest first. Full source map and roadmap below. Version is **1.2.0 "Haul Less"**
+> (stamped 2026-08-30; jar = `packwork-1.2.0.jar`); the upload itself is SapperSquad's,
+> from `PUBLISHING.md`. **73 GameTests green** (plain, `-Pcurios`, and
+> `-Pcurios -Pjei -Pmekanism -Pforgework` combined); `runData` clean.
 >
-> **All eight branches now carry 1.1.0** (see the port-sweep table below): six NeoForge and
-> both Fabric, each green on its own suite and each jar's metadata read back by extraction.
-> The worn pack renders on **all eight** and has been looked at on each — the last two
-> (Fabric) on 2026-08-30; see "The Fabric worn render — VERIFIED".
+> The worn pack renders on **all eight** branches and has been looked at on each — the
+> last two (Fabric) on 2026-08-30; see "The Fabric worn render — VERIFIED".
+
+**2026-08-30 — 1.2.0 "Haul Less": the Overflow Valve and the Compacting Press.**
+Competitor read: magnet + void + compact is the trio that makes a backpack the default
+mining companion in a kitchen-sink pack. Packwork had the magnet (with pack-first routing
+nobody else does) and neither of the others.
+
+1. **Overflow Valve** (`TrinketType.OVERFLOW_VALVE`, `Kind.TICK`, every 40 ticks). Bleeds
+   the surplus of an item above a per-item **keep level**. The design call that matters is
+   in DECISIONS: it is **not a second void concept**. It reads the same
+   `PackLayout.voidList` the Compass Rose does, and what is new is a keep level per entry —
+   0 (the default, and what every pre-1.2.0 pack decodes to) means the Rose's bin-at-the-
+   door, anything else means the Valve's carry-this-much. `voids(id)` is now "listed AND
+   keep 0", so old behaviour is bit-identical and the two fittings split one list instead
+   of fighting over it.
+2. **Compacting Press** (`Kind.TICK`, every 40 ticks). 3×3 first, then 2×2. Its safety rule
+   is **reversibility**: the result must uncraft into exactly the same count of exactly the
+   same item, both halves answered by the vanilla recipe manager — so modded ladders work
+   free and lossy families (glowstone dust, sugar cane) are refused with no blocklist.
+   Ordering is `smeltOnce`'s: room for the output is checked before any input is taken.
+3. **GUI.** `O` marks (as before); **Shift+O** cycles the keep level 1 → 2 → 4 → 8 → 16 →
+   bin outright. New `PackAction.SPILL_CYCLE`; the ladder lives in
+   `PackMenu.nextKeepStacks` so the screen's note and the server's write can't drift.
+4. **Config.** `[overflow_valve] default_keep_stacks` (4), `[compacting_press] keep_loose`
+   (64) and `include_2x2` (true), all in the sync payload.
+5. **Verified as pixels**: both sprites in the montage and **in a real trinket socket** at
+   GUI size, plus the mark and the dial notes, via a new `FIT_*` leg on the `-Pautoshot`
+   chain (`packwork_fittings_1_2`, `packwork_valve_mark`, `packwork_valve_dial`).
+
+**The codec gotcha this cost, worth knowing before the next component lands:** vanilla's
+`StreamCodec.composite` tops out at **six** components (counted in the 1.21.1 sources).
+`PackLayout` was already at six, so the seventh (`spill`) forced a hand-rolled
+`StreamCodec` — written longhand in `PackLayout`, and the next component is now one line
+there rather than a refactor. `RecordCodecBuilder` is fine to 16, so `CODEC` was untouched.
+
 
 **2026-08-30 — the ADOPTION WAVE (1.1.0 "Field Kit"). Master done; ports pending.**
 The wave that makes the mod easy to run, easy to tune, and easy to talk about. Nothing is
@@ -1074,7 +1104,7 @@ world, fills a pack across every tab, opens it, switches tabs, and writes screen
 - `block/` — `PackContainerBlock` (placeable, facing, opens the GUI, drops the pack stack),
   `PackContainerBlockEntity` (holds the pack as one `ItemStack`; tier-only client sync).
   Registered in `reg/ModBlocks` + `reg/ModBlockEntities`; block caps in `PackworkCapabilities`.
-- `trinket/` — `TrinketType` (SSOT table, 18 fittings), `TrinketItem`, `TrinketAccess`,
+- `trinket/` — `TrinketType` (SSOT table, 20 fittings), `TrinketItem`, `TrinketAccess`,
   `TrinketEffects` (per-tick effects + the event handlers: Quick-Draw's break refill, the
   Angler's `ItemFishedEvent` stow, the Herbalist's `BlockEvent.BreakEvent` replant). The
   conservation-critical helpers — `smeltOnce`, `feedFrom`, `stowCatch`, `takeSeedFor`,

@@ -83,7 +83,7 @@ the right rail — never a tank-and-cable panel. Details and automation in
 | **Restock Strap** | Tops up your hotbar stacks from pack stock as you spend them. |
 | **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
 | **Repair Kit** | Slowly mends the gear you're wearing and holding. |
-| **Compass Rose** | Voids items you mark. **The only way a pack ever throws anything away**, and it only ever touches what you listed. |
+| **Compass Rose** | Bins items you mark, at the door. **The only way a pack ever throws anything away**, and it only ever touches what you listed. |
 | **Quill & Ledger** | Unlocks the per-compartment rule editor — see [Sorting](sorting.md). |
 
 ### Jobs it does while you walk
@@ -95,6 +95,28 @@ the right rail — never a tank-and-cable panel. Details and automation in
 | **Provisioner's Pouch** | Eats the plainest safe thing in the pack when you're down to three haunches. Effects-bearing foods and anything in the `packwork:never_auto_eat` tag are left alone — your golden apples stay yours. |
 | **Torchbearer's Loop** | Sets a torch from pack stock when you're standing in the dark. |
 | **Herbalist's Bundle** | Replants a grown crop the moment you pull it, using a seed from your own stock. |
+| **Overflow Valve** | Carries only so much of something you marked, and lets the surplus run out as you walk. Reads the same discard list the Compass Rose does. |
+| **Compacting Press** | Squeezes nine into one inside the pack - ingots to blocks, nuggets to ingots - and only ever things that squeeze back out again. |
+
+### The one discard list, and the two fittings that read it
+
+A pack throws things away in exactly one way: you mark an item, and then you say how much of
+it you'll still carry. Hover an item in the pack and press **O** to mark it. **Shift+O**
+(with an Overflow Valve fitted) dials the keep level — 1, 2, 4, 8, 16 stacks, then round
+again to nothing at all.
+
+| Keep level | What happens | Which fitting |
+|---|---|---|
+| **nothing at all** (0) | The item never enters the pack. Binned at the door on pickup and by the magnet. | **Compass Rose** |
+| **1–16 stacks** | The item comes in and files normally; anything above the level bleeds out of the valve as you walk. | **Overflow Valve** |
+
+Both fittings on one pack is the useful case, not a conflict: the Rose handles everything
+you set to nothing, the Valve handles everything you gave a number. Neither ever touches an
+item you didn't mark, and the Valve never digs below the number you set. Take an item off
+the list and its keep level goes with it.
+
+The default a fresh mark lands on is `overflow_valve.default_keep_stacks` in
+[the config](config.md) — 4 stacks as shipped.
 
 ### Fittings that add a compartment
 

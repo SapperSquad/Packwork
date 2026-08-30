@@ -1,0 +1,6 @@
+{ "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "compacting_press" } ],
+  "pattern": [" I ", "IPI", " L "],
+  "key": { "I": { "item": "minecraft:iron_ingot" }, "P": { "item": "minecraft:piston" },
+           "L": { "item": "minecraft:leather" } },
+  "result": { "id": "packwork:compacting_press", "count": 1 } }

@@ -756,3 +756,67 @@ dep; runtime inclusion is opt-in per gradle flag). Maven wiring lives in `build.
   honest label is what turns "this is bad" into "I'll fix it" — which is the point of the
   README's Languages section. The failure mode this guards against is claiming a quality of
   translation that has not happened.
+
+## 2026-08-30 — the second void path is not a second void concept (1.2.0)
+
+**The pressure.** v1.2.0 adds an Overflow Valve, which throws items away. Packwork's house
+rule has always been "pause, never punish: void/overflow is opt-in via the Compass Rose
+only." A second fitting that discards is exactly the kind of thing that ends up as two
+half-overlapping trash systems nobody can reason about — and the first time a player loses
+something to the one they forgot they'd fitted, the rule is broken in practice whatever the
+code says.
+
+**The call: ONE list, ONE dial, two fittings that read it.** The pack has a single discard
+list (`voidList` on the layout component — the same one the Rose has always used). What is
+new is a per-item **keep level**, in vanilla stacks:
+
+| Keep level | Behaviour | Whose contract |
+|---|---|---|
+| **0** (an item marked and nothing more) | binned at the door — never enters the pack | the **Compass Rose**, byte-for-byte what it always did |
+| **1–16 stacks** | comes in, files normally, surplus above the level bleeds off as you walk | the **Overflow Valve** |
+
+So `voids(id)` — the "bin it at the door" question — is now "listed AND keep level 0".
+An old pack has no keep levels, so every answer it gives is identical to 1.1.0's. Both
+fittings on one pack is the *useful* case rather than a conflict: the Rose owns the zeroes
+and the Valve owns the numbers, and there is no third rule to remember.
+
+**Why not two separate lists.** Because then "did I void this or throttle it?" is a
+question, and it has to be asked in two places in the GUI. One list means one gesture (`O`
+to mark, `Shift+O` to dial) and one sentence of documentation. The cost is that the Valve
+can't act on something the Rose is binning — which is not a cost, because binning it is
+strictly more aggressive than throttling it.
+
+**Guarantees, all three pinned by gametests.** The Valve never touches an unlisted item; it
+never takes the count below the keep level; it removes exactly the surplus it measured and
+not a unit more. Taking an item off the list drops its keep level with it, so a rule can
+never outlive the mark that made it visible.
+
+## 2026-08-30 — the Compacting Press only presses what presses BACK (1.2.0)
+
+**The pressure.** Auto-compacting is the third leg of the magnet/void/compact trio that
+makes a backpack the default mining companion, and it is easy to get wrong: a press that
+squeezes anything with a 3×3 recipe will turn wheat into hay bales, slime into slime blocks,
+and — if a mod ships a one-way recipe — someone's stock into something they cannot get back.
+That is the Field Furnace's oak-planks bug again, and it was caught in a live playtest last
+time.
+
+**The call: reversibility is the whole filter.** A family is pressed only when the block it
+makes uncrafts into *exactly* the same count of *exactly* the same item. Both halves are
+answered by vanilla's own recipe manager, so:
+
+- every modded ingot/nugget ladder that plays by the normal rules works with **no config
+  and no per-mod support** — the same "standard data, not a hardcoded list" discipline the
+  auto-tabs use;
+- anything lossy or one-way is refused with **no blocklist to maintain** — glowstone dust
+  and sugar cane fall out for free, and so does whatever next month's mod ships;
+- there is no way for the press to lose a unit, because a thing that can't come back out
+  never goes in.
+
+**Rejected: a player-facing whitelist of what to compact.** It is a second filter UI on top
+of the discard list, and it makes the common case (compact my ores, obviously) into
+configuration. `keep_loose` (default 64) covers the real complaint — "I still want ingots to
+hand" — with one number instead of a screen.
+
+**Ordering is the Field Furnace's, deliberately:** the room for the output is checked before
+any input is taken, so a full pack means the press simply doesn't fire. It never strands a
+half-taken batch, and if it somehow can't complete one it hands back what it took.

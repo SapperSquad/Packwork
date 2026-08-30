@@ -1,4 +1,4 @@
-# Packwork — publishing kit (current as of v1.1.0, stamped, awaiting upload)
+# Packwork — publishing kit (current as of v1.2.0, stamped, awaiting upload)
 
 Everything for the Modrinth / CurseForge project page, ready to paste. **The rule:**
 `CHANGELOG.md`, `PUBLISHING.md`, and `README.md` get bumped in the same pass — never one
@@ -6,8 +6,8 @@ alone. The store page is the only thing most players read, and every claim in it
 match shipped behavior exactly.
 
 > **Not yet published.** Uploading to Modrinth / CurseForge / GitHub is SapperSquad's call, per
-> release. Nothing here goes external automatically. Version **1.1.0** stamped 2026-08-30
-> (1.0.0 "First Haul" was stamped 2026-07-26).
+> release. Nothing here goes external automatically. Version **1.2.0** stamped 2026-08-30
+> (1.1.0 "Field Kit" the same day; 1.0.0 "First Haul" 2026-07-26).
 
 ## Modrinth project fields — paste-ready
 
@@ -36,16 +36,16 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 
 | Upload as version | File | Game version tag | Loader | Client | Server |
 |---|---|---|---|---|---|
-| `1.1.0+mc1.21.1` | `build/libs/packwork-1.1.0.jar` (built on `master`) | 1.21.1 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc1.21.8` | `build/libs/packwork-1.1.0+mc1.21.8.jar` (built on `port/1.21.8`) | 1.21.8 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc1.21.10` | `build/libs/packwork-1.1.0+mc1.21.10.jar` (built on `port/1.21.10`) | 1.21.10 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc1.21.11` | `build/libs/packwork-1.1.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc26.1.2` | `build/libs/packwork-1.1.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc26.2` | `build/libs/packwork-1.1.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
-| `1.1.0+mc26.1-fabric` | `build/libs/packwork-1.1.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
-| `1.1.0+mc26.2-fabric` | `build/libs/packwork-1.1.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
+| `1.2.0+mc1.21.1` | `build/libs/packwork-1.2.0.jar` (built on `master`) | 1.21.1 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc1.21.8` | `build/libs/packwork-1.2.0+mc1.21.8.jar` (built on `port/1.21.8`) | 1.21.8 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc1.21.10` | `build/libs/packwork-1.2.0+mc1.21.10.jar` (built on `port/1.21.10`) | 1.21.10 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc1.21.11` | `build/libs/packwork-1.2.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc26.1.2` | `build/libs/packwork-1.2.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc26.2` | `build/libs/packwork-1.2.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
+| `1.2.0+mc26.1-fabric` | `build/libs/packwork-1.2.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
+| `1.2.0+mc26.2-fabric` | `build/libs/packwork-1.2.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
 
-> **All eight rows are 1.1.0.** The Fabric pair caught up on 2026-08-30 — same config
+> **All eight rows are 1.2.0.** The Fabric pair caught up on 2026-08-30 — same config
 > file with the same keys, same three death modes, same Field Reports page, same ten
 > locales — so this release is one wave across both loaders, not a NeoForge-only one.
 >
@@ -80,9 +80,10 @@ every listed version and both loaders; EMI ships no 26.x build yet - when it doe
 the pack's recipes already sync to clients with vanilla displays, but the drawn
 upgrade-ring extension is JEI's.
 
-**Migration notes for this release:** none. 1.1.0 adds a config file and reads existing
-packs untouched; the shipped defaults are byte-identical to 1.0.0 behaviour, so a server
-that never opens `packwork-server.toml` plays exactly as it did.
+**Migration notes for this release:** none. 1.2.0 adds two craftable fittings and two config
+sections; a pack written by 1.0.0 or 1.1.0 loads with no keep levels set, which is exactly
+how it behaved before. Nothing already stored is touched, and neither new fitting does
+anything at all until a player marks an item for it.
 
 ---
 
@@ -146,7 +147,7 @@ And every step cuts the slots **deeper**: one vanilla stack per slot on Canvas, 
 **six stacks in a single slot** (384 cobble) on Sculkhide — filed under one tab, while
 your cursor, hoppers, and fittings only ever pull legal stacks back out.
 
-## 🔧 Brass sockets, eighteen trinkets
+## 🔧 Brass sockets, twenty trinkets
 
 Craftable fittings slot into the brass rail — and pull back out any time:
 
@@ -156,7 +157,7 @@ Craftable fittings slot into the brass rail — and pull back out any time:
 | Restock Strap | refills your hotbar from pack stock |
 | Repair Kit | slowly mends worn and held gear |
 | Bottomless Lining | more slots, never voided |
-| Compass Rose | the only way a pack throws anything out — opt-in, per item |
+| Compass Rose | the only way a pack throws anything out — opt-in, per item, binned at the door |
 | Quick-Draw Straps | a tool breaks in your hand, the pack hands you another |
 | Quill & Ledger | the rule editor — write your own filters (name, mod, category) per compartment |
 | Tinker's Kit | a leather tool roll unrolls inside the pack: a 3×3 bench fed from your stores, with a parchment **Recipe Ledger** of everything craftable from pack stock |
@@ -166,6 +167,8 @@ Craftable fittings slot into the brass rail — and pull back out any time:
 | Angler's Creel | opens The Catch — your catch lands straight in the pack |
 | Torchbearer's Loop | sets a torch from pack stock when you stand in the dark |
 | Herbalist's Bundle | replants harvested crops from your own seed stock |
+| Overflow Valve | carry only so much of a thing you marked; the surplus runs out as you walk |
+| Compacting Press | squeezes nine into one in the pack - and only what squeezes back out again |
 | Waterskin Rack | a real fluid tank, shown as a glass gauge |
 | Soul Vial | banks your XP, pours it back, auto-mends Mending gear |
 | Charge Crystal | an arcane charge in copper-wound glass — standard FE, tops up your powered tools |
@@ -238,8 +241,10 @@ Remove any of them and Packwork carries on without it.
   Portuguese, German, French, Spanish, Japanese, Korean, Polish and Ukrainian ship as
   machine-drafted first passes that no native speaker has read yet. If one reads wrong to
   you, a one-line pull request is genuinely welcome.
-- The pack never voids anything on failure. The only trash path is the Compass Rose,
-  and it's opt-in per item.
+- The pack never voids anything on failure. There is exactly one trash path - the discard
+  list - and it is opt-in per item. Mark a thing and it goes; leave it unmarked and nothing
+  will ever touch it. The Compass Rose bins what you marked at the door, the Overflow Valve
+  carries a number of it and bleeds the rest; both read that one list.
 
 ---
 
@@ -279,11 +284,35 @@ light up only with their mod, so don't imply they work standalone.
 
 ---
 
+## Changelog for 1.2.0 (paste into the upload)
+
+> **1.2.0 — Haul Less.** Two fittings for the same problem: the pack fills up with things
+> you didn't want that much of. Nothing is taken away and no existing pack changes.
+> - **Overflow Valve — carry only so much of a thing.** A brass tap on the pack seam.
+>   Hover an item and press **O** to mark it, **Shift+O** to say how much you'll still
+>   carry: 1, 2, 4, 8, 16 stacks, then round again to nothing at all. Above that number the
+>   surplus runs out of the valve as you walk; below it the valve never digs.
+> - **It reads the SAME list the Compass Rose does.** There is still exactly one way a pack
+>   throws anything away, and it is still opt-in per item. A mark at nothing-at-all is the
+>   Rose's old contract — binned at the door, never let in. A mark with a number is the
+>   Valve's — it comes in, files normally, and only the excess bleeds. Fit both and they
+>   split the list between them instead of fighting over it.
+> - **Compacting Press — nine into one, down in the pack's floor.** Ingots to blocks,
+>   nuggets to ingots, and whatever your other mods stack the same way. It reads vanilla's
+>   own recipe data, so a modded metal ladder works with no config and no per-mod support.
+> - **And it only presses what presses BACK.** If the block it would make doesn't uncraft
+>   into exactly what went in, it isn't touched — no blocklist to maintain, and nothing you
+>   can't undo on a bench. It leaves a stack of each loose so you've always got some to
+>   hand, and if the block wouldn't fit it doesn't take the ingots.
+> - Both are tunable (`[overflow_valve]`, `[compacting_press]`) and both can be switched
+>   off in `[trinkets]` like every other fitting, contents intact.
+
 ## Changelog for 1.1.0 (paste into the upload)
 
 > **1.1.0 — Field Kit.** The wave that makes Packwork easy to run, easy to tune, and
 > easy to talk about. No gameplay is taken away and nothing in an existing pack changes.
-> - **Your pack shows up on your back.** Wear one in a back slot (Curios, on NeoForge) and
+> - **Your pack shows up on your back.** Wear one in a back slot (Curios on NeoForge,
+>   Trinkets on Fabric) and
 >   it renders there, wearing its tier's own leather, buckle and trim right down to the
 >   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
 >   aside for an elytra, and vanishes when you do. Not your thing?

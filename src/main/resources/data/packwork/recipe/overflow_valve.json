@@ -1,0 +1,6 @@
+{ "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "overflow_valve" } ],
+  "pattern": [" C ", "CLC", " H "],
+  "key": { "C": { "item": "minecraft:copper_ingot" }, "L": { "item": "minecraft:leather" },
+           "H": { "item": "minecraft:hopper" } },
+  "result": { "id": "packwork:overflow_valve", "count": 1 } }

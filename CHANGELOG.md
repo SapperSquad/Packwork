@@ -2,6 +2,41 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.2.0 "Haul Less" — 2026-08-30
+
+Two fittings for the same problem: the pack fills up with things you didn't want that much
+of. Nothing is taken away, no existing pack changes, and neither fitting can touch anything
+you didn't ask it to.
+
+- **The Overflow Valve — carry only so much of a thing.** A brass tap on the pack seam.
+  Hover an item in the pack and press **O** to mark it, then **Shift+O** to say how much
+  you'll still carry: 1, 2, 4, 8, 16 stacks, then round again to nothing at all. Above
+  that number the surplus runs out of the valve as you walk. Below it the valve never
+  digs, and an item you never marked is untouchable.
+- **And it is the SAME list the Compass Rose reads** — there is still exactly one way a
+  pack throws anything away, and it is still opt-in per item. A mark at "nothing at all"
+  is the Rose's old contract, binned at the door and never let in. A mark with a number is
+  the Valve's: it comes in, files normally, and only the excess bleeds. Fit both and they
+  don't fight — the Rose takes the zeroes, the Valve takes the numbers. Take an item off
+  the list and its keep level goes with it.
+- **The Compacting Press — nine into one, down in the pack's floor.** Ingots to blocks,
+  nuggets to ingots, and whatever your other mods stack the same way. It reads vanilla's
+  own recipe data, so a modded metal ladder works with no config and no per-mod support.
+- **The press's one rule keeps it safe: it only presses what presses BACK.** If the block
+  it would make doesn't uncraft into exactly what went in, it isn't touched — so glowstone
+  dust and sugar cane are left alone without anybody maintaining a blocklist. It leaves a
+  stack of each loose so you've always got some to hand, and if the block wouldn't fit it
+  doesn't take the ingots.
+- **Both are tunable and both can be switched off.** `[overflow_valve] default_keep_stacks`
+  sets the number a fresh mark lands on; `[compacting_press] keep_loose` and `include_2x2`
+  set how much stays loose and whether 2×2 families count. Either fitting set to `false` in
+  `[trinkets]` pulls its recipe and puts an installed one to sleep, contents intact.
+- Internal, for the curious: the keep levels are a new optional `spill` field on the pack's
+  layout component, so a pack written by any earlier version decodes with no keep levels at
+  all and behaves exactly as it did — there's a test pinning that. `PackLayout`'s stream
+  codec had to be hand-rolled on the way: vanilla's `StreamCodec.composite` tops out at six
+  components and the record now has seven.
+
 ## 1.1.0 "Field Kit" — 2026-08-30
 
 The adoption wave: the things that make a pack easy to run, easy to tune, and easy to

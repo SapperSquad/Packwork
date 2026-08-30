@@ -78,6 +78,156 @@ public final class TrinketEffects {
         if (installed.contains(TrinketType.FIELD_FURNACE) && time % SMELT_EVERY == 0) fieldFurnace(sp, packStack, pack);
         if (installed.contains(TrinketType.PROVISIONER) && time % 20 == 0) provision(sp, pack);
         if (installed.contains(TrinketType.TORCHBEARER) && time % 20 == 0) torchbearer(sp, pack);
+        if (installed.contains(TrinketType.OVERFLOW_VALVE) && time % SPILL_EVERY == 0) {
+            bleedSurplus(packStack, pack);
+        }
+        if (installed.contains(TrinketType.COMPACTING_PRESS) && time % PRESS_EVERY == 0) {
+            pressOnce(sp.serverLevel(), pack);
+        }
+    }
+
+    // ---- Overflow Valve: carry only so much of a thing you already said you don't want ----
+
+    /** How often the valve bleeds. Slow on purpose - you should be able to watch it happen. */
+    private static final int SPILL_EVERY = 40;
+
+    /**
+     * Bleed the surplus of every item the player has given a KEEP LEVEL, and nothing else.
+     *
+     * <p>This is the same discard list the Compass Rose reads - there is exactly one list and
+     * exactly one void concept in this mod. Membership with no keep level means "bin it at the
+     * door" (the Rose). Membership WITH a keep level means "carry this much and let the rest
+     * run out" (the Valve, here). An item the player never marked is untouchable by both.
+     *
+     * <p>Three rules keep it honest, and the gametests pin all three: it never touches an
+     * unlisted item, it never takes the count below the keep level, and it only ever removes
+     * what it counted - the extraction is clamped to the surplus it measured this pass.
+     */
+    public static int bleedSurplus(ItemStack packStack, PackInventory pack) {
+        var layout = packStack.getOrDefault(com.sappersquad.packwork.reg.ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.sort.PackLayout.EMPTY);
+        if (layout.spill().isEmpty()) return 0;
+        int bled = 0;
+
+        for (var entry : layout.spill()) {
+            int keepStacks = layout.keepStacks(entry.item());
+            if (keepStacks <= 0) continue;                       // an entry at zero is the Rose's
+            Item item = BuiltInRegistries.ITEM.get(entry.item());
+            if (item == null || item == net.minecraft.world.item.Items.AIR) continue;
+
+            int held = 0;
+            int maxStack = 1;
+            for (int i = 0; i < pack.getSlots(); i++) {
+                ItemStack s = pack.getStackInSlot(i);
+                if (s.isEmpty() || s.getItem() != item) continue;
+                held += s.getCount();
+                maxStack = Math.max(maxStack, s.getMaxStackSize());
+            }
+            int keep = keepStacks * maxStack;
+            int surplus = held - keep;
+            if (surplus <= 0) continue;
+
+            // take exactly the surplus, never a unit more, and stop the moment it is gone
+            int left = surplus;
+            for (int i = 0; i < pack.getSlots() && left > 0; i++) {
+                ItemStack s = pack.getStackInSlot(i);
+                if (s.isEmpty() || s.getItem() != item) continue;
+                ItemStack pulled = pack.extractItem(i, left, false);
+                left -= pulled.getCount();
+                bled += pulled.getCount();
+            }
+        }
+        return bled;
+    }
+
+    // ---- Compacting Press: nine into one, and only what comes back out again ----
+
+    /** How often the press squeezes. One squeeze per pass, like the furnace's one bake. */
+    private static final int PRESS_EVERY = 40;
+
+    /**
+     * Squeeze one batch, and only if the block it makes can be squeezed back into exactly what
+     * went in. That reversibility check is the whole safety story: the press can never turn
+     * your stock into something you cannot get back, and it can never lose a unit doing it.
+     *
+     * <p>Ordering is the Field Furnace's, for the same reason - the room for the output is
+     * checked BEFORE any input comes out, so a full pack means the press simply does not fire
+     * rather than stranding half a batch. Returns true if something was pressed.
+     */
+    public static boolean pressOnce(net.minecraft.server.level.ServerLevel level, PackInventory pack) {
+        var cfg = com.sappersquad.packwork.config.PackworkConfig.get();
+        int keepLoose = cfg.pressKeepLoose();
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack sample = pack.getStackInSlot(i);
+            if (sample.isEmpty() || sample.getItem() instanceof PackItem) continue;
+
+            // how much of it the pack holds, everywhere
+            int held = 0;
+            for (int j = 0; j < pack.getSlots(); j++) {
+                ItemStack s = pack.getStackInSlot(j);
+                if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, sample)) held += s.getCount();
+            }
+            // 3x3 first (a block is worth more shelf space than an ingot), then 2x2
+            for (int side : new int[]{3, 2}) {
+                int need = side * side;
+                if (side == 2 && !cfg.pressIncludes2x2()) continue;
+                if (held - keepLoose < need) continue;
+                ItemStack out = squeezeResult(level, sample, side);
+                if (out.isEmpty()) continue;
+                if (!insertAll(pack, out.copy(), true).isEmpty()) continue;  // no room: don't fire
+
+                // take exactly `need`, and hand back anything we managed to take if the
+                // batch cannot be completed - the press never keeps a partial bite
+                int taken = 0;
+                java.util.List<ItemStack> held0 = new java.util.ArrayList<>();
+                for (int j = 0; j < pack.getSlots() && taken < need; j++) {
+                    ItemStack s = pack.getStackInSlot(j);
+                    if (s.isEmpty() || !ItemStack.isSameItemSameComponents(s, sample)) continue;
+                    ItemStack pulled = pack.extractItem(j, need - taken, false);
+                    if (pulled.isEmpty()) continue;
+                    taken += pulled.getCount();
+                    held0.add(pulled);
+                }
+                if (taken < need) {
+                    for (ItemStack back : held0) insertAll(pack, back);
+                    continue;
+                }
+                insertAll(pack, out.copy());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * What {@code side*side} of this item crafts into - but ONLY when the result crafts back
+     * into exactly that many of the same item again. Vanilla's own recipe data answers both
+     * halves, so every modded ingot ladder that plays by the normal rules works for free, and
+     * anything one-way (a cake, a bed, a sticky piston) is refused without a hardcoded list.
+     */
+    private static ItemStack squeezeResult(net.minecraft.server.level.ServerLevel level,
+                                           ItemStack sample, int side) {
+        int need = side * side;
+        java.util.List<ItemStack> grid = new java.util.ArrayList<>(need);
+        for (int k = 0; k < need; k++) grid.add(sample.copyWithCount(1));
+        var input = net.minecraft.world.item.crafting.CraftingInput.of(side, side, grid);
+        var recipe = level.getServer().getRecipeManager().getRecipeFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING, input, level);
+        if (recipe.isEmpty()) return ItemStack.EMPTY;
+        ItemStack out = recipe.get().value().assemble(input, level.registryAccess());
+        if (out.isEmpty() || out.getCount() != 1) return ItemStack.EMPTY;
+        if (ItemStack.isSameItem(out, sample)) return ItemStack.EMPTY;   // a no-op "squeeze"
+
+        // ...and back again: one of the result must uncraft into exactly `need` of the input
+        var back = net.minecraft.world.item.crafting.CraftingInput.of(1, 1, java.util.List.of(out.copy()));
+        var reverse = level.getServer().getRecipeManager().getRecipeFor(
+                net.minecraft.world.item.crafting.RecipeType.CRAFTING, back, level);
+        if (reverse.isEmpty()) return ItemStack.EMPTY;
+        ItemStack undone = reverse.get().value().assemble(back, level.registryAccess());
+        if (undone.getCount() != need || !ItemStack.isSameItemSameComponents(undone, sample)) {
+            return ItemStack.EMPTY;
+        }
+        return out;
     }
 
     // ---- Field Furnace: banked campfire embers that cook raw ore and raw food ----

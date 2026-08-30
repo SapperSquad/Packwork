@@ -32,8 +32,11 @@ public enum PackAction {
     PIN_ITEM,
     /** s2 = item id to unpin. */
     UNPIN_ITEM,
-    /** s2 = item id to toggle on the Compass Rose void list. */
+    /** s2 = item id to toggle on the discard list (the Compass Rose's bin-it-outright mark). */
     VOID_TOGGLE,
+    /** s2 = item id: step that listed item's Overflow Valve keep level up the ladder
+     *  (1, 2, 4, 8, 16 stacks, then back round to "bin it outright"). Valve-gated. */
+    SPILL_CYCLE,
     /** fill/drain the Waterskin tank with the item on the cursor. */
     FLUID_INTERACT,
     /** siphon the player's XP into the Soul Vial. */
