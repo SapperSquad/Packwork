@@ -1908,6 +1908,8 @@ public class PackworkGameTests {
     private static ItemStack loadStack(HolderLookup.Provider reg, Tag tag) {
         return ItemStack.CODEC.parse(
                 reg.createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), tag).getOrThrow();
+    }
+
     // =====================================================================
     //  2026-08-30 batch: the packmaker config (packwork-server.toml).
     // =====================================================================
@@ -1925,11 +1927,11 @@ public class PackworkGameTests {
                 (int[]) parts[4], (long[]) parts[5], (boolean[]) parts[6],
                 (com.sappersquad.packwork.config.PackworkConfig.DeathHandling) parts[7],
                 (Double) parts[8], (Integer) parts[9], (Boolean) parts[10],
-                (java.util.Set<ResourceLocation>) parts[11]);
+                (java.util.Set<Identifier>) parts[11]);
     }
 
     /** The shipped defaults are byte-identical to First Haul behaviour - the do-no-harm bar. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void configDefaultsMatchFirstHaul(GameTestHelper helper) {
         var d = com.sappersquad.packwork.config.PackworkConfig.defaults();
         int[] slots = {54, 108, 162, 216, 256, 256};
@@ -1965,7 +1967,7 @@ public class PackworkGameTests {
     }
 
     /** The TOML reader: good keys apply, wild values clamp, junk lines fall back - never a crash. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void configTomlParsesAndClamps(GameTestHelper helper) {
         java.util.List<String> problems = new java.util.ArrayList<>();
         var map = com.sappersquad.packwork.config.SimpleToml.parse(List.of(
@@ -2027,7 +2029,7 @@ public class PackworkGameTests {
      * disappears, but everything it stored stays on the stack and comes back the moment
      * it is re-enabled. Pause, never punish - even for packmakers.
      */
-    @GameTest(template = "empty")
+    @PackTest
     public static void disabledTrinketSleepsWithoutVoiding(GameTestHelper helper) {
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
         new PackTrinketInventory(() -> pack, PackTier.LEATHER).insertItem(0,
@@ -2036,7 +2038,7 @@ public class PackworkGameTests {
                 com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack));
         tank.fill(new net.neoforged.neoforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 5000),
                 net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
-        helper.assertTrue(pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM) != null,
+        helper.assertTrue(fluidCap(pack) != null,
                 "enabled waterskin exposes the fluid capability");
 
         var disabled = configWith(p -> ((boolean[]) p[6])
@@ -2045,8 +2047,7 @@ public class PackworkGameTests {
         try {
             helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketAccess.has(pack,
                     com.sappersquad.packwork.trinket.TrinketType.WATERSKIN), "disabled = not installed");
-            helper.assertTrue(pack.getCapability(
-                    net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM) == null,
+            helper.assertTrue(fluidCap(pack) == null,
                     "the fluid capability goes dark");
             var content = pack.get(ModComponents.PACK_FLUID.get());
             helper.assertTrue(content != null && content.copy().getAmount() == 5000,
@@ -2059,14 +2060,14 @@ public class PackworkGameTests {
         } finally {
             com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
         }
-        var awake = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.ITEM);
+        var awake = fluidCap(pack);
         helper.assertTrue(awake != null && awake.getFluidInTank(0).getAmount() == 5000,
                 "re-enabled: the capability returns with the water intact");
         helper.succeed();
     }
 
     /** death.handling = "keep": packs leave the drop list, ride the stash, and come home on respawn. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void deathKeepStashesAndRestores(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
@@ -2104,7 +2105,7 @@ public class PackworkGameTests {
     }
 
     /** death.handling = "place": the pack sets itself down where the player fell, lossless. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void deathPlaceSetsThePackDown(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
@@ -2141,7 +2142,7 @@ public class PackworkGameTests {
     }
 
     /** "place" with nowhere honest to stand falls back to KEEP - never the void. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void deathPlaceFallsBackToKeep(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
@@ -2164,7 +2165,7 @@ public class PackworkGameTests {
     }
 
     /** The default (drop) leaves the whole drops path untouched - posted through the real event. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void deathDropLeavesVanillaAlone(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         var packIe = dropAt(helper, new ItemStack(ModItems.pack(PackTier.LEATHER).get()));
@@ -2196,7 +2197,7 @@ public class PackworkGameTests {
     }
 
     /** The config blocklist stacks on the never_auto_eat tag: a listed food is never rations. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void configBlocklistStopsProvisioner(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         player.getFoodData().setFoodLevel(3);
@@ -2219,7 +2220,7 @@ public class PackworkGameTests {
     }
 
     /** lodestone.pack_first_default = false: a FRESH pack starts vanilla; the GUI toggle still wins. */
-    @GameTest(template = "empty")
+    @PackTest
     public static void packFirstDefaultFollowsConfig(GameTestHelper helper) {
         var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
         var off = configWith(p -> p[10] = Boolean.FALSE);
