@@ -1092,7 +1092,9 @@ public final class DevAutoShot {
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
             var tier = com.sappersquad.packwork.pack.PackTier.RUNED;
             ItemStack pack = new ItemStack(ModItems.pack(tier).get());
-            IItemHandler h = pack.getCapability(net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.ITEM);
+            // the pack's own store rather than the capability: the capability spelling drifts
+            // across the version line and this harness reads the same on all eight branches
+            var h = new com.sappersquad.packwork.pack.PackInventory(pack, tier);
             h.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
             h.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
             h.insertItem(1, new ItemStack(Items.IRON_INGOT, 64), false);

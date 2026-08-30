@@ -383,6 +383,41 @@ taken away and no existing pack changes. Six items, each its own commit:
 frames (a stone pad and a lot of sky) — the worn pack is this release's headline and
 deserves a framing pass before it displaces one of the six store picks.
 
+### 1.2.0 port sweep — all eight, 2026-08-30
+
+| Branch | 1.2.0? | Suite | Jar |
+|---|---|---|---|
+| `master` (1.21.1) | **yes** | 73 × 3 combos | `packwork-1.2.0.jar` |
+| `port/1.21.8` | **yes** | 74 × 2 combos | `packwork-1.2.0+mc1.21.8.jar` |
+| `port/1.21.10` | **yes** | 74 × 2 combos | `packwork-1.2.0+mc1.21.10.jar` |
+| `port/1.21.11` | **yes** | 74 × 2 combos | `packwork-1.2.0+mc1.21.11.jar` |
+| `port/26.1` | **yes** | 74 × 2 combos | `packwork-1.2.0+mc26.1.2.jar` |
+| `port/26.2` | **yes** | 74 × 2 combos | `packwork-1.2.0+mc26.2.jar` |
+| `fabric/26.1` | **yes** | 74 × 2 (`-Ptrinkets -Pjei`) | `packwork-1.2.0+mc26.1-fabric.jar` |
+| `fabric/26.2` | **yes** | 74 × 2 (`-Ptrinkets -Pjei`) | `packwork-1.2.0+mc26.2-fabric.jar` |
+
+Master runs three combos because Mekanism and Forgework only exist there; the ports
+run plain and `-Pcurios -Pjei` (Fabric: `-Ptrinkets -Pjei`). Master's count is 73 and
+the ports' 74 for the same reason it always has been — the ports carry one extra test.
+
+**The 1.2.0 drift, in the order it bites** (each found by compiling, not remembered):
+
+| Branch | What differs |
+|---|---|
+| 1.21.8+ | `Registry.get(id)` returns `Optional<Holder.Reference<T>>`, so the Valve's item lookup is `.map(Holder::value).orElse(null)` · `sp.serverLevel()` → `sp.level()` · `Inventory.items`/`.selected` are private (`setItem` / `setSelectedSlot`) · recipes take plain-string ingredients · tests are `@PackTest(PackHelper)`, re-run `tools/GenTestInstances.java` |
+| 1.21.10+ | `Screen.keyPressed(KeyEvent)`, shift via `event.hasShiftDown()` · `Capabilities.ItemHandler.ITEM` is gone |
+| 1.21.11+ | `ResourceLocation` → `Identifier` (codecs included) · `ResourceKey.location()` → `identifier()` · tests take `GameTestHelper`, **not** `PackHelper` |
+| 26.1+ | `Recipe.assemble` lost its `RegistryAccess` argument |
+| 26.2 (NeoForge) | `mc.screen` → `mc.gui.screen()` (Fabric 26.2 too; Fabric 26.1 still has `mc.screen`) |
+| Fabric | `fabric:load_conditions` with a `condition` key, not `neoforge:conditions` with `type` |
+
+Two traps worth naming. **`git checkout --theirs` on a heavily-conflicted file takes the
+WHOLE file**, so porting 1.21.10's `PackworkGameTests` onto 1.21.11 dragged `PackHelper`
+along with it — it compiles as a missing symbol, which is loud, but a subtler import could
+have gone quiet. And the fittings harness now reads the pack's own `PackInventory` rather
+than the item capability **on all eight branches**, because the capability spelling is the
+single most drift-prone line in the file and the harness has no reason to care.
+
 ### 1.1.0 port sweep — where every branch actually stands
 
 | Branch | 1.1.0? | Worn render | Suite | Jar |
