@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "fabric:load_conditions": [ { "condition": "packwork:trinket_enabled", "trinket": "field_furnace" } ],
   "pattern": [" c ", "cFc", " c "],
   "key": { "c": "minecraft:copper_ingot", "F": "minecraft:campfire" },
   "result": { "id": "packwork:field_furnace", "count": 1 } }

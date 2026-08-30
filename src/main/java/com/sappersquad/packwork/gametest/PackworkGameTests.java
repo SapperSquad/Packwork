@@ -1878,4 +1878,339 @@ public class PackworkGameTests {
         return ItemStack.CODEC.parse(
                 reg.createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE), tag).getOrThrow();
     }
+
+    // =====================================================================
+    // The packmaker's lever: config, and what death does to a pack
+    // =====================================================================
+
+    /** Build a Values with one field swapped, so a test can state exactly what it changed. */
+    @SuppressWarnings("unchecked")
+    private static com.sappersquad.packwork.config.PackworkConfig.Values configWith(
+            java.util.function.Consumer<Object[]> mutate) {
+        var d = com.sappersquad.packwork.config.PackworkConfig.defaults();
+        Object[] parts = {d.slots().clone(), d.stacksPerSlot().clone(), d.fluidMb().clone(),
+                d.xpPoints().clone(), d.energyFe().clone(), d.vaporMb().clone(),
+                d.trinketEnabled().clone(), d.deathHandling(), d.magnetRange(),
+                d.magnetEveryTicks(), d.packFirstDefault(), d.neverAutoEat()};
+        mutate.accept(parts);
+        return new com.sappersquad.packwork.config.PackworkConfig.Values(
+                (int[]) parts[0], (int[]) parts[1], (int[]) parts[2], (int[]) parts[3],
+                (int[]) parts[4], (long[]) parts[5], (boolean[]) parts[6],
+                (com.sappersquad.packwork.config.PackworkConfig.DeathHandling) parts[7],
+                (Double) parts[8], (Integer) parts[9], (Boolean) parts[10],
+                (java.util.Set<Identifier>) parts[11]);
+    }
+
+    /** The shipped defaults are byte-identical to First Haul behaviour - the do-no-harm bar. */
+    @PackTest
+    public static void configDefaultsMatchFirstHaul(GameTestHelper helper) {
+        var d = com.sappersquad.packwork.config.PackworkConfig.defaults();
+        int[] slots = {54, 108, 162, 216, 256, 256};
+        for (PackTier t : PackTier.values()) {
+            int i = t.ordinal();
+            helper.assertTrue(d.slots()[i] == slots[i], t + " default slots");
+            helper.assertTrue(d.stacksPerSlot()[i] == i + 1, t + " default depth");
+            helper.assertTrue(d.fluidMb()[i] == 8_000 * (i + 1), t + " default fluid");
+            helper.assertTrue(d.xpPoints()[i] == 5_000 * (i + 1), t + " default xp");
+            helper.assertTrue(d.energyFe()[i] == 100_000 * (i + 1), t + " default FE");
+            helper.assertTrue(d.vaporMb()[i] == 16_000L * (i + 1), t + " default vapor");
+        }
+        for (com.sappersquad.packwork.trinket.TrinketType t
+                : com.sappersquad.packwork.trinket.TrinketType.values()) {
+            helper.assertTrue(d.enabled(t), t + " enabled by default");
+        }
+        helper.assertTrue(d.deathHandling() == com.sappersquad.packwork.config.PackworkConfig.DeathHandling.DROP,
+                "death defaults to vanilla drop");
+        helper.assertTrue(d.magnetRange() == 5.0 && d.magnetEveryTicks() == 4, "magnet defaults");
+        helper.assertTrue(d.packFirstDefault(), "pack-first defaults ON");
+        helper.assertTrue(d.neverAutoEat().isEmpty(), "no extra auto-eat blocks by default");
+        // and the live numbers the game actually uses agree with the SSOT they always did
+        ItemStack sculk = new ItemStack(ModItems.pack(PackTier.SCULKHIDE).get());
+        helper.assertTrue(PackTier.SCULKHIDE.capacity() == 256 && PackTier.SCULKHIDE.depthMultiplier() == 6,
+                "tier getters ride the defaults");
+        helper.assertTrue(com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(sculk) == 48_000
+                        && com.sappersquad.packwork.pack.PackXpStore.capacityFor(sculk) == 30_000
+                        && com.sappersquad.packwork.pack.PackEnergyStorage.capacityFor(sculk) == 600_000
+                        && com.sappersquad.packwork.pack.PackEnergyStorage.transferFor(sculk) == 12_000
+                        && com.sappersquad.packwork.pack.PackChemical.capacityFor(sculk) == 96_000L,
+                "store helpers ride the defaults");
+        helper.succeed();
+    }
+
+    /** The TOML reader: good keys apply, wild values clamp, junk lines fall back - never a crash. */
+    @PackTest
+    public static void configTomlParsesAndClamps(GameTestHelper helper) {
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        var map = com.sappersquad.packwork.config.SimpleToml.parse(List.of(
+                "# a packmaker's edited file",
+                "[death]",
+                "handling = \"place\"   # comment after a value",
+                "[lodestone]",
+                "magnet_range = -3.5",
+                "magnet_every_ticks = 9999",
+                "pack_first_default = false",
+                "[provisioner]",
+                "never_auto_eat = [\"minecraft:bread\", \"not a real id!!\"]",
+                "[trinkets]",
+                "lodestone_charm = false",
+                "[tiers.canvas]",
+                "slots = 60",
+                "stacks_per_slot = 500",
+                "fluid_mb = 12000",
+                "this line is junk",
+                "mystery_key = 7"), problems);
+        var v = com.sappersquad.packwork.config.PackworkConfig.fromMap(map, problems);
+        helper.assertTrue(v.deathHandling() == com.sappersquad.packwork.config.PackworkConfig.DeathHandling.PLACE,
+                "death.handling applies");
+        helper.assertTrue(v.magnetRange() == 0.0, "negative range clamps to 0, got " + v.magnetRange());
+        helper.assertTrue(v.magnetEveryTicks() == 200, "wild cadence clamps to 200");
+        helper.assertTrue(!v.packFirstDefault(), "pack-first default applies");
+        helper.assertTrue(!v.enabled(com.sappersquad.packwork.trinket.TrinketType.LODESTONE),
+                "trinket switch applies");
+        helper.assertTrue(v.enabled(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN),
+                "unmentioned trinkets stay enabled");
+        helper.assertTrue(v.slotsFor(PackTier.CANVAS) == 60, "canvas slots apply");
+        helper.assertTrue(v.stacksPerSlotFor(PackTier.CANVAS) == 99, "wild depth clamps to 99");
+        helper.assertTrue(v.fluidMbFor(PackTier.CANVAS) == 12_000, "canvas fluid applies");
+        helper.assertTrue(v.slotsFor(PackTier.LEATHER) == 108, "untouched tiers keep defaults");
+        helper.assertTrue(v.neverAutoEat().contains(BuiltInRegistries.ITEM.getKey(Items.BREAD)),
+                "blocklist entry parses");
+        helper.assertTrue(v.neverAutoEat().size() == 1, "the malformed id is skipped, not fatal");
+        helper.assertTrue(!problems.isEmpty(), "problems are reported, never thrown");
+        // and the default file the mod writes must round-trip to the defaults exactly
+        java.util.List<String> p2 = new java.util.ArrayList<>();
+        var roundTrip = com.sappersquad.packwork.config.PackworkConfig.fromMap(
+                com.sappersquad.packwork.config.SimpleToml.parse(
+                        com.sappersquad.packwork.config.PackworkConfig.defaultFileText().lines().toList(), p2), p2);
+        helper.assertTrue(p2.isEmpty(), "the generated default file parses clean: " + p2);
+        var d = com.sappersquad.packwork.config.PackworkConfig.defaults();
+        for (PackTier t : PackTier.values()) {
+            helper.assertTrue(roundTrip.slotsFor(t) == d.slotsFor(t)
+                    && roundTrip.stacksPerSlotFor(t) == d.stacksPerSlotFor(t)
+                    && roundTrip.fluidMbFor(t) == d.fluidMbFor(t)
+                    && roundTrip.xpPointsFor(t) == d.xpPointsFor(t)
+                    && roundTrip.energyFeFor(t) == d.energyFeFor(t)
+                    && roundTrip.vaporMbFor(t) == d.vaporMbFor(t), "default file round-trips " + t);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A config-disabled trinket goes INERT, never destructive: the storage it gated
+     * disappears, but everything it held stays on the stack and comes back the moment
+     * it is re-enabled. Pause, never punish - even for packmakers.
+     */
+    @PackTest
+    public static void disabledTrinketSleepsWithoutVoiding(GameTestHelper helper) {
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        new PackTrinketInventory(() -> pack, PackTier.LEATHER).insertItem(0,
+                new ItemStack(ModItems.trinket(com.sappersquad.packwork.trinket.TrinketType.WATERSKIN).get()), false);
+        new com.sappersquad.packwork.pack.PackFluidHandler(pack,
+                com.sappersquad.packwork.pack.PackFluidHandler.capacityFor(pack))
+                .fill(net.minecraft.world.level.material.Fluids.WATER, 5000, false);
+        helper.assertTrue(fluidCap(pack) != null,
+                "enabled waterskin exposes the fluid storage");
+
+        var disabled = configWith(p -> ((boolean[]) p[6])
+                [com.sappersquad.packwork.trinket.TrinketType.WATERSKIN.ordinal()] = false);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(disabled);
+        try {
+            helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketAccess.has(pack,
+                    com.sappersquad.packwork.trinket.TrinketType.WATERSKIN), "disabled = not installed");
+            helper.assertTrue(fluidCap(pack) == null,
+                    "the fluid storage goes dark");
+            var content = pack.get(ModComponents.PACK_FLUID.get());
+            helper.assertTrue(content != null && content.getAmount() == 5000,
+                    "the stored water is NOT voided while the fitting sleeps");
+            // the socket still shows (and releases) the sleeping fitting
+            var sockets = new PackTrinketInventory(() -> pack, PackTier.LEATHER);
+            helper.assertTrue(com.sappersquad.packwork.trinket.TrinketType.of(sockets.getStackInSlot(0))
+                    == com.sappersquad.packwork.trinket.TrinketType.WATERSKIN,
+                    "the fitting stays visible in its socket");
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        var awake = fluidCap(pack);
+        helper.assertTrue(awake != null && awake.getAmount() == 5000L * 81,
+                "re-enabled: the storage returns with the water intact");
+        helper.succeed();
+    }
+
+    /** death.handling = "keep": a pack never becomes a drop, rides the stash, and comes home. */
+    @PackTest
+    public static void deathKeepStashesAndRestores(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.STUDDED).get());
+        new PackInventory(() -> pack, PackTier.STUDDED).insertItem(0, new ItemStack(Items.DIAMOND, 3), false);
+        ItemStack original = pack.copy();
+
+        var keep = configWith(p -> p[7] = com.sappersquad.packwork.config.PackworkConfig.DeathHandling.KEEP);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(keep);
+        boolean claimedPack;
+        boolean claimedCobble;
+        try {
+            claimedPack = com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(player, pack);
+            claimedCobble = com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(
+                    player, new ItemStack(Items.COBBLESTONE, 12));
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.assertTrue(claimedPack, "the pack is claimed before it can become an item entity");
+        helper.assertTrue(!claimedCobble, "everything else drops as vanilla");
+        var stash = player.getAttachedOrCreate(com.sappersquad.packwork.reg.ModAttachments.KEPT_PACKS);
+        helper.assertTrue(stash.size() == 1 && ItemStack.matches(stash.get(0), original),
+                "the stash holds the pack byte-for-byte");
+
+        com.sappersquad.packwork.config.PackworkDeathHandling.restoreKeptPacks(player);
+        boolean back = false;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            if (ItemStack.matches(player.getInventory().getItem(i), original)) back = true;
+        }
+        helper.assertTrue(back, "respawn hands the pack back, contents intact");
+        helper.assertTrue(player.getAttachedOrCreate(
+                        com.sappersquad.packwork.reg.ModAttachments.KEPT_PACKS).isEmpty(),
+                "the stash is spent, never duplicated");
+        helper.succeed();
+    }
+
+    /** death.handling = "place": the pack sets itself down where the player fell, lossless. */
+    @PackTest
+    public static void deathPlaceSetsThePackDown(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.RUNED).get());
+        new PackInventory(() -> pack, PackTier.RUNED).insertItem(0, new ItemStack(Items.EMERALD, 9), false);
+        ItemStack original = pack.copy();
+        // the mock player stands on the structure floor; clear the spot above it because
+        // the test wants the deterministic "died in open air" case.
+        helper.setBlock(new net.minecraft.core.BlockPos(1, 1, 1),
+                net.minecraft.world.level.block.Blocks.AIR);
+        net.minecraft.core.BlockPos death = helper.absolutePos(new net.minecraft.core.BlockPos(1, 1, 1));
+        helper.assertTrue(helper.getLevel().getBlockState(death).canBeReplaced(),
+                "test premise: the death spot is open ground");
+        player.snapTo(death.getX() + 0.5, death.getY(), death.getZ() + 0.5);
+
+        var place = configWith(p -> p[7] = com.sappersquad.packwork.config.PackworkConfig.DeathHandling.PLACE);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(place);
+        boolean claimed;
+        try {
+            claimed = com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(player, pack);
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+
+        helper.assertTrue(claimed, "the pack never becomes a drop");
+        var state = helper.getLevel().getBlockState(death);
+        helper.assertTrue(state.is(com.sappersquad.packwork.reg.ModBlocks.PACK.get()),
+                "the pack block stands where the player fell");
+        helper.assertTrue(state.getValue(com.sappersquad.packwork.block.PackContainerBlock.TIER) == PackTier.RUNED,
+                "wearing its own tier's trim");
+        var be = (com.sappersquad.packwork.block.PackContainerBlockEntity) helper.getLevel().getBlockEntity(death);
+        helper.assertTrue(be != null && ItemStack.matches(be.getPackStack(), original),
+                "the placed pack holds the stack byte-for-byte - break it and everything is there");
+        helper.assertTrue(player.getAttachedOrCreate(
+                        com.sappersquad.packwork.reg.ModAttachments.KEPT_PACKS).isEmpty(),
+                "nothing needed the keep fallback");
+        helper.getLevel().removeBlock(death, false);
+        helper.succeed();
+    }
+
+    /** "place" with nowhere honest to stand falls back to KEEP - never the void. */
+    @PackTest
+    public static void deathPlaceFallsBackToKeep(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        ItemStack original = pack.copy();
+        // A death position in wholly unloaded chunks: no candidate in the scan can place.
+        player.snapTo(10_000_000.5, 64, 10_000_000.5);
+
+        var place = configWith(p -> p[7] = com.sappersquad.packwork.config.PackworkConfig.DeathHandling.PLACE);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(place);
+        boolean claimed;
+        try {
+            claimed = com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(player, pack);
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+
+        helper.assertTrue(claimed, "the pack still never drops");
+        var stash = player.getAttachedOrCreate(com.sappersquad.packwork.reg.ModAttachments.KEPT_PACKS);
+        helper.assertTrue(stash.size() == 1 && ItemStack.matches(stash.get(0), original),
+                "no honest spot -> the pack rides the keep stash instead of vanishing");
+        helper.succeed();
+    }
+
+    /** The default (drop) leaves the whole drops path untouched - the do-no-harm bar again. */
+    @PackTest
+    public static void deathDropLeavesVanillaAlone(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        helper.assertTrue(!com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(player, pack),
+                "drop mode: the handler claims nothing");
+        helper.assertTrue(pack.getCount() == 1, "and leaves the stack alone for vanilla to drop");
+        helper.assertTrue(player.getAttachedOrCreate(
+                        com.sappersquad.packwork.reg.ModAttachments.KEPT_PACKS).isEmpty(),
+                "and stashes nothing");
+        // a non-pack is never claimed, in ANY mode
+        var keep = configWith(p -> p[7] = com.sappersquad.packwork.config.PackworkConfig.DeathHandling.KEEP);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(keep);
+        try {
+            helper.assertTrue(!com.sappersquad.packwork.config.PackworkDeathHandling.claimDeathDrop(
+                            player, new ItemStack(Items.COBBLESTONE, 3)),
+                    "keep mode still lets everything that is not a pack drop");
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.succeed();
+    }
+
+    /** The config blocklist stacks on the never_auto_eat tag: a listed food is never rations. */
+    @PackTest
+    public static void configBlocklistStopsProvisioner(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        player.getFoodData().setFoodLevel(3);
+        ItemStack pack = new ItemStack(ModItems.pack(PackTier.LEATHER).get());
+        PackInventory inv = new PackInventory(() -> pack, PackTier.LEATHER);
+        inv.insertItem(0, new ItemStack(Items.BREAD, 4), false);
+
+        var blocked = configWith(p -> p[11] = java.util.Set.of(BuiltInRegistries.ITEM.getKey(Items.BREAD)));
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(blocked);
+        try {
+            helper.assertTrue(!com.sappersquad.packwork.trinket.TrinketEffects.feedFrom(player, inv),
+                    "blocklisted bread is not rations");
+            helper.assertTrue(inv.getStackInSlot(0).getCount() == 4, "and none was eaten");
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.assertTrue(com.sappersquad.packwork.trinket.TrinketEffects.feedFrom(player, inv),
+                "unblocked, the pouch feeds as before");
+        helper.succeed();
+    }
+
+    /** lodestone.pack_first_default = false: a FRESH pack starts vanilla; the GUI toggle still wins. */
+    @PackTest
+    public static void packFirstDefaultFollowsConfig(GameTestHelper helper) {
+        var player = helper.makeMockPlayer(net.minecraft.world.level.GameType.SURVIVAL);
+        var off = configWith(p -> p[10] = Boolean.FALSE);
+        var old = com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(off);
+        try {
+            helper.assertTrue(!com.sappersquad.packwork.config.PackworkConfig.defaultLayout().packFirst(),
+                    "the default layout follows the config");
+            ItemStack pack = lodestonePack(PackTier.LEATHER); // fresh: no layout component yet
+            player.getInventory().setItem(0, pack);
+            var ie = dropAt(helper, new ItemStack(Items.COBBLESTONE, 5));
+            ie.playerTouch(player);
+            helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 0 && countInv(player, Items.COBBLESTONE) == 5,
+                    "server default off: a fresh pack behaves vanilla");
+            // a player's explicit toggle-ON is stored and beats the server default
+            pack.set(ModComponents.PACK_LAYOUT.get(),
+                    com.sappersquad.packwork.config.PackworkConfig.defaultLayout().withPackFirst(true));
+            var ie2 = dropAt(helper, new ItemStack(Items.COBBLESTONE, 5));
+            ie2.playerTouch(player);
+            helper.assertTrue(countPack(pack, Items.COBBLESTONE) == 5,
+                    "the per-pack toggle still wins over the server default");
+        } finally {
+            com.sappersquad.packwork.config.PackworkConfig.setLocalForTesting(old);
+        }
+        helper.succeed();
+    }
 }

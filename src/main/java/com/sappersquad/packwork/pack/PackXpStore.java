@@ -11,10 +11,10 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class PackXpStore {
 
-    /** Vial capacity in points, scaling with the material tier. */
+    /** Vial capacity in points: per-tier, packmaker-tunable ({@code tiers.<name>.xp_points}). */
     public static int capacityFor(ItemStack pack) {
-        PackTier tier = PackItem.tierOf(pack);
-        return 5000 * tier.step(); // Canvas 5k .. Sculkhide 30k points
+        return com.sappersquad.packwork.config.PackworkConfig.get()
+                .xpPointsFor(PackItem.tierOf(pack)); // default: Canvas 5k .. Sculkhide 30k
     }
 
     public static int stored(ItemStack pack) {

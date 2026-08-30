@@ -30,7 +30,9 @@ public final class DevAutoShot {
     private static final boolean AUTOSHOT = System.getProperty("packwork.autoshot") != null;
     /** The promo-gallery shoot: a separate, shorter chain that stages the store-page shots. */
     private static final boolean GALLERY = System.getProperty("packwork.gallery") != null;
-    private static final boolean ENABLED = AUTOSHOT || GALLERY;
+    /** The worn-render shoot (-Pwornshot -Ptrinkets): third-person back shots of the worn pack. */
+    private static final boolean WORNSHOT = System.getProperty("packwork.wornshot") != null;
+    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT;
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
@@ -62,10 +64,12 @@ public final class DevAutoShot {
         G_KEEP_PREP, G_KEEP_W0, G_KEEP_ON, G_KEEP_MOVE1, G_KEEP_MW, G_KEEP_MOVE2, G_KEEP_W2, G_SHOOT_KEEP,
         G_PICKUP, G_PICKUP_W, G_PICKUP_TAB, G_PICKUP_TW, G_PICKUP_DROP, G_PICKUP_DW, G_SHOOT_PICKUP,
         G_NIGHT, G_NIGHT_W, G_SHOOT_NIGHT,
-        G_JEI, G_JEI_W, G_SHOOT_JEI
+        G_JEI, G_JEI_W, G_SHOOT_JEI,
+        // ---- the worn-render shoot (runs INSTEAD of the above under -Pwornshot) ----
+        WS_BOOT, WS_WAIT_LEVEL, WS_STEP, WS_SHOOT
     }
 
-    private static Phase phase = GALLERY ? Phase.G_BOOT : Phase.BOOT;
+    private static Phase phase = WORNSHOT ? Phase.WS_BOOT : (GALLERY ? Phase.G_BOOT : Phase.BOOT);
     private static int ticks = 0;
     private static int wait = 0;
     private static String customTabId = "custom:0";
@@ -619,6 +623,77 @@ public final class DevAutoShot {
                 grab(mc, "gallery_jei_ring");  // (7) the upgrade ring in JEI's crafting category
                 phase = Phase.DONE;
                 Packwork.LOGGER.info("[gallery] done - shots written");
+            }
+            // ================= the worn-render shoot (-Pwornshot -Ptrinkets) =================
+            case WS_BOOT -> {
+                if (ticks == 5) {
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1280, 900);
+                        mc.options.guiScale().set(3);
+                        mc.resizeGui();
+                        Packwork.LOGGER.info("[wornshot] window 1280x900");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[wornshot] resize failed: {}", t.toString());
+                    }
+                }
+                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                    Packwork.LOGGER.info("[wornshot] creating throwaway world");
+                    LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
+                            new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
+                    mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                    phase = Phase.WS_WAIT_LEVEL;
+                    wait = 0;
+                }
+            }
+            case WS_WAIT_LEVEL -> {
+                if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
+                    if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("trinkets")) {
+                        Packwork.LOGGER.warn("[wornshot] Trinkets absent - nothing to wear; run with -Ptrinkets");
+                        phase = Phase.DONE;
+                    } else {
+                        wornStage(mc);
+                        phase = Phase.WS_STEP;
+                    }
+                    wait = 0;
+                }
+            }
+            case WS_STEP -> {
+                if (++wait > 25) {
+                    if (wornShot >= WORN_SHOTS.length) {
+                        phase = Phase.DONE;
+                        mc.options.hideGui = false;
+                        if (wornFailures > 0) {
+                            Packwork.LOGGER.error("[wornshot] done - {} of {} shots REFUSED; the "
+                                    + "written frames are the only ones worth looking at",
+                                    wornFailures, WORN_SHOTS.length);
+                        } else {
+                            Packwork.LOGGER.info("[wornshot] done - {} shots written, every scene checked",
+                                    WORN_SHOTS.length);
+                        }
+                    } else {
+                        applyWornShot(mc, WORN_SHOTS[wornShot]);
+                        phase = Phase.WS_SHOOT;
+                        wait = 0;
+                    }
+                }
+            }
+            case WS_SHOOT -> {
+                if (++wait > 30) {
+                    String wrong = wornCheck(mc, WORN_SHOTS[wornShot]);
+                    if (wrong != null) {
+                        wornFailures++;
+                        Packwork.LOGGER.error("[wornshot] {} NOT SHOT - the scene is wrong: {}",
+                                WORN_SHOTS[wornShot].name(), wrong);
+                    } else {
+                        grab(mc, "worn_" + WORN_SHOTS[wornShot].name());
+                        Packwork.LOGGER.info("[wornshot] {} -> {}", WORN_SHOTS[wornShot].name(),
+                                WORN_SHOTS[wornShot].expect());
+                    }
+                    wornShot++;
+                    phase = Phase.WS_STEP;
+                    wait = 0;
+                }
             }
             default -> {}
         }
@@ -1199,11 +1274,152 @@ public final class DevAutoShot {
         }
     }
 
+    // =====================================================================
+    // the worn-render shoot (-Pwornshot -Ptrinkets)
+    // =====================================================================
+
+    /**
+     * One framed check of the worn pack. The chest supplier is deliberately LAZY:
+     * this table is a static field on a class the client entrypoint touches, and building
+     * an ItemStack while the registries are still binding is a crash.
+     */
+    private record WornShot(String name, com.sappersquad.packwork.pack.PackTier tier,
+                            java.util.function.Supplier<ItemStack> chest, boolean crouch,
+                            boolean frontCam, boolean show, String expect) {}
+
+    private static final WornShot[] WORN_SHOTS = {
+            new WornShot("canvas_back", com.sappersquad.packwork.pack.PackTier.CANVAS,
+                    () -> ItemStack.EMPTY, false, false, true,
+                    "Canvas on the back: weave + twine facing out, sitting on the shoulders"),
+            new WornShot("sculkhide_back", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> ItemStack.EMPTY, false, false, true,
+                    "Sculkhide: echo veins facing out, no gap at the spine"),
+            new WornShot("sculkhide_chestplate", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> new ItemStack(Items.DIAMOND_CHESTPLATE), false, false, true,
+                    "rides a hair further out over plate - no z-fighting with the chestplate"),
+            new WornShot("sculkhide_crouch", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> ItemStack.EMPTY, true, false, true,
+                    "tips forward with the torso, still seated on the back"),
+            new WornShot("sculkhide_front", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> ItemStack.EMPTY, false, true, true,
+                    "front view: nothing pokes through the chest"),
+            new WornShot("sculkhide_elytra", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> new ItemStack(Items.ELYTRA), false, false, true,
+                    "EXPECT NO PACK - wings own the back"),
+            new WornShot("sculkhide_off", com.sappersquad.packwork.pack.PackTier.SCULKHIDE,
+                    () -> ItemStack.EMPTY, false, false, false,
+                    "EXPECT NO PACK - show_worn_pack = false"),
+    };
+
+    private static int wornShot = 0;
+    private static int wornFailures = 0;
+    private static net.minecraft.core.BlockPos wornPad = null;
+
+    /** A floating stone-brick pad in open sky, so the backdrop never depends on the seed. */
+    private static void wornStage(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel lvl = sp.level();
+            setWorldTime(server, 6000L);
+            net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
+            var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
+            for (int dx = -5; dx <= 5; dx++)
+                for (int dz = -6; dz <= 5; dz++) {
+                    for (int dy = 0; dy <= 6; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
+                    lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
+                }
+            wornPad = base;
+            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 0f);
+            Packwork.LOGGER.info("[wornshot] sky pad staged at {}", base);
+        });
+    }
+
+    private static void applyWornShot(Minecraft mc, WornShot shot) {
+        mc.options.hideGui = true;
+        mc.options.setCameraType(shot.frontCam()
+                ? net.minecraft.client.CameraType.THIRD_PERSON_FRONT
+                : net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        mc.options.keyShift.setDown(shot.crouch());
+        com.sappersquad.packwork.config.PackworkConfig.setShowWornPack(shot.show());
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devEquip(sp,
+                    new ItemStack(ModItems.pack(shot.tier()).get()));
+            // Strip FIRST, dress second: Inventory.clearContent() empties the armor and
+            // offhand rows too, so clearing after equipping quietly wipes the chestplate and
+            // the elytra - two shots that look fine and prove nothing.
+            sp.getInventory().clearContent();
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST, shot.chest().get());
+            // Re-anchor every shot: an elytra or a stray nudge drifts the player off the pad,
+            // and one drifted frame ruins the shot it lands on.
+            if (wornPad != null) {
+                sp.connection.teleport(wornPad.getX() + 0.5, wornPad.getY(),
+                        wornPad.getZ() + 0.5, 0f, 0f);
+            }
+        });
+    }
+
+    /**
+     * Look at the scene before believing the pixels. A worn-render shot is only evidence if
+     * the pack is actually worn, the armour the shot asked for is actually on, and the player
+     * is actually standing on the pad - and every one of those can be knocked out from
+     * OUTSIDE this harness (a stray {@code /clear} strips the back slot and the armour row, a
+     * stray {@code /tp} walks the player off the pad, and both were seen happening in a
+     * session where another tool was matching dev windows with a loose wildcard). A wrong
+     * scene produces a bare back or an empty frame - which is exactly what a broken renderer
+     * looks like, so it must never be written as a PNG and mistaken for a finding.
+     *
+     * @return null when the scene is what the shot asked for, else what is wrong with it
+     */
+    private static String wornCheck(Minecraft mc, WornShot shot) {
+        if (mc.player == null) return "no client player";
+        ItemStack worn = com.sappersquad.packwork.compat.trinkets.TrinketsCompat.wornPack(mc.player);
+        if (!(worn.getItem() instanceof PackItem)) {
+            return "the back slot holds " + worn + ", not a pack (was it cleared?) - this side sees: "
+                    + com.sappersquad.packwork.compat.trinkets.TrinketsCompat.devDescribeSlots(mc.player);
+        }
+        var wornTier = PackItem.tierOf(worn);
+        if (wornTier != shot.tier()) {
+            return "the back slot holds a " + wornTier + " pack, not the " + shot.tier() + " this shot is of";
+        }
+        ItemStack want = shot.chest().get();
+        ItemStack have = mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+        if (!ItemStack.isSameItem(want, have)) {
+            return "the chest slot holds " + have + ", but this shot needs " + want;
+        }
+        if (wornPad == null) return "the pad was never staged";
+        double dx = mc.player.getX() - (wornPad.getX() + 0.5);
+        double dz = mc.player.getZ() - (wornPad.getZ() + 0.5);
+        double dy = mc.player.getY() - wornPad.getY();
+        if (dx * dx + dz * dz > 4.0 || Math.abs(dy) > 3.0) {
+            return String.format(java.util.Locale.ROOT,
+                    "the player is at %.1f, %.1f, %.1f - off the pad at %d, %d, %d (was it teleported?)",
+                    mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    wornPad.getX(), wornPad.getY(), wornPad.getZ());
+        }
+        return null;
+    }
+
     private static void grab(Minecraft mc, String name) {
+        var target = mc.getMainRenderTarget();
+        // A minimised or zero-sized window writes a 70-byte PNG that looks like a success in
+        // the log and is worthless as evidence. Say so loudly instead.
+        if (target.width < 64 || target.height < 64) {
+            Packwork.LOGGER.error("[autoshot] render target is {}x{} - {} would be a blank file; "
+                    + "is the dev window minimised?", target.width, target.height, name);
+            return;
+        }
         // 1.21.6+ grab signature carries a downscale factor (1 = full size)
-        Screenshot.grab(mc.gameDirectory, name + ".png", mc.getMainRenderTarget(), 1,
+        Screenshot.grab(mc.gameDirectory, name + ".png", target, 1,
                 msg -> Packwork.LOGGER.info("[autoshot] {}", msg.getString()));
-        Packwork.LOGGER.info("[autoshot] grabbed {}", name);
+        Packwork.LOGGER.info("[autoshot] grabbed {} at {}x{}", name, target.width, target.height);
     }
 
     private DevAutoShot() {}

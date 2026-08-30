@@ -28,18 +28,31 @@ import java.util.List;
  */
 public final class HandbookContent {
 
-    public sealed interface Entry permits TextEntry, ItemsEntry {}
+    public sealed interface Entry permits TextEntry, ItemsEntry, LinkEntry {}
 
     public record TextEntry(String text) implements Entry {}
 
     /** A row of rendered item icons with an optional caption to its right. */
     public record ItemsEntry(String caption, List<ItemStack> items) implements Entry {}
 
+    /**
+     * A brass-underlined line that opens a web page. The screen routes the click through
+     * the vanilla link-confirm screen, so the player is always asked before anything opens
+     * - the book never reaches out on its own.
+     */
+    public record LinkEntry(String label, String url) implements Entry {}
+
     public record Chapter(String title, List<Entry> entries) {}
 
     private HandbookContent() {}
 
     private static TextEntry text(String s) { return new TextEntry(s); }
+
+    private static LinkEntry link(String label, String url) { return new LinkEntry(label, url); }
+
+    /** Where a field report goes. Kept here so the book, the README and the store page agree. */
+    public static final String ISSUES_URL = "https://github.com/SapperSquad/Packwork/issues";
+    public static final String DISCORD_URL = "https://discord.gg/mZ9CG6xh2A";
 
     private static ItemsEntry row(String caption, ItemStack... stacks) {
         return new ItemsEntry(caption, List.of(stacks));
@@ -231,5 +244,21 @@ public final class HandbookContent {
                 + "you're carrying, 1 Flux = 1 FE - the same arcane charge, poured into your "
                 + "ender-gear. It does nothing without Forgework installed."),
             text("ALCHEMIST'S FLASK HARNESS racks bottled vapors - Mekanism chemicals in glass, never "
-                + "a plasma tank. It only shows up with Mekanism installed."))));
+                + "a plasma tank. It only shows up with Mekanism installed."))),
+
+        // =================================================================
+        new Chapter("Field Reports", List.of(
+            text("Something jammed? A tab claiming the wrong thing, a fitting sitting dead, a "
+                + "pack that opened wrong - write it down and send it in. A bug nobody reports "
+                + "is a bug nobody fixes."),
+            link("Report it on GitHub", ISSUES_URL),
+            link("Or find us on Discord", DISCORD_URL),
+            text("Both open in your browser, and your game will ask you first."),
+            text("What helps most: your Minecraft version and loader, Packwork's version, the "
+                + "other mods in the pack, and what you were doing when it went sideways. A "
+                + "screenshot of the open pack is worth a paragraph."),
+            text("Same two doors for ideas: a compartment you wish shipped, a fitting the ladder "
+                + "is missing, a mod worth bridging. And if you speak a language Packwork doesn't "
+                + "yet - the translation files live in the repository, and a pull request is "
+                + "very welcome."))));
 }

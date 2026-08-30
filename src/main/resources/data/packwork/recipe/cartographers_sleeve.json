@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "fabric:load_conditions": [ { "condition": "packwork:trinket_enabled", "trinket": "cartographers_sleeve" } ],
   "pattern": ["PPP", "LML", "LLL"],
   "key": { "P": "minecraft:paper", "M": "minecraft:map",
            "L": "minecraft:leather" },

@@ -8,6 +8,11 @@ Backpacks" — the sorting is the whole point. NeoForge 1.21.1.
 
 Leather, brass, canvas, glass vials. Never a circuit board.
 
+**Full manual: [docs/](docs/)** — [sorting](docs/sorting.md) ·
+[tiers & fittings](docs/tiers-and-fittings.md) ·
+[stores & automation](docs/stores-and-automation.md) ·
+[every config key](docs/config.md) · [for packmakers](docs/for-packmakers.md)
+
 ## The sorting (the reason it exists)
 
 Open a pack and you get a rail of stamped leather tabs, a stitched search bar, and a
@@ -104,11 +109,32 @@ can't do — and the crystal tops up your carried Forgework terminals besides.
 
 Right-click a pack in hand to open it, or press the **Open Pack** keybind (default **B**)
 to open the first one you're carrying — no need to dig it out. On death it drops as a
-single item with everything still inside.
+single item with everything still inside — or, if the server says so, stays with you
+through the respawn, or sets itself down as a block where you fell
+(`death.handling` in [`config/packwork-server.toml`](docs/config.md)).
 
 New to it? Craft the **Outfitter's Handbook** (a book and a piece of leather) and
-right-click it. Five chapters — the pack, sorting, trinkets, tiers, and the stores — walk
-you through the whole thing, in-game.
+right-click it. Six chapters — the pack, sorting, trinkets, tiers, the stores, and where to
+send a field report — walk you through the whole thing, in-game.
+
+## Languages — translation PRs welcome
+
+English is hand-written. Ten more locales ship as **machine-drafted first passes that have
+not been read by a native speaker**: Simplified Chinese, Russian, Brazilian Portuguese,
+German, French, Spanish, Japanese, Korean, Polish, and Ukrainian. Each carries a
+`packwork.translation.status` line saying exactly that (it is never shown in game).
+
+If one of them reads wrong to you, a pull request fixing it is genuinely welcome — one key,
+one file, one line, all fine. A new language is just as welcome: copy
+`src/main/resources/assets/packwork/lang/en_us.json` to your locale code and translate the
+values. Two house rules: keep every `%s` exactly as it appears in the English (they are
+filled in at runtime, and a missing one crashes the screen it is on), and save as UTF-8
+**without** a BOM. `java tools/CheckLang.java` from the repo root checks both for you and
+tells you which keys are still missing.
+
+The Outfitter's Handbook's long-form prose is still English only — it is a few thousand
+words and would be worse machine-translated than left alone. `docs/` covers the same
+ground in the browser.
 
 ## Build
 

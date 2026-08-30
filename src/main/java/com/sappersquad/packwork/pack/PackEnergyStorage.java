@@ -32,14 +32,15 @@ public class PackEnergyStorage {
         this.onChange = onChange;
     }
 
-    /** Reservoir size for a pack: scales with the material tier. */
+    /** Reservoir size for a pack: per-tier, packmaker-tunable ({@code tiers.<name>.energy_fe}). */
     public static int capacityFor(ItemStack pack) {
-        PackTier tier = PackItem.tierOf(pack);
-        return 100_000 * tier.step(); // Canvas 100k FE .. Sculkhide 600k FE
+        return com.sappersquad.packwork.config.PackworkConfig.get()
+                .energyFeFor(PackItem.tierOf(pack)); // default: Canvas 100k FE .. Sculkhide 600k
     }
 
+    /** Transfer rate rides the capacity (capacity/50 per op - 2,000 FE at the Canvas default). */
     public static int transferFor(ItemStack pack) {
-        return 2_000 * PackItem.tierOf(pack).step();
+        return Math.max(1, capacityFor(pack) / 50);
     }
 
     private int get() {

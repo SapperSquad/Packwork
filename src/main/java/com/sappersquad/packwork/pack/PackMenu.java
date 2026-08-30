@@ -169,7 +169,8 @@ public class PackMenu extends AbstractContainerMenu {
                         net.fabricmc.fabric.api.transfer.v1.item.PlayerInventoryStorage.of(playerInv).getSlot(boundSlot));
         this.packInv = new PackInventory(hostAccess, tier);
         this.trinketInv = new PackTrinketInventory(hostAccess, tier);
-        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
         this.tabs = SortEngine.tabsFor(layout, fitted());
         this.activeTab = firstRealTab();
 
@@ -493,7 +494,8 @@ public class PackMenu extends AbstractContainerMenu {
     /** Recompute which backing slots each grid cell shows. Runs identically on both sides. */
     public void rebuildView() {
         // Re-read the durable layout from the (synced) live stack so both sides stay current.
-        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        this.layout = liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
         this.tabs = SortEngine.tabsFor(layout, fitted());
         int visible = visibleSlots();
         List<Integer> order = new ArrayList<>();
@@ -1522,7 +1524,8 @@ public class PackMenu extends AbstractContainerMenu {
     }
 
     private PackLayout currentLayout() {
-        return liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(), PackLayout.EMPTY);
+        return liveStack().getOrDefault(ModComponents.PACK_LAYOUT.get(),
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
     }
 
     private List<String> ensureOrder(PackLayout cur) {

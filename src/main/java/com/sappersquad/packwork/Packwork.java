@@ -22,6 +22,13 @@ public class Packwork implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // The packmaker's lever: config/packwork-server.toml, read before anything else
+        // consults it (same file, same keys as the NeoForge builds - one config serves a
+        // pack on either loader). The client cosmetics file is loaded from the client
+        // entrypoint, so a dedicated server never writes one.
+        com.sappersquad.packwork.config.PackworkConfig.loadServer(
+                FabricLoader.getInstance().getConfigDir());
+
         // Components before items: the pack item's storage lookups lean on its data
         // component types being registered. (Fabric: registration is eager - each reg
         // class registers in its static init; init() just forces the classload, in order.)
@@ -32,12 +39,15 @@ public class Packwork implements ModInitializer {
         com.sappersquad.packwork.reg.ModMenus.init();
         com.sappersquad.packwork.reg.ModCreativeTabs.init();
         com.sappersquad.packwork.reg.ModRecipes.init();
+        com.sappersquad.packwork.reg.ModAttachments.init();
+        com.sappersquad.packwork.reg.ModConditions.init();
         // 1.21.5+ gametests are registry entries; the registrar scans @PackTest methods.
         com.sappersquad.packwork.gametest.PackworkTestRegistrar.register();
 
         PackworkCapabilities.register();
         PackworkNetwork.register();
         com.sappersquad.packwork.trinket.TrinketEffects.register();
+        com.sappersquad.packwork.config.PackworkDeathHandling.register();
 
         // Trinkets (optional): hook the packs into the chest/back wear slot. Gated so
         // compat/trinkets (the only class importing trinkets) never loads without it.
