@@ -28,10 +28,10 @@ public class PackFluidHandler extends ItemAccessFluidHandler {
         super(access, ModComponents.PACK_FLUID.get(), capacity);
     }
 
-    /** Tank size for a pack: scales with the material tier. */
+    /** Tank size for a pack: per-tier, packmaker-tunable ({@code tiers.<name>.fluid_mb}). */
     public static int capacityFor(ItemStack pack) {
-        PackTier tier = PackItem.tierOf(pack);
-        return 8000 * tier.step(); // Canvas 8 buckets ... Sculkhide 48 buckets
+        return com.sappersquad.packwork.config.PackworkConfig.get()
+                .fluidMbFor(PackItem.tierOf(pack)); // default: Canvas 8 buckets ... Sculkhide 48
     }
 
     // ---- stack-shaped conveniences (simulate = don't commit) ----

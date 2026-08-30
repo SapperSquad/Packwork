@@ -33,6 +33,12 @@ public final class PackworkNetwork {
                 com.sappersquad.packwork.net.GhostSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.sappersquad.packwork.client.PackClientActions.handleGhostSync(payload)));
+        // Server -> client on login: the server's packwork-server.toml values, so gauges,
+        // slot counts and trinket gates draw exactly what the server enforces.
+        registrar.playToClient(com.sappersquad.packwork.net.ConfigSyncPayload.TYPE,
+                com.sappersquad.packwork.net.ConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.sappersquad.packwork.config.PackworkConfig.setRemote(payload.values())));
     }
 
     private static void onAction(PackActionPayload payload, IPayloadContext ctx) {

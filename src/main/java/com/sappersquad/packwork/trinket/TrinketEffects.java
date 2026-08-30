@@ -33,7 +33,6 @@ import java.util.List;
 @EventBusSubscriber(modid = Packwork.MODID)
 public final class TrinketEffects {
 
-    private static final double MAGNET_RANGE = 5.0;
     private static final int REPAIR_PER_TICK = 1;
     /** Cap the Charge Crystal's Flux hand-off to a Forgework terminal per tick (with FE tools it's uncapped). */
     private static final int FLUX_PER_TICK = 5_000;
@@ -68,7 +67,10 @@ public final class TrinketEffects {
         if (installed.isEmpty()) return;
         PackInventory pack = new PackInventory(packStack, PackItem.tierOf(packStack));
 
-        if (installed.contains(TrinketType.LODESTONE) && time % 4 == 0) magnet(sp, packStack, pack);
+        if (installed.contains(TrinketType.LODESTONE)
+                && time % com.sappersquad.packwork.config.PackworkConfig.get().magnetEveryTicks() == 0) {
+            magnet(sp, packStack, pack);
+        }
         if (installed.contains(TrinketType.RESTOCK) && time % 10 == 0) restock(sp, pack);
         if (installed.contains(TrinketType.REPAIR) && time % 20 == 0) repair(sp, pack);
         if (installed.contains(TrinketType.SOUL_VIAL) && time % 10 == 0) autoMend(sp, packStack);
@@ -230,7 +232,10 @@ public final class TrinketEffects {
         if (consumable != null && !consumable.onConsumeEffects().isEmpty()) {
             return false;   // anything with an effect on it stays yours
         }
-        return !stack.is(NEVER_AUTO_EAT);
+        if (stack.is(NEVER_AUTO_EAT)) return false;
+        // the config blocklist stacks on top of the tag, for packmakers without a datapack
+        return !com.sappersquad.packwork.config.PackworkConfig.get().neverAutoEat()
+                .contains(BuiltInRegistries.ITEM.getKey(stack.getItem()));
     }
 
     // ---- Torchbearer's Loop: lights the dark from pack stock ----
@@ -465,8 +470,8 @@ public final class TrinketEffects {
         if (!(packStack.getItem() instanceof PackItem)) return false;
         if (!TrinketAccess.has(packStack, TrinketType.LODESTONE)) return false;
         var layout = packStack.getOrDefault(com.sappersquad.packwork.reg.ModComponents.PACK_LAYOUT.get(),
-                com.sappersquad.packwork.sort.PackLayout.EMPTY);
-        if (!layout.packFirst()) return false; // the GUI toggle: off = pure vanilla
+                com.sappersquad.packwork.config.PackworkConfig.defaultLayout());
+        if (!layout.packFirst()) return false; // the GUI toggle (default from config): off = pure vanilla
 
         ItemStack ground = ie.getItem();
         // Compass Rose void contract, exactly as the magnet path
@@ -520,7 +525,9 @@ public final class TrinketEffects {
 
     /** Pull loose items nearby into the pack (and quietly bin voided ones if a Compass Rose is fitted). */
     private static void magnet(ServerPlayer sp, ItemStack packStack, PackInventory pack) {
-        AABB box = sp.getBoundingBox().inflate(MAGNET_RANGE);
+        double range = com.sappersquad.packwork.config.PackworkConfig.get().magnetRange();
+        if (range <= 0) return; // packmaker turned the pull off; touch pickup still files
+        AABB box = sp.getBoundingBox().inflate(range);
         List<ItemEntity> items = sp.level().getEntitiesOfClass(ItemEntity.class, box,
                 e -> e.isAlive() && !e.hasPickUpDelay());
         boolean hasRose = TrinketAccess.has(packStack, TrinketType.COMPASS_ROSE);

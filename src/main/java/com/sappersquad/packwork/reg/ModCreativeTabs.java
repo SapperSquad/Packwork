@@ -20,6 +20,14 @@ public class ModCreativeTabs {
                     .title(Component.translatable("itemGroup.packwork"))
                     .icon(() -> new ItemStack(ModItems.pack(PackTier.LEATHER).get()))
                     .displayItems((params, output) ->
-                            ModItems.ITEMS.getEntries().forEach(item -> output.accept(item.get())))
+                            ModItems.ITEMS.getEntries().forEach(item -> {
+                                // A config-retired fitting leaves the shelf along with its
+                                // recipe - no dead craftables, nothing to wonder about.
+                                if (item.get() instanceof com.sappersquad.packwork.trinket.TrinketItem t
+                                        && !com.sappersquad.packwork.config.PackworkConfig.get().enabled(t.type())) {
+                                    return;
+                                }
+                                output.accept(item.get());
+                            }))
                     .build());
 }
