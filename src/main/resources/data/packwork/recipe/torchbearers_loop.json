@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "torchbearers_loop" } ],
   "pattern": ["ITI", "TLT", "ITI"],
   "key": { "I": { "item": "minecraft:iron_nugget" }, "T": { "item": "minecraft:torch" },
            "L": { "item": "minecraft:leather" } },

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "anglers_creel" } ],
   "pattern": ["WSW", "WRW", "WWW"],
   "key": { "W": { "item": "minecraft:stick" }, "S": { "item": "minecraft:string" },
            "R": { "item": "minecraft:fishing_rod" } },

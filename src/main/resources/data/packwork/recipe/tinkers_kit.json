@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "tinkers_kit" } ],
   "pattern": ["SLS", "LCL", "SLS"],
   "key": { "S": { "item": "minecraft:string" }, "L": { "item": "minecraft:leather" },
            "C": { "item": "minecraft:crafting_table" } },

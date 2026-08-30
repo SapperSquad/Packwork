@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "herbalists_bundle" } ],
   "pattern": ["SWS", "WLW", "SWS"],
   "key": { "S": { "item": "minecraft:string" }, "W": { "tag": "c:seeds" },
            "L": { "item": "minecraft:leather" } },

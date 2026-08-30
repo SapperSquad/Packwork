@@ -21,6 +21,12 @@ public final class PackworkNetwork {
         PayloadRegistrar registrar = event.registrar("1");
         registrar.playToServer(PackActionPayload.TYPE, PackActionPayload.STREAM_CODEC, PackworkNetwork::onAction);
         registrar.playToServer(OpenPackPayload.TYPE, OpenPackPayload.STREAM_CODEC, PackworkNetwork::onOpen);
+        // Server -> client on login: the server's packwork-server.toml values, so gauges,
+        // slot counts and trinket gates draw exactly what the server enforces.
+        registrar.playToClient(com.sappersquad.packwork.net.ConfigSyncPayload.TYPE,
+                com.sappersquad.packwork.net.ConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.sappersquad.packwork.config.PackworkConfig.setRemote(payload.values())));
     }
 
     private static void onAction(PackActionPayload payload, IPayloadContext ctx) {

@@ -1,4 +1,5 @@
 { "type": "minecraft:crafting_shaped", "category": "equipment",
+  "neoforge:conditions": [ { "type": "packwork:trinket_enabled", "trinket": "charge_crystal" } ],
   "pattern": ["RCR", "CAC", "RLR"],
   "key": { "R": { "item": "minecraft:redstone" }, "C": { "item": "minecraft:copper_ingot" }, "A": { "item": "minecraft:amethyst_shard" }, "L": { "item": "minecraft:leather" } },
   "result": { "id": "packwork:charge_crystal", "count": 1 } }
