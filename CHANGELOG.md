@@ -2,6 +2,17 @@
 
 All notable changes, newest first. Dates are the suite's working dates.
 
+## 1.1.0 — 2026-08-30 (in progress)
+
+The adoption wave: the things that make a pack easy to run, easy to tune, and easy to
+talk about.
+
+- **Your pack shows up on your back.** Wear one in a back slot and it renders there —
+  the same per-tier leather, buckle and trim a set-down pack shows, right down to the
+  Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
+  aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
+  in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
+
 ## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
 
 Packwork crosses the loader line: the same 1.0.0 "First Haul" on **Fabric**, for the
