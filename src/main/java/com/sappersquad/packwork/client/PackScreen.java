@@ -1590,6 +1590,27 @@ public class PackScreen extends AbstractContainerScreen<PackMenu> {
                 : new int[]{gaugeRect[0] + gaugeRect[2] / 2, gaugeRect[1] + gaugeRect[3] / 2};
     }
 
+    /**
+     * Dev harness only: the screen-space centre of a menu slot, for parking the real cursor
+     * on it. The GIF capture uses this - Minecraft draws no cursor into the framebuffer, so
+     * vanilla's slot HIGHLIGHT under a real cursor is the only pointer a recording can show.
+     */
+    public int[] devSlotCenter(int menuIndex) {
+        if (menuIndex < 0 || menuIndex >= menu.slots.size()) return null;
+        Slot s = menu.slots.get(menuIndex);
+        return new int[]{leftPos + s.x + 8, topPos + s.y + 8};
+    }
+
+    /** Dev harness only: the screen-space centre of a tab on the rail, or null if not drawn. */
+    public int[] devTabCenter(String tabId) {
+        for (int i = 0; i < tabRects.size() && i < menu.tabs().size(); i++) {
+            if (!menu.tabs().get(i).id().equals(tabId)) continue;
+            int[] r = tabRects.get(i);
+            return new int[]{r[0] + r[2] / 2, r[1] + r[3] / 2};
+        }
+        return null;
+    }
+
     /** Dev harness only: force which slot counts as hovered, so a synthetic key press can target it. */
     public void devHover(int menuIndex) {
         this.hoveredSlot = (menuIndex >= 0 && menuIndex < menu.slots.size()) ? menu.slots.get(menuIndex) : null;

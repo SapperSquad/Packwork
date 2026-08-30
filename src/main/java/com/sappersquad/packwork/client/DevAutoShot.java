@@ -37,7 +37,9 @@ public final class DevAutoShot {
     private static final boolean GALLERY = System.getProperty("packwork.gallery") != null;
     /** The worn-render shoot (-Pwornshot -Pcurios): third-person back shots of the worn pack. */
     private static final boolean WORNSHOT = System.getProperty("packwork.wornshot") != null;
-    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT;
+    /** The sorting-GIF capture (-Pgifshot): one framebuffer PNG per tick, scripted. */
+    private static final boolean GIFSHOT = System.getProperty("packwork.gifshot") != null;
+    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT || GIFSHOT;
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
@@ -74,10 +76,13 @@ public final class DevAutoShot {
         G_NIGHT, G_NIGHT_W, G_SHOOT_NIGHT,
         G_JEI, G_JEI_W, G_SHOOT_JEI,
         // ---- the worn-render shoot (runs INSTEAD of the above under -Pwornshot) ----
-        WS_BOOT, WS_WAIT_LEVEL, WS_STEP, WS_SHOOT
+        WS_BOOT, WS_WAIT_LEVEL, WS_STEP, WS_SHOOT,
+        // ---- the sorting-GIF capture (runs INSTEAD of the above under -Pgifshot) ----
+        GIF_BOOT, GIF_WAIT_LEVEL, GIF_STAGE, GIF_ROLL
     }
 
-    private static Phase phase = WORNSHOT ? Phase.WS_BOOT : (GALLERY ? Phase.G_BOOT : Phase.BOOT);
+    private static Phase phase = GIFSHOT ? Phase.GIF_BOOT
+            : WORNSHOT ? Phase.WS_BOOT : (GALLERY ? Phase.G_BOOT : Phase.BOOT);
     private static int ticks = 0;
     private static int wait = 0;
     private static String customTabId = "custom:0";
@@ -750,6 +755,59 @@ public final class DevAutoShot {
                     phase = Phase.WS_STEP;
                     wait = 0;
                 }
+            }
+            // ================= the sorting-GIF capture (-Pgifshot) =================
+            case GIF_BOOT -> {
+                if (ticks == 5) {
+                    try {
+                        // 1280x720 at GUI scale 2 is the whole point: every GUI texel is
+                        // exactly 2x2 device pixels, so the encoder's 2x nearest downscale
+                        // to 640x360 is LOSSLESS for the GUI. Any other pairing blurs it.
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1280, 720);
+                        mc.options.guiScale().set(2);
+                        mc.resizeDisplay();
+                        Packwork.LOGGER.info("[gifshot] window 1280x720 at GUI scale 2");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[gifshot] resize failed: {}", t.toString());
+                    }
+                }
+                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                    Packwork.LOGGER.info("[gifshot] creating throwaway world");
+                    LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
+                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                    mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                    phase = Phase.GIF_WAIT_LEVEL;
+                    wait = 0;
+                }
+            }
+            case GIF_WAIT_LEVEL -> {
+                if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
+                    if (!mc.options.hideGui) mc.options.hideGui = true;   // no HUD over the GUI
+                    gifStage(mc);
+                    phase = Phase.GIF_STAGE;
+                    wait = 0;
+                }
+            }
+            case GIF_STAGE -> {
+                // let the open land and the first sort settle before frame 0
+                if (mc.screen instanceof PackScreen && ++wait > 20) {
+                    phase = Phase.GIF_ROLL;
+                    gifFrame = 0;
+                    wait = 0;
+                }
+            }
+            case GIF_ROLL -> {
+                if (gifFrame >= GIF_FRAMES) {
+                    phase = Phase.DONE;
+                    mc.options.hideGui = false;
+                    Packwork.LOGGER.info("[gifshot] done - {} frames in {}", gifFrame, gifDir);
+                    break;
+                }
+                gifScript(mc, gifFrame);
+                gifFrame(mc);
+                gifFrame++;
+                if (gifFrame % 40 == 0) Packwork.LOGGER.info("[gifshot] {} frames", gifFrame);
             }
             default -> {}
         }
@@ -1465,6 +1523,248 @@ public final class DevAutoShot {
     private static void withMenu(Minecraft mc, java.util.function.Consumer<PackMenu> action) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
             action.accept(menu);
+        }
+    }
+
+    // =====================================================================
+    //  the sorting-GIF capture (-Pgifshot)
+    // =====================================================================
+    //
+    //  One framebuffer PNG per client tick, driven by a tick-counted script, into
+    //  run/client/screenshots/gifshot/. Because the script is counted in TICKS and not in
+    //  wall-clock, the readback stalling the render thread only makes the capture take
+    //  longer - it never changes the timing of the finished GIF.
+    //
+    //  Deliberately NO synthetic mouse cursor. Minecraft never draws one (the OS does), so
+    //  a framebuffer capture has none, and a hand-drawn stand-in would be a UI element the
+    //  mod does not have. Vanilla's slot HIGHLIGHT is in the framebuffer, so the script
+    //  moves the hover instead: the viewer reads a pointer that isn't there.
+
+    /** 20 tps in, so one frame per tick is a 20fps capture; the encoder drops to 15. */
+    private static final int GIF_FRAMES = 400;          // 20 seconds
+    private static int gifFrame = 0;
+    private static java.io.File gifDir = null;
+    private static int gifClickedRow = 0;
+
+    /**
+     * The messy inventory the GIF opens on: interleaved junk, duplicates scattered, in no
+     * order at all - the viewer's own inventory, basically. Deliberately spanning every
+     * auto-tab so the rail lights up across the board as it fills.
+     */
+    private static ItemStack[] gifMess() {
+        // NO duplicates: two stacks of the same thing merge on the way in, and a grid that
+        // fills more slowly than the pockets empty makes the pack look like it is eating
+        // things. Twenty-seven distinct items fill three full rows.
+        return new ItemStack[]{
+            new ItemStack(Items.COBBLESTONE, 45), new ItemStack(Items.BREAD, 7),
+            new ItemStack(Items.IRON_PICKAXE), new ItemStack(Items.OAK_SAPLING, 12),
+            new ItemStack(Items.RAW_GOLD, 9), new ItemStack(Items.TORCH, 33),
+            new ItemStack(Items.WHEAT_SEEDS, 18), new ItemStack(Items.ANDESITE, 61),
+            new ItemStack(Items.IRON_SWORD), new ItemStack(Items.COOKED_BEEF, 5),
+            new ItemStack(Items.NETHER_WART, 14), new ItemStack(Items.RAW_IRON, 22),
+            new ItemStack(Items.OAK_PLANKS, 40), new ItemStack(Items.ARROW, 27),
+            new ItemStack(Items.APPLE, 3), new ItemStack(Items.DIRT, 52),
+            new ItemStack(Items.BLAZE_POWDER, 6), new ItemStack(Items.SHEARS),
+            new ItemStack(Items.DIAMOND, 4), new ItemStack(Items.POPPY, 11),
+            new ItemStack(Items.GRAVEL, 23), new ItemStack(Items.GLASS_BOTTLE, 5),
+            new ItemStack(Items.BONE, 8), new ItemStack(Items.STICK, 31),
+            new ItemStack(Items.RAW_COPPER, 17), new ItemStack(Items.MUSHROOM_STEW),
+            new ItemStack(Items.BRICKS, 28),
+        };
+    }
+
+    /**
+     * Hand the player a Sculkhide pack plus the mess, on a stone-brick pad in open sky, and
+     * open the pack over it. The pad is the gallery shoot's trick: the backdrop is then pure
+     * daylight sky on every seed, instead of whatever village or ravine the world rolled -
+     * and behind a GUI, a busy backdrop is just noise the palette has to pay for.
+     */
+    private static void gifStage(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            var tier = com.sappersquad.packwork.pack.PackTier.SCULKHIDE;
+            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            lvl.setDayTime(6000);                       // noon: the brightest, flattest sky
+            net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
+            var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();
+            for (int dx = -5; dx <= 5; dx++)
+                for (int dz = -5; dz <= 6; dz++) {
+                    for (int dy = 0; dy <= 6; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
+                    lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
+                }
+            // The pack the GIF closes on: standing in the world three blocks ahead, so the
+            // last beat is the object itself and the loop back to the open GUI reads as
+            // re-opening it. Without this the final second was a bare stone pad.
+            placePackBlock(lvl, base.offset(0, 0, 3), tier, false);
+            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 12f);
+
+            sp.getInventory().clearContent();
+            ItemStack pack = new ItemStack(ModItems.pack(tier).get());
+            sp.getInventory().items.set(0, pack);
+            sp.getInventory().selected = 0;
+            ItemStack[] mess = gifMess();
+            // fill the three inventory rows (slots 9..35), leaving the hotbar for the pack
+            for (int i = 0; i < mess.length && i < 27; i++) {
+                sp.getInventory().items.set(9 + i, mess[i]);
+            }
+            PackItem.openPack(sp, 0);
+            Packwork.LOGGER.info("[gifshot] messy inventory staged on the sky pad, pack open");
+        });
+    }
+
+    /**
+     * One tick of the script. Times are in ticks at 20 tps; the shot table in the outreach
+     * storyboard is in seconds, so every boundary here is that number x20.
+     */
+    private static void gifScript(Minecraft mc, int t) {
+        if (!(mc.screen instanceof PackScreen ps)) return;
+        PackMenu menu = ps.getMenu();
+
+        // The dump runs FLATTENED. Filed into compartments, most of what you shift-click
+        // lands on a tab you are not looking at - the first cut showed items vanish from the
+        // pockets and never appear, which reads as "it ate them", the exact opposite of the
+        // point. Flat, they pile up in front of you; shot 3 then turns it off and shows the
+        // compartments were being filled the whole time.
+        if (t == 4) PackClientActions.toggleFlatten(menu);
+
+        // shot 1 (0.0-3.0s): the mess, held still. Nothing moves for the first beat.
+        if (t < 60) return;
+
+        // shot 2 (3.0-8.0s): the dump. One shift-click every 3 ticks empties all 27 pockets.
+        if (t < 160) {
+            if ((t - 60) % 3 == 0) gifQuickMoveNext(mc, menu);
+            return;
+        }
+
+        // shot 3 (8.0-13.0s): the proof. Un-flatten, then Food, then Ores & Valuables.
+        // The cursor steps OFF the rail a beat after each click: a tab tooltip is two lines
+        // wide and lies straight across the compartment the shot exists to show.
+        if (t == 162) PackClientActions.toggleFlatten(menu);
+        if (t == 170) gifClickTab(mc, ps, menu, "auto:food");
+        if (t == 178) gifPointBlank(mc, ps);
+        if (t == 212) gifClickTab(mc, ps, menu, "auto:ores");
+        if (t == 220) gifPointBlank(mc, ps);
+        if (t < 255) return;
+
+        // shot 4 (13.0-17.0s): the obedience. Carry bread OUT of Food and set it down in
+        // Ores & Valuables - dropping into a compartment it would never sort to is the pin
+        // gesture, and the stitched note says so.
+        if (t == 256) gifClickTab(mc, ps, menu, "auto:food");
+        if (t == 266) gifPickUpFrom(mc, ps, menu, Items.BREAD, true);
+        if (t == 278) gifClickTab(mc, ps, menu, "auto:ores");
+        if (t == 290) gifDropIntoFirstFreeCell(mc, ps, menu);
+        if (t == 298) gifPointBlank(mc, ps);
+        if (t < 340) return;
+
+        // shot 5 (17.0-20.0s): Tidy Up, then close on the pack standing in the world.
+        if (t == 342) PackClientActions.tidyUp(menu);
+        if (t == 378) mc.setScreen(null);
+    }
+
+    /** Park the REAL cursor on a tab, then select it - the highlight is the GIF's pointer. */
+    private static void gifClickTab(Minecraft mc, PackScreen ps, PackMenu menu, String tabId) {
+        int[] c = ps.devTabCenter(tabId);
+        if (c != null) hoverGui(mc, c[0], c[1]);
+        PackClientActions.selectTab(menu, tabId);
+    }
+
+    /** Park the cursor on an EMPTY grid cell: the highlight stays, the tooltip goes. */
+    private static void gifPointBlank(Minecraft mc, PackScreen ps) {
+        PackMenu menu = ps.getMenu();
+        for (int i = menu.slots.size() - 1; i >= 0; i--) {
+            net.minecraft.world.inventory.Slot s = menu.slots.get(i);
+            if (s instanceof com.sappersquad.packwork.pack.PackViewSlot && s.isActive() && !s.hasItem()) {
+                gifPointAt(mc, i);
+                return;
+            }
+        }
+    }
+
+    /** Shift-click the next non-empty player-inventory slot into the pack. */
+    private static void gifQuickMoveNext(Minecraft mc, PackMenu menu) {
+        if (mc.player == null || mc.gameMode == null) return;
+        for (int i = gifClickedRow; i < menu.slots.size(); i++) {
+            net.minecraft.world.inventory.Slot s = menu.slots.get(i);
+            if (!(s.container instanceof net.minecraft.world.entity.player.Inventory)) continue;
+            if (!s.hasItem() || s.getItem().getItem() instanceof PackItem) continue;
+            gifPointAt(mc, i);
+            mc.gameMode.handleInventoryMouseClick(menu.containerId, i, 0,
+                    net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+            gifClickedRow = i + 1;
+            return;
+        }
+    }
+
+    /** Pick up the first cell holding this item (so the next click can place it elsewhere). */
+    private static void gifPickUpFrom(Minecraft mc, PackScreen ps, PackMenu menu,
+                                      net.minecraft.world.item.Item want, boolean fromPack) {
+        if (mc.player == null || mc.gameMode == null) return;
+        for (int i = 0; i < menu.slots.size(); i++) {
+            net.minecraft.world.inventory.Slot s = menu.slots.get(i);
+            boolean isPackCell = s instanceof com.sappersquad.packwork.pack.PackViewSlot;
+            if (isPackCell != fromPack || !s.hasItem() || !s.getItem().is(want)) continue;
+            gifPointAt(mc, i);
+            mc.gameMode.handleInventoryMouseClick(menu.containerId, i, 0,
+                    net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+            return;
+        }
+    }
+
+    /** Drop whatever is on the cursor into the first empty cell of the open compartment. */
+    private static void gifDropIntoFirstFreeCell(Minecraft mc, PackScreen ps, PackMenu menu) {
+        if (mc.player == null || mc.gameMode == null) return;
+        for (int i = 0; i < menu.slots.size(); i++) {
+            net.minecraft.world.inventory.Slot s = menu.slots.get(i);
+            if (!(s instanceof com.sappersquad.packwork.pack.PackViewSlot) || !s.isActive()) continue;
+            if (s.hasItem()) continue;
+            gifPointAt(mc, i);
+            mc.gameMode.handleInventoryMouseClick(menu.containerId, i, 0,
+                    net.minecraft.world.inventory.ClickType.PICKUP, mc.player);
+            return;
+        }
+    }
+
+    /**
+     * Move the REAL cursor onto a menu slot. {@code devHover} is no use here - the screen
+     * recomputes the hovered slot from the mouse every frame, so a forced value is gone by
+     * the time the frame is captured. Moving the actual pointer is what makes the highlight
+     * follow the clicks, and the highlight is all the cursor this GIF gets.
+     */
+    private static void gifPointAt(Minecraft mc, int menuIndex) {
+        if (!(mc.screen instanceof PackScreen ps)) return;
+        int[] c = ps.devSlotCenter(menuIndex);
+        if (c != null) hoverGui(mc, c[0], c[1]);
+    }
+
+    /**
+     * Write one frame SYNCHRONOUSLY. {@code Screenshot.grab} hands the encode to the IO pool,
+     * which is right for a handful of shots and wrong for four hundred: the render thread
+     * would run ahead and queue hundreds of ~3.7MB NativeImages. Blocking here keeps memory
+     * flat and costs only wall-clock, which the tick-counted script does not care about.
+     */
+    private static void gifFrame(Minecraft mc) {
+        var target = mc.getMainRenderTarget();
+        if (target.width < 64 || target.height < 64) {
+            Packwork.LOGGER.error("[gifshot] render target is {}x{} - refusing to write a blank "
+                    + "frame; is the dev window minimised?", target.width, target.height);
+            return;
+        }
+        if (gifDir == null) {
+            gifDir = new java.io.File(new java.io.File(mc.gameDirectory, "screenshots"), "gifshot");
+            if (!gifDir.exists() && !gifDir.mkdirs()) {
+                Packwork.LOGGER.error("[gifshot] could not create {}", gifDir);
+                return;
+            }
+        }
+        try (var img = Screenshot.takeScreenshot(target)) {
+            img.writeToFile(new java.io.File(gifDir,
+                    String.format(java.util.Locale.ROOT, "frame_%04d.png", gifFrame)));
+        } catch (Exception e) {
+            Packwork.LOGGER.error("[gifshot] frame {} failed", gifFrame, e);
         }
     }
 

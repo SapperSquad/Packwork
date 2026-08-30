@@ -72,6 +72,12 @@ runs {
         if (project.hasProperty('wornshot')) {
             systemProperty 'packwork.wornshot', '1'
         }
+        // The sorting-GIF capture: ./gradlew runClient -Pgifshot writes one framebuffer PNG
+        // per tick to run/client/screenshots/gifshot, which tools/GifEncoder.java turns into
+        // promo/packwork-sorting.gif.
+        if (project.hasProperty('gifshot')) {
+            systemProperty 'packwork.gifshot', '1'
+        }
     }
 
     server {

@@ -43,3 +43,39 @@ and swapping that in stays SapperSquad's call.
   committed here as **extras**: `gallery-9-worn-sculkhide.png` and
   `gallery-10-worn-canvas.png`. They are proof, not a hero frame — see the note in
   `../PUBLISHING.md` before putting either on the store page.
+
+## 1.2.0 additions — the sorting GIF
+
+`promo/packwork-sorting.gif` — 640x360, 300 frames at 7cs (14.3 fps), 21 seconds, 6.8 MB.
+The one asset the outreach kit rides on: the player never organises anything and the pack
+visibly does. Five beats — the mess, the shift-click dump, the compartments proving they
+were filled all along, bread pinned into Ores & Valuables, and Tidy Up before it closes on
+the pack standing in the world (which loops cleanly back to the pack opening).
+
+Regenerate in two steps:
+
+1. `./gradlew runClient -Pgifshot` — a tick-counted script writes one framebuffer PNG per
+   client tick to `run/client/screenshots/gifshot/` (400 frames = 20 s at 20 tps). It forces
+   **1280x720 at GUI scale 2** on purpose: every GUI texel is then exactly 2x2 device pixels,
+   so the encoder's 2x nearest downscale is lossless for the GUI and the text stays crisp.
+2. `java tools/GifEncoder.java run/client/screenshots/gifshot promo/packwork-sorting.gif 20 15 2`
+   — drops 20 fps to 15, downscales 2x nearest, quantises every frame against ONE global
+   median-cut palette (per-frame palettes bloat the file and make flat leather shimmer), and
+   writes a GIF89a with the NETSCAPE2.0 loop block.
+
+**Three things learned making it, so the next one is cheaper:**
+
+- **There is no cursor in a framebuffer capture.** Minecraft never draws one — the OS does —
+  so a recording shows nothing where the pointer is. The script moves the REAL cursor with
+  `glfwSetCursorPos` and lets vanilla's slot HIGHLIGHT be the pointer. `devHover` is no use:
+  the screen recomputes the hovered slot from the mouse every frame.
+- **The dump has to run FLATTENED.** Filed into compartments, most of what you shift-click
+  lands on a tab you are not looking at — the first cut showed items vanish from the pockets
+  and never appear, which reads as "it ate them". Shot 3 then un-flattens and shows the
+  compartments were being filled the whole time.
+- **A tab tooltip lies straight across the compartment.** The cursor has to step off the rail
+  a beat after each tab click, onto an empty grid cell — highlight stays, tooltip goes.
+
+Size check, since it was measured rather than guessed: the same 300 frames at full 1280x720
+come to **18.5 MB** — under Reddit's budget but three times the size and over Discord's
+10 MB embed cap, for detail nobody sees at post scale. 640x360 is the right answer.

@@ -83,10 +83,17 @@ public class GifEncoder {
         System.out.println("palette: " + palette.getMapSize() + " colours");
 
         // ---- write ---------------------------------------------------------------------
+        // GIF delays are whole CENTISECONDS, so the played-back rate is almost never exactly
+        // the fps asked for (15 -> 7cs -> 14.3fps). Report what the file will actually do
+        // rather than what was requested: a duration that quietly drifts from the storyboard
+        // is the kind of thing nobody notices until the voiceover doesn't line up.
         int delayCs = Math.max(1, (int) Math.round(100.0 / outFps));
         writeGif(out, frames, palette, delayCs);
-        System.out.printf(java.util.Locale.ROOT, "wrote %s - %d frames, %dcs/frame, %.2f MB%n",
-                out, frames.size(), delayCs, out.length() / 1024.0 / 1024.0);
+        double realFps = 100.0 / delayCs;
+        System.out.printf(java.util.Locale.ROOT,
+                "wrote %s - %d frames, %dcs/frame = %.1f fps, %.1fs of playback, %.2f MB%n",
+                out, frames.size(), delayCs, realFps, frames.size() * delayCs / 100.0,
+                out.length() / 1024.0 / 1024.0);
     }
 
     // =====================================================================
