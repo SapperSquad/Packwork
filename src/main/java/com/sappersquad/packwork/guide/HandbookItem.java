@@ -19,6 +19,21 @@ public class HandbookItem extends Item {
         super(properties.stacksTo(1));
     }
 
+    /**
+     * Two lines: what the book is for, and where a bug goes. The report line is a lang key
+     * on purpose - a translator can point their own players at the door that actually
+     * reaches the author, which is not always the one they are reading this on.
+     */
+    @Override
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                java.util.List<net.minecraft.network.chat.Component> tooltip,
+                                net.minecraft.world.item.TooltipFlag flag) {
+        tooltip.add(net.minecraft.network.chat.Component.translatable("packwork.handbook.hint")
+                .withStyle(net.minecraft.ChatFormatting.GRAY));
+        tooltip.add(net.minecraft.network.chat.Component.translatable("packwork.handbook.report")
+                .withStyle(net.minecraft.ChatFormatting.DARK_GRAY));
+    }
+
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         if (level.isClientSide()) {

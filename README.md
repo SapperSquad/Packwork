@@ -107,8 +107,27 @@ to open the first one you're carrying — no need to dig it out. On death it dro
 single item with everything still inside.
 
 New to it? Craft the **Outfitter's Handbook** (a book and a piece of leather) and
-right-click it. Five chapters — the pack, sorting, trinkets, tiers, and the stores — walk
-you through the whole thing, in-game.
+right-click it. Six chapters — the pack, sorting, trinkets, tiers, the stores, and where to
+send a field report — walk you through the whole thing, in-game.
+
+## Languages — translation PRs welcome
+
+English is hand-written. Ten more locales ship as **machine-drafted first passes that have
+not been read by a native speaker**: Simplified Chinese, Russian, Brazilian Portuguese,
+German, French, Spanish, Japanese, Korean, Polish, and Ukrainian. Each carries a
+`packwork.translation.status` line saying exactly that (it is never shown in game).
+
+If one of them reads wrong to you, a pull request fixing it is genuinely welcome — one key,
+one file, one line, all fine. A new language is just as welcome: copy
+`src/main/resources/assets/packwork/lang/en_us.json` to your locale code and translate the
+values. Two house rules: keep every `%s` exactly as it appears in the English (they are
+filled in at runtime, and a missing one crashes the screen it is on), and save as UTF-8
+**without** a BOM. `java tools/CheckLang.java` from the repo root checks both for you and
+tells you which keys are still missing.
+
+The Outfitter's Handbook's long-form prose is still English only — it is a few thousand
+words and would be worse machine-translated than left alone. `docs/` covers the same
+ground in the browser.
 
 ## Build
 
