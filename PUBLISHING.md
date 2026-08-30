@@ -42,23 +42,21 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 | `1.1.0+mc1.21.11` | `build/libs/packwork-1.1.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
 | `1.1.0+mc26.1.2` | `build/libs/packwork-1.1.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
 | `1.1.0+mc26.2` | `build/libs/packwork-1.1.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc26.1-fabric` | `build/libs/packwork-1.0.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
-| `1.0.0+mc26.2-fabric` | `build/libs/packwork-1.0.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
+| `1.1.0+mc26.1-fabric` | `build/libs/packwork-1.1.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
+| `1.1.0+mc26.2-fabric` | `build/libs/packwork-1.1.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
 
-> **The two Fabric rows are still 1.0.0 and should NOT be re-uploaded for this release.**
-> 1.1.0's config core needs Fabric's own resource-condition API, a Fabric attachment for
-> the death stash, and a fourth mixin to sweep packs out of the drop list (Fabric has no
-> `LivingDropsEvent`), and none of that is written yet. The existing 1.0.0 Fabric files stay
-> up and keep working exactly as they do today. When the Fabric port lands, add the two
-> `1.1.0+mc26.x-fabric` files then.
+> **All eight rows are 1.1.0.** The Fabric pair caught up on 2026-08-30 — same config
+> file with the same keys, same three death modes, same Field Reports page, same ten
+> locales — so this release is one wave across both loaders, not a NeoForge-only one.
 >
-> **Where the worn pack renders, honestly:** **1.21.1 and 1.21.8** (NeoForge, with Curios).
-> Minecraft 1.21.10 replaced the entity render pipeline (`RenderLayer.submit` +
-> `SubmitNodeCollector`, no more `renderSingleBlock`), so the layer needs a second
-> implementation for 1.21.10 / 1.21.11 / 26.1 / 26.2 — it isn't in those jars. Everything
-> else in 1.1.0 — the whole config, Field Reports, the ten locales — is on all six NeoForge
-> builds. **If SapperSquad wants the store page to lead with the worn render, say
-> "NeoForge 1.21.1 and 1.21.8" in that section rather than letting it read as universal.**
+> **Where the worn pack renders, honestly:** all six **NeoForge** builds (1.21.1, 1.21.8,
+> 1.21.10, 1.21.11, 26.1, 26.2), with Curios, each one shot and looked at. The layer is in
+> the two **Fabric** jars as well, but it has NOT been seen working there: the shoot
+> harness cannot get a pack into the wearer's own client-side Trinkets slot, so there is
+> nothing to photograph (details in PROJECT_HANDOFF — it is a harness/equip-path problem,
+> not a renderer one, and everything server-side reads that slot correctly). **The store
+> copy's worn-pack section says "on NeoForge, with Curios" for exactly that reason. Leave
+> it that way until someone has watched it work on Fabric.**
 
 The loader column matters now — same version string, different loader tag per file.
 Needed on both sides: on servers, install on the server and every client. Each port
@@ -174,15 +172,13 @@ Craftable fittings slot into the brass rail — and pull back out any time:
 | Charge Crystal | an arcane charge in copper-wound glass — standard FE, tops up your powered tools |
 | Alchemist's Flask Harness | bottled vapors — a chemical tank (with Mekanism) |
 
-New to the pack? Craft the **Outfitter's Handbook** — five in-game chapters on sorting,
-trinkets, tiers, and the stores, with every number pulled live from the code.
+New to the pack? Craft the **Outfitter's Handbook** — six in-game chapters on sorting,
+trinkets, tiers, the stores, and where to send a field report, with every number pulled
+live from the code.
 
 ## 🎽 Wear it, and let people see it
 
-*(Minecraft 1.21.1 and 1.21.8 for now - the newer lines rebuilt the entity renderer and
-the layer is being rewritten for them.)*
-
-Wearing a pack in a back slot (Curios)? It shows up
+Wearing a pack in a back slot (Curios, on NeoForge)? It shows up
 **on your back** — the same leather, buckle and trim your tier is wearing, right down to
 the Sculkhide's echo veins. It rides your shoulders, tips forward when you crouch, gets
 out of the way of an elytra, and disappears when you do. Turn it off in one line if
@@ -288,7 +284,7 @@ light up only with their mod, so don't imply they work standalone.
 
 > **1.1.0 — Field Kit.** The wave that makes Packwork easy to run, easy to tune, and
 > easy to talk about. No gameplay is taken away and nothing in an existing pack changes.
-> - **Your pack shows up on your back.** Wear one in a back slot (Curios / Trinkets) and
+> - **Your pack shows up on your back.** Wear one in a back slot (Curios, on NeoForge) and
 >   it renders there, wearing its tier's own leather, buckle and trim right down to the
 >   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
 >   aside for an elytra, and vanishes when you do. Not your thing?

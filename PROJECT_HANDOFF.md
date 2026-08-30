@@ -284,7 +284,7 @@ have `ResourceHandlerSlot` waiting). Likely also gone by 26.x: the compatibility
 String overloads and other 1.21.x grace shims. Everything else (recipes, ledger sync,
 client items, test registry, GUI pipeline) is already on the 26.x-era foundations.
 
-## Status — 1.1.0 stamped on master, awaiting SapperSquad's upload
+## Status — 1.1.0 on all eight branches, awaiting SapperSquad's upload
 
 > Newest first. Full source map and roadmap below. Version is **1.1.0** (stamped
 > 2026-08-30; jar = `packwork-1.1.0.jar`); the upload itself is SapperSquad's, from
@@ -292,6 +292,12 @@ client items, test registry, GUI pipeline) is already on the 26.x-era foundation
 > `-Pcurios -Pjei -Pmekanism -Pforgework` combined); `runData` and the full jar build
 > clean; the built jar's own `neoforge.mods.toml` reads `version="1.1.0"` and all
 > eleven lang files are inside it (verified by extraction).
+>
+> **All eight branches now carry 1.1.0** (see the port-sweep table below): six NeoForge and
+> both Fabric, each green on its own suite and each jar's metadata read back by extraction.
+> The worn pack renders on every NeoForge build and has been looked at on each; the Fabric
+> layer ships but has not been photographed — see "The Fabric worn render, and why it is not
+> verified".
 
 **2026-08-30 — the ADOPTION WAVE (1.1.0 "Field Kit"). Master done; ports pending.**
 The wave that makes the mod easy to run, easy to tune, and easy to talk about. Nothing is
@@ -354,15 +360,17 @@ deserves a framing pass before it displaces one of the six store picks.
 |---|---|---|---|---|
 | `master` (1.21.1) | **yes** | **yes, pixel-verified** | 66 × 3 combos | `packwork-1.1.0.jar` |
 | `port/1.21.8` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc1.21.8.jar` |
-| `port/1.21.10` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc1.21.10.jar` |
-| `port/1.21.11` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc1.21.11.jar` |
-| `port/26.1` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc26.1.2.jar` |
-| `port/26.2` | **yes** | no | 67 × 3 combos | `packwork-1.1.0+mc26.2.jar` |
-| `fabric/26.1` | **no — still 1.0.0** | no | (untouched) | 1.0.0 jar stands |
-| `fabric/26.2` | **no — still 1.0.0** | no | (untouched) | 1.0.0 jar stands |
+| `port/1.21.10` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc1.21.10.jar` |
+| `port/1.21.11` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc1.21.11.jar` |
+| `port/26.1` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc26.1.2.jar` |
+| `port/26.2` | **yes** | **yes, pixel-verified** | 67 × 3 combos | `packwork-1.1.0+mc26.2.jar` |
+| `fabric/26.1` | **yes** | shipped, **not yet seen** | 67 × 3 combos | `packwork-1.1.0+mc26.1-fabric.jar` |
+| `fabric/26.2` | **yes** | shipped, **not yet seen** | 67 × 3 combos | `packwork-1.1.0+mc26.2-fabric.jar` |
 
-Nothing on the two Fabric branches was changed; they are exactly as 1.0.0 left them.
-Everything on the six NeoForge branches is green and stamped.
+All eight branches are stamped 1.1.0, green, and build a jar whose own metadata was read
+back out by extraction. The one open item is the Fabric worn render — the layer is written
+and registered but has never been photographed; see "The Fabric worn render, and why it is
+not verified" below before touching it.
 
 **Scope discovery worth knowing up front:** the config core (`117b1e6` + `d7120e8`) had
 never been swept to the ports either, so each port branch had to take BOTH the config core
@@ -399,51 +407,125 @@ world time via `server.clockManager().setTotalTicks` (26.x).
   recursion — it compiles clean and the suite dies on a StackOverflowError in the server tick
   loop. Fixed on 1.21.8; every other branch's suite proves it isn't there.
 
-### The two pieces of 1.1.0 still to build
+### The two pieces of 1.1.0 — both built, 2026-08-30
 
-**1. The worn layer for the new render pipeline (1.21.10 / 1.21.11 / 26.1 / 26.2).**
-Minecraft **1.21.10** — not 26.x — is where it changed. 1.21.8 kept
-`RenderLayer.render(PoseStack, MultiBufferSource, int, S, float, float)` and
-`BlockRenderDispatcher.renderSingleBlock`, so the layer ported there as-is. From 1.21.10 on:
-`RenderLayer.submit(PoseStack, SubmitNodeCollector, int, S, float, float)` is the abstract
-method, `BlockRenderDispatcher` is gone, and (26.x) `PlayerRenderer` → `AvatarRenderer`,
-`PlayerRenderState` → `AvatarRenderState`, `net.minecraft.client.model.PlayerModel` →
-`net.minecraft.client.model.player.PlayerModel` (no longer generic).
-The API map, already gathered:
-- `event.getSkins()` returns `Set<PlayerModelType>`; the renderer comes from
-  `event.getPlayerRenderer(type)` on 26.x (`event.getSkin(type)` on 1.21.10/11).
-- Block drawing goes: `mc.getModelManager().getBlockStateModelSet().get(blockState)` →
-  `BlockStateModel.collectParts(RandomSource, List<BlockStateModelPart>)`, where the list
-  comes from `BlockModelRenderState.setupModel(Matrix4fc, boolean)`; then set
-  `brs.blockLightCoords` and call `brs.submit(pose, collector, light, overlay, outline)`.
-  **The exact semantics of `clear()`/`setupModel` are the one unknown left** — worth reading
-  `CarriedBlockLayer` / `EndermanRenderState.carriedBlock` before writing it, since vanilla
-  keeps its `BlockModelRenderState` ON the render state precisely because the collector
-  defers drawing (a layer-local scratch would corrupt across entities in a frame).
-- The worn stack still has to ride the render state, exactly as on 1.21.8:
-  `RegisterRenderStateModifiersEvent` (`registerEntityModifier(Class, BiConsumer)`, or
-  `registerAvatarEntityModifier(AvatarRenderStateModifier)` on 26.x) →
-  `state.setRenderData(ContextKey, value)`. Always write a value (EMPTY, never absent):
-  states are reused between frames and a leftover pack keeps drawing after you unequip.
-- `HumanoidRenderState.chestEquipment` and `EntityRenderState.isInvisible` are already on the
-  state, so the elytra and invisibility gates need no extra data.
-Then it needs the pixel pass per branch (`./gradlew runClient -Pwornshot -Pcurios`).
+**1. The worn layer on the new render pipeline — DONE on all four branches, pixel-verified.**
+Minecraft **1.21.10** is where it changed, and the drift map that pointed here was wrong on
+two counts, both checked against the branches' own class files rather than remembered:
+`AvatarRenderer` / `AvatarRenderState` arrive in **1.21.10**, not 26.x, and
+`BlockRenderDispatcher` is still present on 1.21.10 and 1.21.11 — it is simply no longer how
+a layer draws a block. `PlayerModel` moves to `net.minecraft.client.model.player` at
+**1.21.11**, not 26.x. What actually differs, and it splits the four branches in two:
 
-**2. The Fabric 1.1.0 port (`fabric/26.1`, `fabric/26.2`).** Three genuinely new pieces, not
-drift:
-- **Recipe gating.** `neoforge:conditions` → `fabric:load_conditions`, and
-  `TrinketEnabledCondition` has to implement Fabric's `ResourceCondition`
-  (`getType()` + `test(RegistryOps.RegistryInfoLookup)`), with
-  `ResourceConditionType.create(Identifier, MapCodec)` registered through
-  `ResourceConditions.register(...)` from the mod initializer. The 18 recipe JSONs take
-  `{"condition": "packwork:trinket_enabled", "trinket": "<id>"}`; the Flask Harness already
-  carries a `fabric:all_mods_loaded` entry to sit beside.
-- **The death stash.** No NeoForge attachments; Fabric API's
-  `fabric-data-attachment-api-v1` (`AttachmentRegistry` + `copyOnDeath`) is the analogue.
-- **Sweeping packs out of the drop list.** Fabric has no `LivingDropsEvent`. This needs a
-  FOURTH mixin (the branches have exactly three today) — most likely on the player's
-  inventory-drop path, taking the packs out before they become item entities.
-Everything else on Fabric is the same text as the ports.
+- **1.21.10 / 1.21.11** — one call: `collector.submitBlock(pose, blockState, light, overlay,
+  outlineColor)`, right where `renderSingleBlock` used to be.
+- **26.1 / 26.2** — two steps: `EntityRendererProvider.Context.getBlockModelResolver()` gives
+  a `BlockModelResolver`; `resolver.update(blockModelRenderState, blockState,
+  BlockDisplayContext.create())` bakes it; then `brs.submit(pose, collector, light, overlay,
+  outline)`. The baked `BlockModelRenderState` is parked on the player's render state under a
+  second `ContextKey`, exactly as vanilla parks the enderman's carried block on its own,
+  because the collector draws later in the frame.
+
+Registration is identical on all four: `EntityRenderersEvent.AddLayers` →
+`event.getSkins()` / `event.getPlayerRenderer(skin)` (which returns
+`AvatarRenderer<AbstractClientPlayer>`, so the layer's `RenderLayerParent` needs no cast).
+The worn STACK still rides the render state. Two traps there:
+
+- `AvatarRenderer` is generic now, so `AvatarRenderer.class` is a RAW `Class<AvatarRenderer>`
+  and will not fit `registerEntityModifier`'s
+  `Class<? extends EntityRenderer<? extends E, ? extends S>>` — one unchecked cast, used on
+  1.21.10 / 1.21.11.
+- That same renderer draws **mannequins**, which are `Avatar`s but not players. On 26.x
+  NeoForge grew `registerAvatarEntityModifier(AvatarRenderStateModifier)` for exactly this,
+  which the 26.x branches take; either way the modifier asks `instanceof Player` before it
+  reads a pack.
+
+**Verified as pixels on all four** (`./gradlew runClient -Pwornshot -Pcurios`, seven framed
+checks at 1280x900, "every scene checked" in the closing line): Canvas reads as canvas with
+its twine V and stitched hem, Sculkhide as echo-lit hide, both seated between the shoulders
+with no gap at the spine; over a diamond chestplate the pack rides proud with no z-fighting;
+the crouch tips it forward with the torso; the front view is clean through the chest; the
+elytra frame is wings and no pack; the toggle-off frame is a bare back.
+
+**2. The Fabric 1.1.0 port — DONE on both branches**, `fabric/26.1` and `fabric/26.2`.
+`SimpleToml` and `PackworkConfig` went across verbatim (that was the point of hand-rolling
+the parser), so `packwork-server.toml` has byte-identical keys on both loaders. The three
+genuinely Fabric-shaped pieces, as predicted plus one correction:
+
+- **Recipe gating** — `TrinketEnabledCondition implements ResourceCondition`
+  (`getType()` + `test(RegistryOps.RegistryInfoLookup)`), type built with
+  `ResourceConditionType.create(Identifier, MapCodec)` and registered via
+  `ResourceConditions.register(...)` from the mod initializer. All eighteen fitting recipes
+  carry `{"condition": "packwork:trinket_enabled", "trinket": "<id>"}` in
+  `fabric:load_conditions`; the Flask Harness carries it beside its existing
+  `fabric:all_mods_loaded` entry.
+- **The death stash** — `AttachmentRegistry.builder().initializer(ArrayList::new)
+  .persistent(ItemStack.CODEC.listOf()...).copyOnDeath().buildAndRegister(id)`. Fabric takes
+  a plain `Codec` where NeoForge wants a `MapCodec`. Restored on
+  `ServerPlayerEvents.AFTER_RESPAWN`.
+- **The fourth mixin** — and it does NOT need to sweep a drop list. `LivingEntity.drop(stack,
+  randomly, thrownFromHand)` is the one choke point every death drop funnels through: the
+  pockets via `Inventory.dropAll`, the armour row via `EntityEquipment.dropAll`, and — read
+  out of the Trinkets Updated jar's own bytecode rather than assumed — a worn trinket via
+  `Player.drop` as well. So one narrow `@Inject(HEAD, cancellable)` guarded on
+  `isDeadOrDying()` covers carried AND worn packs, which is the same coverage the NeoForge
+  branches get from `LivingDropsEvent`. A grave mod that takes custody earlier means the call
+  never happens; `keepInventory` means nothing is dropped at all.
+
+Also across: the Field Reports handbook chapter (the screen's `renderLink` takes
+`GuiGraphicsExtractor` here, not `GuiGraphics`), the Handbook tooltip's two lines, the ten
+locales, `tools/CheckLang.java`, `docs/`, the README's manual/languages sections, the
+CHANGELOG's 1.1.0 entry, and the 1.1.0 stamp. Nine new gametests (67 × 3 combos on both
+branches) adapted to Fabric: `claimDeathDrop(player, stack)` in place of `sweepPackDrops`,
+`getAttachedOrCreate` in place of `getData`, `PackFluidContent.getAmount()` in place of the
+NeoForge `FluidStack`, and droplet-vs-millibucket arithmetic in the waterskin assertion.
+
+### The Fabric worn render, and why it is not verified
+
+The layer exists on both Fabric branches and compiles, and it uses the same 26.x two-step
+draw as `port/26.x`. Two Fabric-specific choices:
+
+- Registration is `LivingEntityRenderLayerRegistrationCallback.EVENT`, filtered on
+  `renderer instanceof AvatarRenderer`; the callback hands over the
+  `EntityRendererProvider.Context`, which is where the `BlockModelResolver` comes from.
+- Fabric API has **no render-state modifier event**. Rather than add a fifth mixin, the layer
+  looks the player back up by the entity id vanilla already writes onto
+  `AvatarRenderState.id` (`Minecraft.getInstance().level.getEntity(state.id) instanceof
+  Player`). Mannequins share the renderer, fail the check, and draw nothing.
+  Fabric's `RenderStateDataKey` + `FabricRenderState.setData/getData` (its analogue of
+  NeoForge's `ContextKey`) is used for the baked `BlockModelRenderState`.
+
+**What blocks the shoot, and it is not the renderer.** The `-Pwornshot` chain equips through
+`TrinketsCompat.equipWorn`, which writes the slot through its `TrinketSlotAccess` — and the
+wearer's own client is never told. The scene check refused all seven frames and printed what
+the client actually holds:
+
+```
+[wornshot] canvas_back NOT SHOT - the scene is wrong: the back slot holds 0 minecraft:air,
+not a pack (was it cleared?) - this side sees: chest/back[1]=0 minecraft:air |
+```
+
+…while the server-side line immediately above it reads `[trinkets] equipped in back slot ->
+Canvas Pack`. So the SLOT syncs (its size is right) and the CONTENTS do not. Raising the
+inventory's own `TrinketInventoryImpl.markUpdate()` flag changed nothing, and that change was
+backed out rather than shipped as an unproven `impl`-class import. Everything server-side —
+pack-first pickup routing, the worn GUI host, the gametests — reads that slot correctly.
+
+**Next steps for whoever picks this up, in order:**
+
+1. Trinkets Updated renders trinkets on players itself (`TrinketRenderer`,
+   `TrinketRendererRegistry`), so its *normal* equip path almost certainly does sync. Equip
+   through that path in the harness — a Trinkets container menu, or whatever supported
+   programmatic equip the mod exposes — before assuming anything is broken.
+2. `TrinketsCompat.devDescribeSlots(player)` is already there for exactly this: it prints
+   what the calling side holds, so the next run says "sync" instead of leaving a bare back to
+   be misread as a broken renderer.
+3. Only if 1 and 2 say the contents genuinely never reach the wearer: the layer would still
+   draw on OTHER players (they track you), and the gap would be your own third-person view.
+   That is a real product question for SapperSquad, not a silent one.
+
+Do **not** start by rewriting the layer. The harness is what is failing, and it is failing
+loudly on purpose.
 
 **2026-07-26 release stamping — 1.0.0 (SapperSquad's final calls after his confirm pass).**
 Version **1.0.0** stamped everywhere: `gradle.properties mod_version` (the single source —
