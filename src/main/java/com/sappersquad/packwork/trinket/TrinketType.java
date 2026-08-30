@@ -38,6 +38,13 @@ public enum TrinketType {
     TORCHBEARER("torchbearers_loop", Kind.TICK),
     /** A bundle of seed pouches: replants what you harvest, from your own stock. */
     HERBALIST("herbalists_bundle", Kind.PASSIVE),
+    /** A brass bleed-off cock on the pack's seam: carries only so much of a marked item and
+     *  lets the surplus run out. Reads the SAME discard list the Compass Rose does - the
+     *  Rose bins a listed item at the door, the Valve gives it a keep level instead. */
+    OVERFLOW_VALVE("overflow_valve", Kind.TICK),
+    /** A screw press in the pack's floor: squeezes nine into one, and only ever things that
+     *  squeeze back out again. */
+    COMPACTING_PRESS("compacting_press", Kind.TICK),
     // resource-store fittings (Phase 3)
     WATERSKIN("waterskin_rack", Kind.STORE),
     SOUL_VIAL("soul_vial", Kind.STORE),

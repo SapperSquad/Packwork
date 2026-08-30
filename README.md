@@ -68,7 +68,7 @@ store. There is no recipe anywhere that can eat a filled pack.
 | **Restock Strap** | Tops up your hotbar stacks from pack stock. |
 | **Repair Kit** | Slowly mends the gear you're wearing and holding. |
 | **Bottomless Lining** | Adds another run of slots (and never voids them if you pull it). |
-| **Compass Rose** | Voids items you mark — the *only* way a pack throws anything away, and it's opt-in. |
+| **Compass Rose** | Bins items you mark, at the door - opt-in, per item, and the pack has only ever had one discard list. |
 | **Quick-Draw Straps** | When a tool breaks in your hand, the pack passes you another from stock. |
 | **Quill & Ledger** | The rule editor: write your own filters on any custom compartment — by name, by mod, or by category chip — on a parchment sheet beside the pack. Written rules sort while it's fitted; stamps and pins work without it. |
 | **Tinker's Kit** | Unrolls a leather tool roll across the pack's lower rows: a 3×3 bench fed straight from your stores. Shift-click from the pack to lay out a pattern; each cell tops itself back up after every craft, so one shift-click on the result runs the batch until the pack is out of makings. Its **Recipe Ledger** is a parchment sheet of everything craftable *from pack stock* — click a recipe to chalk it onto the roll as a ghost, click the result well to lay it out (all-or-nothing, straight from your stores). |
@@ -78,6 +78,8 @@ store. There is no recipe anywhere that can eat a filled pack.
 | **Angler's Creel** | Opens **The Catch**, and your catch drops straight into the pack instead of bouncing off your chest. |
 | **Torchbearer's Loop** | Sets a torch down from pack stock whenever you're standing somewhere genuinely dark. Stops the moment the light comes up. |
 | **Herbalist's Bundle** | Replants a grown crop the instant you pull it, spending one seed from your own stock. |
+| **Overflow Valve** | Carries only so much of something you marked. Hover it, press O to mark it, Shift+O to set how much you will still carry - 1, 2, 4, 8, 16 stacks, then round again to nothing at all. Above that number the surplus runs out of the valve as you walk; below it, never. Same list as the Compass Rose: a mark at nothing-at-all is the Rose's, a mark with a number is the Valve's. |
+| **Compacting Press** | Squeezes nine into one in the pack - ingots to blocks, nuggets to ingots, and whatever your other mods stack the same way. It only presses what presses BACK, so nothing it makes is anything you cannot undo on a bench. Leaves a stack of each loose so you always have some to hand. |
 | **Waterskin Rack** | Fits a fluid tank: a glass gauge you fill with a bucket or flask. |
 | **Soul Vial** | Stores XP in a glass vial — siphon yours in, pour it back, and it auto-mends your Mending gear. |
 | **Charge Crystal** | Holds an arcane charge (any mod's FE) in a copper-wound crystal and tops up the powered tools in your hands. With Forgework installed it also feeds your portable terminals, 1 Flux = 1 FE. |

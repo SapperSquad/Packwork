@@ -615,7 +615,51 @@ public class GenTextures {
         // Herbalist's Bundle: a twine-tied cloth bundle with a green sprig
         drawItem("herbalists_bundle", HERBALIST,
                 with(base(), '1', 0xFF2F5A24, '2', 0xFF4E8C36, '3', 0xFF79B84E));
+
+        // ---- 1.2.0 batch: the two hauling fittings ----
+        // Overflow Valve: a brass bleed-off cock on a leather collar, surplus running out
+        drawItem("overflow_valve", VALVE, base());
+        // Compacting Press: a screw press - brass screw, two steel platens, a squeezed billet
+        drawItem("compacting_press", PRESS, base());
     }
+
+    static final String[] VALVE = {
+        "................", // 0
+        "...naAAAAAAAan..", // 1  the tap's T-handle, capped at both ends
+        "...ndaaaaaaadn..", // 2
+        ".......aAa......", // 3  the stem down into the body
+        ".......aAa......", // 4
+        "....naAAAAAan...", // 5  body shoulder
+        "....dABBAAAad...", // 6  a specular glint where the light lands
+        "....rLLLLLLLr...", // 7  the leather collar that straps it to the pack's seam
+        "....rLLLLLLLr...", // 8
+        "....dAAAAaaad...", // 9  the brass darkening as the form turns away
+        "....naaadddan...", // 10
+        ".....naadan.....", // 11 tapering to the outlet
+        "......nHUn......", // 12 the mouth
+        "......H.U.......", // 13 and the surplus running out of it
+        ".......U........", // 14
+        "......H.........", // 15
+    };
+
+    static final String[] PRESS = {
+        "................", // 0
+        "...naAAAAAAAan..", // 1  the press's T-handle
+        "...ndaaaaaaadn..", // 2
+        ".......aA.......", // 3  the brass screw - the thread alternates so it reads
+        ".......Aa.......", // 4  as a screw and not a post
+        ".......aA.......", // 5
+        "..zSSSSSSSSSSz..", // 6  top platen, lit face
+        "..zxxxxxxxxxxz..", // 7  its shadowed underside
+        "...uUHHHHHHUu...", // 8  the billet, bright along the squeezed seam
+        "...uUUUUUUUUu...", // 9
+        "..zxxxxxxxxxxz..", // 10 bottom platen
+        "..zSSSSSSSSSSz..", // 11
+        "..zzzzzzzzzzzz..", // 12
+        "...rLLLLLLLLr...", // 13 seated on a leather pad in the pack's floor
+        "...rllllllllr...", // 14
+        "................", // 15
+    };
 
     static final String[] TINKERS = {
         "................", // 0

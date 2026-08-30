@@ -54,6 +54,9 @@ public final class DevAutoShot {
         RULES_TAB, RULES_W0, RULES_OPEN, RULES_W1, SHOOT_RULES,
         RULES_WRITE, RULES_W2, SHOOT_RULES2,
         MODE_PREP, MODE_W0, MODE_ON, MODE_MOVE1, MODE_MW, MODE_MOVE2, MODE_W2, SHOOT_MODE,
+        // ---- 1.2.0: the Overflow Valve + Compacting Press, socketed and used ----
+        FIT_GIVE, FIT_OPEN, SHOOT_FIT, FIT_MARK, FIT_MW, SHOOT_FIT_MARK,
+        FIT_DIAL, FIT_DW, SHOOT_FIT_DIAL,
         JEI_SHOW, JEI_W, SHOOT_JEI, DONE,
         // ---- the promo-gallery chain (runs INSTEAD of the above under -Pgallery) ----
         G_BOOT, G_WAIT_LEVEL,
@@ -424,6 +427,50 @@ public final class DevAutoShot {
                             kept == null ? "TIDY (bad!)" : kept.cells());
                 });
                 grab(mc, "packwork_keep_layout"); // the moved stack holds its far cell, switch lit
+                phase = Phase.FIT_GIVE; wait = 0;
+            }
+            // ---- 1.2.0: the two new fittings, in their sockets and actually used ----
+            case FIT_GIVE -> {
+                setupFittings(mc);
+                phase = Phase.FIT_OPEN; wait = 0;
+            }
+            case FIT_OPEN -> {
+                if (mc.gui.screen() instanceof PackScreen && ++wait > 16) {
+                    // flatten: the marking gesture needs the cobblestone ON the visible grid,
+                    // and the pack files it under Blocks by default (the first run found no
+                    // cobblestone cell and refused both presses, which is the harness working)
+                    withMenu(mc, PackClientActions::toggleFlatten);
+                    phase = Phase.SHOOT_FIT; wait = 0;
+                }
+            }
+            case SHOOT_FIT -> {
+                if (++wait < 8) break;   // let the flatten land before the shot
+                // the two new sprites in real trinket sockets on the rail, at GUI size
+                grab(mc, "packwork_fittings_1_2");
+                phase = Phase.FIT_MARK; wait = 0;
+            }
+            case FIT_MARK -> {
+                pressOverCobble(mc, 0, "O over cobblestone - mark it on the discard list");
+                phase = Phase.FIT_MW; wait = 0;
+            }
+            case FIT_MW -> { if (++wait > 10) phase = Phase.SHOOT_FIT_MARK; }
+            case SHOOT_FIT_MARK -> {
+                grab(mc, "packwork_valve_mark");   // the stitched note: keeping N stacks
+                phase = Phase.FIT_DIAL; wait = 0;
+            }
+            case FIT_DIAL -> {
+                pressOverCobble(mc, org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT,
+                        "Shift+O over cobblestone - dial the keep level up a rung");
+                phase = Phase.FIT_DW; wait = 0;
+            }
+            case FIT_DW -> { if (++wait > 10) phase = Phase.SHOOT_FIT_DIAL; }
+            case SHOOT_FIT_DIAL -> {
+                withMenu(mc, m -> {
+                    var id = net.minecraft.resources.Identifier.withDefaultNamespace("cobblestone");
+                    Packwork.LOGGER.info("[autoshot][valve] cobblestone listed={} keep={} binnedAtDoor={}",
+                            m.layout().listed(id), m.layout().keepStacks(id), m.layout().voids(id));
+                });
+                grab(mc, "packwork_valve_dial");
                 phase = Phase.JEI_SHOW; wait = 0;
             }
             case JEI_SHOW -> {
@@ -1010,6 +1057,68 @@ public final class DevAutoShot {
             PackItem.openPack(sp, 0);
             Packwork.LOGGER.info("[autoshot] pack filled and opened");
         });
+    }
+
+    /**
+     * A Runed pack wearing the two 1.2.0 fittings, holding enough cobblestone and iron for
+     * both of them to have something to do. Opened so the sockets are on the rail and the
+     * new sprites can be judged at GUI size rather than only in the montage.
+     */
+    private static void setupFittings(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            var tier = com.sappersquad.packwork.pack.PackTier.RUNED;
+            ItemStack pack = new ItemStack(ModItems.pack(tier).get());
+            // the pack's own store rather than the capability: the capability spelling drifts
+            // across the version line and this harness reads the same on all eight branches
+            var h = new com.sappersquad.packwork.pack.PackInventory(pack, tier);
+            h.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+            h.insertItem(0, new ItemStack(Items.COBBLESTONE, 64), false);
+            h.insertItem(1, new ItemStack(Items.IRON_INGOT, 64), false);
+            h.insertItem(2, new ItemStack(Items.GOLD_NUGGET, 27), false);
+            h.insertItem(3, new ItemStack(Items.BREAD, 12), false);
+
+            var sockets = new com.sappersquad.packwork.pack.PackTrinketInventory(() -> pack, tier);
+            sockets.insertItem(0, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.OVERFLOW_VALVE).get()), false);
+            sockets.insertItem(1, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.COMPACTING_PRESS).get()), false);
+            sockets.insertItem(2, new ItemStack(ModItems.trinket(
+                    com.sappersquad.packwork.trinket.TrinketType.COMPASS_ROSE).get()), false);
+
+            sp.getInventory().setItem(0, pack);
+            sp.getInventory().setSelectedSlot(0);
+            PackItem.openPack(sp, 0);
+            Packwork.LOGGER.info("[autoshot] 1.2.0 fittings pack opened");
+        });
+    }
+
+    /**
+     * Drive the REAL key handler over the first cobblestone cell, so the shot proves the
+     * gesture and the note the player actually gets - not a synthetic call past the screen.
+     */
+    private static void pressOverCobble(Minecraft mc, int mods, String what) {
+        if (!(mc.gui.screen() instanceof PackScreen ps)) {
+            Packwork.LOGGER.warn("[autoshot] pack screen not open for {}", what);
+            return;
+        }
+        PackMenu menu = ps.getMenu();
+        for (int i = 0; i < menu.slots.size(); i++) {
+            var s = menu.slots.get(i);
+            if (s instanceof com.sappersquad.packwork.pack.PackViewSlot && s.hasItem()
+                    && s.getItem().is(Items.COBBLESTONE)) {
+                ps.devHover(i);
+                ps.keyPressed(new net.minecraft.client.input.KeyEvent(
+                        org.lwjgl.glfw.GLFW.GLFW_KEY_O,
+                        org.lwjgl.glfw.GLFW.glfwGetKeyScancode(org.lwjgl.glfw.GLFW.GLFW_KEY_O), mods));
+                Packwork.LOGGER.info("[autoshot] {} -> menu slot {}", what, i);
+                return;
+            }
+        }
+        Packwork.LOGGER.warn("[autoshot] no cobblestone cell found for {}", what);
     }
 
     /** Set all per-tier pack blocks on a stone-brick pad and stand the player back to view them. */
