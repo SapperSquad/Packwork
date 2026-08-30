@@ -44,7 +44,7 @@ public final class DevAutoShot {
         BUCKET_GIVE, BUCKET_W1, BUCKET_CLICK, BUCKET_W2, BUCKET_REPORT,
         HOVER, HW, PIN1, PW1, SHOOT_PINNED, PIN2, PW2, SHOOT_UNPINNED,
         SHOOT_1, W1, SHOOT_2, W2, SHOOT_3, W3, SHOOT_4, W4, SHOOT_5,
-        OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2,
+        OPEN_BOOK, WB, SHOOT_BOOK, WB2, SHOOT_BOOK2, WB3, SHOOT_BOOK3,
         PLACE, WPLACE, SHOOT_WORLD, OPEN_BLOCK, WBLOCK, SHOOT_BLOCK,
         WBREAK, SHOOT_BROKEN, WREPLACE, SHOOT_REPLACED,
         WLINEUP, SHOOT_LINEUP, SHOOT_INHAND,
@@ -238,9 +238,30 @@ public final class DevAutoShot {
             case WB2 -> { if (++wait > 8) phase = Phase.SHOOT_BOOK2; }
             case SHOOT_BOOK2 -> {
                 grab(mc, "packwork_handbook_trinkets");
-                mc.setScreen(null);          // close the book
-                placeBlocks(mc);             // set three packs down in the world
-                phase = Phase.WPLACE; wait = 0;
+                // the last chapter: Field Reports, where the clickable links live
+                if (mc.screen instanceof OutfitterHandbookScreen book) {
+                    book.devSelectChapter(com.sappersquad.packwork.guide.HandbookContent.CHAPTERS.size() - 1);
+                }
+                phase = Phase.WB3; wait = 0;
+            }
+            case WB3 -> {
+                if (++wait > 8) {
+                    // Park the real cursor on the first link so the shot shows its hover state.
+                    if (mc.screen instanceof OutfitterHandbookScreen book) {
+                        int[] p = book.devFirstLinkPoint();
+                        if (p != null) hoverGui(mc, p[0], p[1]);
+                        else Packwork.LOGGER.warn("[autoshot] no link found on the Field Reports page");
+                    }
+                    phase = Phase.SHOOT_BOOK3; wait = 0;
+                }
+            }
+            case SHOOT_BOOK3 -> {
+                if (++wait > 6) {
+                    grab(mc, "packwork_handbook_field_reports");
+                    mc.setScreen(null);          // close the book
+                    placeBlocks(mc);             // set three packs down in the world
+                    phase = Phase.WPLACE; wait = 0;
+                }
             }
             case WPLACE -> { if (++wait > 30) phase = Phase.SHOOT_WORLD; } // let chunks re-render
             case SHOOT_WORLD -> {
@@ -814,6 +835,33 @@ public final class DevAutoShot {
             yf.setDouble(mc.mouseHandler, py);
         } catch (Throwable t) {
             Packwork.LOGGER.warn("[gallery] cursor park (reflective) failed: {}", t.toString());
+        }
+    }
+
+    /**
+     * Put the real cursor on a GUI point so hover states show up in a screenshot. GLFW works
+     * in window pixels and the GUI in scaled units, and MouseHandler caches its own position -
+     * glfwSetCursorPos alone does NOT update it (the lesson behind parkCursor).
+     */
+    private static void hoverGui(Minecraft mc, int guiX, int guiY) {
+        var w = mc.getWindow();
+        double px = guiX * (double) w.getScreenWidth() / Math.max(1, w.getGuiScaledWidth());
+        double py = guiY * (double) w.getScreenHeight() / Math.max(1, w.getGuiScaledHeight());
+        try {
+            org.lwjgl.glfw.GLFW.glfwSetCursorPos(w.getWindow(), px, py);
+        } catch (Throwable ignored) {
+        }
+        try {
+            var xf = net.minecraft.client.MouseHandler.class.getDeclaredField("xpos");
+            var yf = net.minecraft.client.MouseHandler.class.getDeclaredField("ypos");
+            xf.setAccessible(true);
+            yf.setAccessible(true);
+            xf.setDouble(mc.mouseHandler, px);
+            yf.setDouble(mc.mouseHandler, py);
+            Packwork.LOGGER.info("[autoshot] hovering gui ({},{}) -> window ({},{})",
+                    guiX, guiY, (int) px, (int) py);
+        } catch (Throwable t) {
+            Packwork.LOGGER.warn("[autoshot] hover (reflective) failed: {}", t.toString());
         }
     }
 
