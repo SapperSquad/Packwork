@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:press_does_not_fire_with_no_room_for_the_block",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}

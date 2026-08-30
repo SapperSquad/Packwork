@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:valve_bleeds_only_the_marked_surplus",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}
