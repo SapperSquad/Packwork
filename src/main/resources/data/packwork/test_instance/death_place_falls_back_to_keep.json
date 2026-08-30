@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:function",
+  "function": "packwork:death_place_falls_back_to_keep",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 400
+}
