@@ -12,6 +12,10 @@ talk about.
   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
   aside for an elytra, and vanishes when you do. Don't want it? `show_worn_pack = false`
   in `packwork-client.toml` — that setting is yours alone and never leaves your machine.
+- **The Outfitter's Handbook has a last page: Field Reports.** Where to send a bug, what
+  to put in it, and two brass-ruled links — GitHub issues and the Discord — that open in
+  your browser after your game asks you first. Nothing pops up, nothing nags; the page is
+  just there when you want it.
 
 ## 1.0.0+mc26.1-fabric / +mc26.2-fabric — 2026-08-13 (version ports, wave 3: Fabric)
 
