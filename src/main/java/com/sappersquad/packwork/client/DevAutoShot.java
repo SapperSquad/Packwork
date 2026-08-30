@@ -648,9 +648,9 @@ public final class DevAutoShot {
             case WS_BOOT -> {
                 if (ticks == 5) {
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1280, 900);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().handle(), 1280, 900);
                         mc.options.guiScale().set(3);
-                        mc.resizeDisplay();
+                        mc.resizeGui();
                         Packwork.LOGGER.info("[wornshot] window 1280x900");
                     } catch (Throwable t) {
                         Packwork.LOGGER.warn("[wornshot] resize failed: {}", t.toString());
@@ -658,8 +658,9 @@ public final class DevAutoShot {
                 }
                 if (ticks > 40 && mc.level == null && mc.screen != null) {
                     Packwork.LOGGER.info("[wornshot] creating throwaway world");
+                    // 26.1: hardcore/difficulty fold into DifficultySettings; GameRules left the ctor.
                     LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
-                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                            new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true, WorldDataConfiguration.DEFAULT);
                     mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
                             WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
                     phase = Phase.WS_WAIT_LEVEL;
@@ -848,7 +849,7 @@ public final class DevAutoShot {
         double px = guiX * (double) w.getScreenWidth() / Math.max(1, w.getGuiScaledWidth());
         double py = guiY * (double) w.getScreenHeight() / Math.max(1, w.getGuiScaledHeight());
         try {
-            org.lwjgl.glfw.GLFW.glfwSetCursorPos(w.getWindow(), px, py);
+            org.lwjgl.glfw.GLFW.glfwSetCursorPos(w.handle(), px, py);
         } catch (Throwable ignored) {
         }
         try {
@@ -1334,8 +1335,8 @@ public final class DevAutoShot {
         server.execute(() -> {
             if (server.getPlayerList().getPlayers().isEmpty()) return;
             ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
-            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
-            lvl.setDayTime(6000);
+            net.minecraft.server.level.ServerLevel lvl = sp.level();
+            setWorldTime(server, 6000); // 26.1: day time rides the clock manager now
             net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
             var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
             var floor = net.minecraft.world.level.block.Blocks.STONE_BRICKS.defaultBlockState();

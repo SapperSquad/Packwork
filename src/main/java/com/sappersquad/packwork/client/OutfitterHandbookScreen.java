@@ -235,10 +235,11 @@ public class OutfitterHandbookScreen extends Screen {
      * A link line, drawn as brass with a rule under it - the book's own stamped-leather
      * language, not a blue web link. Brightens on hover so it reads as pressable.
      */
-    private void renderLink(GuiGraphics g, HandbookContent.LinkEntry link, int y, int mouseX, int mouseY) {
+    private void renderLink(GuiGraphicsExtractor g, HandbookContent.LinkEntry link, int y, int mouseX, int mouseY) {
         boolean hovered = isOverLink(mouseX, mouseY, y, link);
         String label = linkLabel(link);
-        g.drawString(font, label, contentX(), y, hovered ? BRASS_HI : BRASS, false);
+        // 26.1: the gui renderer honours ALPHA - a 0xRRGGBB colour draws fully transparent.
+        g.text(font, label, contentX(), y, hovered ? BRASS_HI : BRASS, false);
         g.fill(contentX(), y + 9, contentX() + font.width(label), y + 10,
             hovered ? BRASS_HI : BRASS_LO);
     }
