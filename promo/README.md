@@ -33,3 +33,13 @@ and swapping that in stays SapperSquad's call.
 | `gallery-8-jei-ring.png` | pick 6 | An upgrade ring rendered in JEI. |
 | `gallery-5-keep.png` | extra | Keep-my-layout holding a player's arrangement. |
 | `gallery-6-pickup-pin.png` | extra | Drop-to-pin note + the pack-first pickup toggle. |
+
+## 1.1.0 additions
+
+- **Worn-pack frames**: `./gradlew runClient -Pwornshot -Pcurios` stages seven framed
+  checks of the on-your-back render at 1920x1080 with a long lens (FOV 38) on a sky pad —
+  two tiers, over a chestplate, crouching, from the front, under an elytra, and with
+  `show_worn_pack` off. Shots land in `run/client/screenshots/worn_*.png`. Two of them are
+  committed here as **extras**: `gallery-9-worn-sculkhide.png` and
+  `gallery-10-worn-canvas.png`. They are proof, not a hero frame — see the note in
+  `../PUBLISHING.md` before putting either on the store page.

@@ -647,10 +647,14 @@ public final class DevAutoShot {
             case WS_BOOT -> {
                 if (ticks == 5) {
                     try {
-                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1280, 900);
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1920, 1080);
                         mc.options.guiScale().set(3);
+                        // The third-person camera sits a fixed 4 blocks back, so the only way to
+                        // fill the frame with the player is a long lens. FOV 30 turns a test
+                        // screenshot into a shot you can actually judge trim on - and post.
+                        mc.options.fov().set(38);
                         mc.resizeDisplay();
-                        Packwork.LOGGER.info("[wornshot] window 1280x900");
+                        Packwork.LOGGER.info("[wornshot] window 1920x1080 @ fov 38");
                     } catch (Throwable t) {
                         Packwork.LOGGER.warn("[wornshot] resize failed: {}", t.toString());
                     }
@@ -1316,7 +1320,7 @@ public final class DevAutoShot {
                     lvl.setBlock(base.offset(dx, -1, dz), floor, 2);
                 }
             wornPad = base;
-            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 0f);
+            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 14f);
             Packwork.LOGGER.info("[wornshot] sky pad staged at {}", base);
         });
     }
@@ -1346,7 +1350,7 @@ public final class DevAutoShot {
             // and one drifted frame ruins the shot it lands on.
             if (wornPad != null) {
                 sp.connection.teleport(wornPad.getX() + 0.5, wornPad.getY(),
-                        wornPad.getZ() + 0.5, 0f, 0f);
+                        wornPad.getZ() + 0.5, 0f, 14f);
             }
         });
     }

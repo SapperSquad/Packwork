@@ -1,4 +1,4 @@
-# Packwork — publishing kit (current as of v1.0.0, stamped, awaiting upload)
+# Packwork — publishing kit (current as of v1.1.0, stamped, awaiting upload)
 
 Everything for the Modrinth / CurseForge project page, ready to paste. **The rule:**
 `CHANGELOG.md`, `PUBLISHING.md`, and `README.md` get bumped in the same pass — never one
@@ -6,8 +6,26 @@ alone. The store page is the only thing most players read, and every claim in it
 match shipped behavior exactly.
 
 > **Not yet published.** Uploading to Modrinth / CurseForge / GitHub is SapperSquad's call, per
-> release. Nothing here goes external automatically. Version **1.0.0** is SapperSquad's call,
-> stamped 2026-07-26.
+> release. Nothing here goes external automatically. Version **1.1.0** stamped 2026-08-30
+> (1.0.0 "First Haul" was stamped 2026-07-26).
+
+## Modrinth project fields — paste-ready
+
+Two fields on the Modrinth project page are currently empty. These are the exact values:
+
+| Field | Paste this |
+|---|---|
+| **Issue tracker** | `https://github.com/SapperSquad/Packwork/issues` |
+| **Source code** | `https://github.com/SapperSquad/Packwork` |
+| **Wiki page** | `https://github.com/SapperSquad/Packwork/tree/master/docs` |
+| **Discord invite** | `https://discord.gg/mZ9CG6xh2A` |
+
+The wiki URL points at the `docs/` folder, whose `README.md` GitHub renders as the page
+body — so it opens as a real manual with a table of contents, not a file listing. The same
+two addresses are in the mod itself, on the Handbook's Field Reports page.
+
+On **CurseForge** the equivalents live under Settings → General: *Issues URL*, *Source
+URL*, *Wiki URL*. Same four values.
 
 Promo art lives in `promo/`: the icon and banner are composed by `java tools/GenPromo.java`
 from the real in-game sprites, and the gallery shots come from the dev-harness shoot
@@ -18,14 +36,14 @@ Icon = `promo/icon-512.png`. Featured banner = `promo/banner-1920x640.png`.
 
 | Upload as version | File | Game version tag | Loader | Client | Server |
 |---|---|---|---|---|---|
-| `1.0.0+mc1.21.1` | `build/libs/packwork-1.0.0.jar` (built on `master`) | 1.21.1 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc1.21.8` | `build/libs/packwork-1.0.0+mc1.21.8.jar` (built on `port/1.21.8`) | 1.21.8 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc1.21.10` | `build/libs/packwork-1.0.0+mc1.21.10.jar` (built on `port/1.21.10`) | 1.21.10 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc1.21.11` | `build/libs/packwork-1.0.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc26.1.2` | `build/libs/packwork-1.0.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc26.2` | `build/libs/packwork-1.0.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
-| `1.0.0+mc26.1-fabric` | `build/libs/packwork-1.0.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
-| `1.0.0+mc26.2-fabric` | `build/libs/packwork-1.0.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
+| `1.1.0+mc1.21.1` | `build/libs/packwork-1.1.0.jar` (built on `master`) | 1.21.1 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc1.21.8` | `build/libs/packwork-1.1.0+mc1.21.8.jar` (built on `port/1.21.8`) | 1.21.8 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc1.21.10` | `build/libs/packwork-1.1.0+mc1.21.10.jar` (built on `port/1.21.10`) | 1.21.10 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc1.21.11` | `build/libs/packwork-1.1.0+mc1.21.11.jar` (built on `port/1.21.11`) | 1.21.11 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc26.1.2` | `build/libs/packwork-1.1.0+mc26.1.2.jar` (built on `port/26.1`) | 26.1.2 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc26.2` | `build/libs/packwork-1.1.0+mc26.2.jar` (built on `port/26.2`) | 26.2 | NeoForge | **Required** | **Required** |
+| `1.1.0+mc26.1-fabric` | `build/libs/packwork-1.1.0+mc26.1-fabric.jar` (built on `fabric/26.1`) | 26.1, 26.1.1, 26.1.2 | **Fabric** | **Required** | **Required** |
+| `1.1.0+mc26.2-fabric` | `build/libs/packwork-1.1.0+mc26.2-fabric.jar` (built on `fabric/26.2`) | 26.2 | **Fabric** | **Required** | **Required** |
 
 The loader column matters now — same version string, different loader tag per file.
 Needed on both sides: on servers, install on the server and every client. Each port
@@ -142,6 +160,17 @@ Craftable fittings slot into the brass rail — and pull back out any time:
 New to the pack? Craft the **Outfitter's Handbook** — five in-game chapters on sorting,
 trinkets, tiers, and the stores, with every number pulled live from the code.
 
+## 🎽 Wear it, and let people see it
+
+Wearing a pack in a back slot (Curios on NeoForge, Trinkets on Fabric)? It shows up
+**on your back** — the same leather, buckle and trim your tier is wearing, right down to
+the Sculkhide's echo veins. It rides your shoulders, tips forward when you crouch, gets
+out of the way of an elytra, and disappears when you do. Turn it off in one line if
+you'd rather not see it; that's your setting, not the server's.
+
+Meanwhile **B** opens the first pack you're carrying without digging it out, and
+**Shift-B** opens the worn one straight off your shoulders.
+
 ## 🏕️ Set it down, pipe it up
 
 Sneak-right-click to stand a pack in the world — leather and brass, wearing its tier's
@@ -179,6 +208,21 @@ Remove any of them and Packwork carries on without it.
   don't ship for those platforms, so those two integrations light up on NeoForge
   1.21.1 only. JEI works everywhere listed; the wear slot is Curios on NeoForge and
   Trinkets on Fabric (both optional — B and Shift-B work without either).
+- **Modpacks: yes — include Packwork in any pack on any launcher, no permission needed.
+  Attribution appreciated.**
+- **On Fabric, this is the tabbed self-sorting pack you couldn't have.** Sophisticated
+  Backpacks — the mod Packwork is built to beat — lists Forge and NeoForge only
+  (checked on its Modrinth page, 2026-08-30). If you're on Fabric 26.1 or 26.2 and have
+  been going without, that's what this is.
+- **Every knob is a config line, and none of them can eat your stuff.** `packwork-server.toml`
+  tunes per-tier slots, depth and every store capacity, turns off any fitting, and picks
+  what happens to a pack on death (drop / keep / set itself down). Shrink something and
+  stores just stop accepting and pay out normally — pause, never punish. Full key
+  reference in [the docs](https://github.com/SapperSquad/Packwork/tree/master/docs).
+- **Ten more languages, honestly labelled.** Simplified Chinese, Russian, Brazilian
+  Portuguese, German, French, Spanish, Japanese, Korean, Polish and Ukrainian ship as
+  machine-drafted first passes that no native speaker has read yet. If one reads wrong to
+  you, a one-line pull request is genuinely welcome.
 - The pack never voids anything on failure. The only trash path is the Compass Rose,
   and it's opt-in per item.
 
@@ -200,8 +244,18 @@ Upload these six, in this order (plus the banner as featured and the icon as pro
 | — | `promo/icon-512.png` (project icon) | — |
 
 **Not store picks** (kept in `promo/` as extras for posts and update galleries):
-`promo/gallery-5-keep.png` (keep-my-layout holding an arrangement) and
-`promo/gallery-6-pickup-pin.png` (drop-to-pin note + the pack-first pickup toggle).
+`promo/gallery-5-keep.png` (keep-my-layout holding an arrangement),
+`promo/gallery-6-pickup-pin.png` (drop-to-pin note + the pack-first pickup toggle), and
+the two 1.1.0 worn-pack frames below.
+
+**Wants SapperSquad's eyes before it goes on the store page:** `promo/gallery-9-worn-sculkhide.png`
+and `promo/gallery-10-worn-canvas.png` are the new worn-render shots, straight out of
+`./gradlew runClient -Pwornshot -Pcurios` (1920x1080, long lens, sky pad). They are honest
+and readable — the trim and buckle are unmistakable at full size — but they are a stone-brick
+pad and a lot of sky, not a hero frame, and the worn pack is 1.1.0's headline. Worth a
+framing pass (a real camp, dusk, something behind the player) before it displaces one of the
+six picks. Suggested caption if it goes up: *"Wear it and it shows — every tier's own
+leather and trim, right where you'd expect it."*
 
 **Art carrying version-specific claims** (trinket counts, tier list, MC version): keep it
 in step with the changelog. All four resource stores ship (fluids, XP, energy always; gas
@@ -210,7 +264,37 @@ light up only with their mod, so don't imply they work standalone.
 
 ---
 
-## Changelog for the first release (paste into the upload)
+## Changelog for 1.1.0 (paste into the upload)
+
+> **1.1.0 — Field Kit.** The wave that makes Packwork easy to run, easy to tune, and
+> easy to talk about. No gameplay is taken away and nothing in an existing pack changes.
+> - **Your pack shows up on your back.** Wear one in a back slot (Curios / Trinkets) and
+>   it renders there, wearing its tier's own leather, buckle and trim right down to the
+>   Sculkhide's echo veins. It rides the shoulders, tips with you when you crouch, steps
+>   aside for an elytra, and vanishes when you do. Not your thing?
+>   `show_worn_pack = false` in `packwork-client.toml` — that setting is yours alone.
+> - **Every knob a packmaker wants, in one file.** `packwork-server.toml` tunes per-tier
+>   slots, per-slot depth and all four store capacities, retires any fitting, sets the
+>   Lodestone's reach and tick rate, and picks what a pack does when you die: **drop**
+>   (vanilla), **keep** it through respawn, or **set itself down as a block where you
+>   fell**, contents intact. The server's file is the authority and syncs to clients, so
+>   one config covers a whole pack — and the same keys work on NeoForge and Fabric.
+> - **Nothing you tune can eat your things.** Shrink a capacity and stores stop accepting
+>   and pay out normally; disable a fitting and an installed one goes quietly to sleep in
+>   its socket, waking up intact when you turn it back on.
+> - **A Field Reports page in the Outfitter's Handbook** — where a bug goes and what to
+>   put in it, with links your game asks you about before opening.
+> - **Ten more languages**: Simplified Chinese, Russian, Brazilian Portuguese, German,
+>   French, Spanish, Japanese, Korean, Polish, Ukrainian. These are machine-drafted first
+>   passes flagged for review, not native translations — corrections very welcome.
+> - **A manual in your browser**: every config key with its default and range, and a
+>   packmaker's page covering what to turn off and which item tags the sorter reads.
+
+The full internal history lives in `CHANGELOG.md`.
+
+---
+
+## Changelog for the first release (kept for reference)
 
 > **1.0.0 — First Haul.** The pack that packs itself: a tabbed, self-sorting
 > adventurer's pack for NeoForge 1.21.1.
