@@ -32,7 +32,7 @@ public class Packwork {
         // file only exists on the client dist.
         com.sappersquad.packwork.config.PackworkConfig.loadServer(
                 net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get());
-        if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
+        if (net.neoforged.fml.loading.FMLEnvironment.getDist().isClient()) {
             com.sappersquad.packwork.config.PackworkConfig.loadClient(
                     net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get());
         }
