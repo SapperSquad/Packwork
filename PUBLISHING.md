@@ -289,7 +289,10 @@ for posts and Discord):
 | File | What it is |
 |---|---|
 | `promo/packwork-sorting.gif` | 640x360, 21 s, 6.8 MB. The one that answers "why not Sophisticated" without a word: a messy inventory, a shift-click dump, the compartments proving they were filled all along, bread pinned where the player put it, and a close on the pack standing in the world. Loops back to the open GUI. |
-| `promo/packwork-worn-spin.gif` | 640x360, 5.0 s, 4.2 MB. A full 360° turntable of a worn Sculkhide pack. Both are under Discord's 10 MB embed cap. |
+| `promo/packwork-worn-spin.gif` | 640x360, 5.0 s, 4.2 MB. A full 360° turntable of a worn Sculkhide pack. |
+| `promo/packwork-death-place.gif` | 640x360, 5.0 s, 4.7 MB. A fatal fall, the death screen, and the pack standing upright where you fell with an empty hotbar - the only visual the death-handling config has. |
+
+All three are under Discord's 10 MB embed cap.
 
 **Art carrying version-specific claims** (trinket counts, tier list, MC version): keep it
 in step with the changelog. All four resource stores ship (fluids, XP, energy always; gas

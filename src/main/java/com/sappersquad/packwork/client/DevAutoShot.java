@@ -41,7 +41,10 @@ public final class DevAutoShot {
     private static final boolean GIFSHOT = System.getProperty("packwork.gifshot") != null;
     /** The worn-pack HERO shoot (-Pwornhero -Pcurios): store frames + the turntable clip. */
     private static final boolean WORNHERO = System.getProperty("packwork.wornhero") != null;
-    private static final boolean ENABLED = AUTOSHOT || GALLERY || WORNSHOT || GIFSHOT || WORNHERO;
+    /** The place-at-death micro-clip (-Pdeathclip): you fall, the pack stands where you fell. */
+    private static final boolean DEATHCLIP = System.getProperty("packwork.deathclip") != null;
+    private static final boolean ENABLED =
+            AUTOSHOT || GALLERY || WORNSHOT || GIFSHOT || WORNHERO || DEATHCLIP;
 
     private enum Phase {
         BOOT, WAIT_LEVEL, OPEN,
@@ -82,10 +85,13 @@ public final class DevAutoShot {
         // ---- the sorting-GIF capture (runs INSTEAD of the above under -Pgifshot) ----
         GIF_BOOT, GIF_WAIT_LEVEL, GIF_STAGE, GIF_ROLL,
         // ---- the worn-pack HERO shoot (runs INSTEAD of the above under -Pwornhero) ----
-        WH_BOOT, WH_WAIT_LEVEL, WH_STEP, WH_SHOOT, WH_SPIN_PREP, WH_SPIN
+        WH_BOOT, WH_WAIT_LEVEL, WH_STEP, WH_SHOOT, WH_SPIN_PREP, WH_SPIN,
+        // ---- the place-at-death micro-clip (runs INSTEAD of the above under -Pdeathclip) ----
+        DC_BOOT, DC_WAIT_LEVEL, DC_STAGE, DC_ROLL
     }
 
-    private static Phase phase = WORNHERO ? Phase.WH_BOOT
+    private static Phase phase = DEATHCLIP ? Phase.DC_BOOT
+            : WORNHERO ? Phase.WH_BOOT
             : GIFSHOT ? Phase.GIF_BOOT
             : WORNSHOT ? Phase.WS_BOOT : (GALLERY ? Phase.G_BOOT : Phase.BOOT);
     private static int ticks = 0;
@@ -100,6 +106,11 @@ public final class DevAutoShot {
         if (!ENABLED || phase == Phase.DONE) return;
         Minecraft mc = Minecraft.getInstance();
         ticks++;
+        // Never let the window pause itself. Single-player pauses on lost focus, and a
+        // capture run that loses focus - to another dev client, to anything - records the
+        // Game Menu over a frozen world instead of the scene. It cost a take on the death
+        // clip and it would have cost one on any of the others eventually.
+        mc.options.pauseOnLostFocus = false;
         // Re-assert the hero shoot's turntable angle every tick, after vanilla's own head/body
         // turn has run - it drags the body back toward the head yaw, so setting it once is not
         // enough. No-op unless the hero shoot is running.
@@ -764,6 +775,58 @@ public final class DevAutoShot {
                     phase = Phase.WS_STEP;
                     wait = 0;
                 }
+            }
+            // ================= the place-at-death micro-clip (-Pdeathclip) =================
+            case DC_BOOT -> {
+                if (ticks == 5) {
+                    try {
+                        org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(), 1280, 720);
+                        mc.options.guiScale().set(2);
+                        mc.options.fov().set(50);
+                        mc.resizeDisplay();
+                        Packwork.LOGGER.info("[deathclip] window 1280x720 @ fov 50");
+                    } catch (Throwable t) {
+                        Packwork.LOGGER.warn("[deathclip] resize failed: {}", t.toString());
+                    }
+                }
+                if (ticks > 40 && mc.level == null && mc.screen != null) {
+                    LevelSettings settings = new LevelSettings("packwork_autoshot", GameType.CREATIVE,
+                            false, Difficulty.PEACEFUL, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+                    mc.createWorldOpenFlows().createFreshLevel("packwork_autoshot", settings,
+                            WorldOptions.defaultWithRandomSeed(), WorldPresets::createNormalWorldDimensions, mc.screen);
+                    phase = Phase.DC_WAIT_LEVEL;
+                    wait = 0;
+                }
+            }
+            case DC_WAIT_LEVEL -> {
+                if (mc.player != null && mc.getSingleplayerServer() != null && ++wait > 60) {
+                    deathStage(mc);
+                    phase = Phase.DC_STAGE;
+                    wait = 0;
+                }
+            }
+            case DC_STAGE -> { if (++wait > 30) { phase = Phase.DC_ROLL; deathFrame = 0; wait = 0; } }
+            case DC_ROLL -> {
+                if (deathFrame >= DEATH_FRAMES) {
+                    phase = Phase.DONE;
+                    mc.options.hideGui = false;
+                    Packwork.LOGGER.info("[deathclip] done - {} frames in {}", deathFrame, spinDir);
+                    break;
+                }
+                // Respawning in single-player makes the client sit on "Loading terrain..."
+                // for a couple of real seconds while the integrated server hands the chunk
+                // back. Those frames are a blurred panorama and a caption - useless, and
+                // they landed square in the middle of the first cut. Freeze the counter (so
+                // the SCRIPT waits too) and let the loading screen pass unrecorded: the clip
+                // then cuts straight from the death screen to standing up, which is what a
+                // promo clip wants anyway.
+                if (mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen
+                        || mc.level == null) {
+                    break;
+                }
+                deathScript(mc, deathFrame);
+                deathCapture(mc);
+                deathFrame++;
             }
             // ================= the worn-pack HERO shoot (-Pwornhero -Pcurios) =================
             case WH_BOOT -> {
@@ -1632,6 +1695,149 @@ public final class DevAutoShot {
     private static void withMenu(Minecraft mc, java.util.function.Consumer<PackMenu> action) {
         if (mc.player != null && mc.player.containerMenu instanceof PackMenu menu) {
             action.accept(menu);
+        }
+    }
+
+    // =====================================================================
+    //  the place-at-death micro-clip (-Pdeathclip)
+    // =====================================================================
+    //
+    //  "Your stuff doesn't scatter" in one beat: you take a fatal hit, the screen goes red,
+    //  and when you come back the pack is STANDING where you fell with everything in it.
+    //  It is the only visual 1.1.0's death-handling config has.
+
+    private static final int DEATH_FRAMES = 100;    // 5s at 20fps
+    private static int deathFrame = 0;
+    private static java.io.File deathDir = null;
+    private static net.minecraft.core.BlockPos deathSpot = null;
+
+    /**
+     * A camp, a survival player carrying a loaded pack, and the config flipped to PLACE.
+     *
+     * <p>{@code setRemote} rather than {@code setLocalForTesting}: on an integrated server the
+     * client receives the config-sync payload on login and {@code get()} then prefers the
+     * REMOTE overlay, so a local-only override is read by nobody. Setting the overlay covers
+     * both sides at once - and the death handler runs on the server in this same JVM.
+     */
+    private static void deathStage(Minecraft mc) {
+        var v = com.sappersquad.packwork.config.PackworkConfig.defaults();
+        var place = new com.sappersquad.packwork.config.PackworkConfig.Values(
+                v.slots(), v.stacksPerSlot(), v.fluidMb(), v.xpPoints(), v.energyFe(), v.vaporMb(),
+                v.trinketEnabled(), com.sappersquad.packwork.config.PackworkConfig.DeathHandling.PLACE,
+                v.magnetRange(), v.magnetEveryTicks(), v.packFirstDefault(), v.neverAutoEat(),
+                v.valveDefaultKeepStacks(), v.pressKeepLoose(), v.pressIncludes2x2());
+        com.sappersquad.packwork.config.PackworkConfig.setRemote(place);
+
+        var server = mc.getSingleplayerServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (server.getPlayerList().getPlayers().isEmpty()) return;
+            ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+            net.minecraft.server.level.ServerLevel lvl = sp.serverLevel();
+            lvl.setDayTime(1200);
+            net.minecraft.core.BlockPos base = sp.blockPosition().above(48);
+            var air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+            var grass = net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState();
+            for (int dx = -8; dx <= 8; dx++)
+                for (int dz = -8; dz <= 8; dz++) {
+                    for (int dy = 0; dy <= 8; dy++) lvl.setBlock(base.offset(dx, dy, dz), air, 2);
+                    lvl.setBlock(base.offset(dx, -1, dz), grass, 2);
+                }
+            put(lvl, base.offset(-3, 0, 5), net.minecraft.world.level.block.Blocks.CAMPFIRE);
+            littleTree(lvl, base.offset(-5, 0, 6));
+            littleTree(lvl, base.offset(6, 0, 7));
+            for (int dx = -6; dx <= 6; dx += 3) {
+                put(lvl, base.offset(dx, 0, 4), net.minecraft.world.level.block.Blocks.SHORT_GRASS);
+            }
+            // NO camera backstop here, unlike the hero shoot: this clip has to stand the
+            // player BACK from the death spot afterwards, and a wall four blocks behind is
+            // exactly where they would land. The first take put the camera inside it.
+            deathSpot = base;
+
+            sp.setGameMode(GameType.SURVIVAL);
+            sp.getInventory().clearContent();
+            var tier = com.sappersquad.packwork.pack.PackTier.RUNED;
+            ItemStack pack = new ItemStack(ModItems.pack(tier).get());
+            var store = new com.sappersquad.packwork.pack.PackInventory(pack, tier);
+            store.insertItem(0, new ItemStack(Items.DIAMOND, 34), false);
+            store.insertItem(1, new ItemStack(Items.IRON_INGOT, 64), false);
+            store.insertItem(2, new ItemStack(Items.BREAD, 21), false);
+            sp.getInventory().items.set(0, pack);
+            sp.getInventory().selected = 0;
+
+            // No setRespawnPosition: a fresh world has no bed, the call is refused with a
+            // "no home bed or charged respawn anchor" line IN THE CHAT (which then sits in
+            // frame), and the respawn lands at world spawn - underground, on the first take.
+            // The script teleports the player back instead, several ticks running, because a
+            // single teleport races the respawn packet that follows it.
+            sp.connection.teleport(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0f, 8f);
+            Packwork.LOGGER.info("[deathclip] camp staged at {}, death.handling = PLACE", base);
+        });
+    }
+
+    private static void deathScript(Minecraft mc, int t) {
+        if (t == 2) {
+            mc.options.hideGui = false;             // the HUD sells that this is real survival
+            mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+        }
+        // 0.0-1.0s: standing at the camp, pack on the hotbar
+        if (t == 20) {                              // the fatal hit
+            var server = mc.getSingleplayerServer();
+            if (server != null) server.execute(() -> {
+                if (server.getPlayerList().getPlayers().isEmpty()) return;
+                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+                sp.hurt(sp.damageSources().fall(), 100f);   // 1.21.1: plain hurt(); hurtServer arrives later
+                Packwork.LOGGER.info("[deathclip] fatal hit; dead={}", sp.isDeadOrDying());
+            });
+        }
+        // 1.0-1.6s: the death screen
+        if (t == 32 && mc.player != null) {
+            mc.player.respawn();
+            Packwork.LOGGER.info("[deathclip] respawn requested");
+        }
+        if (t == 40) {
+            mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+            // wipe the respawn chatter ("you have no home bed...") before the good frames
+            mc.gui.getChat().clearMessages(true);
+        }
+        // Three teleports, not one: the client is still settling the respawn and a lone
+        // teleport gets overwritten by the position that follows it.
+        if (t == 42 || t == 46 || t == 50) {
+            var server = mc.getSingleplayerServer();
+            if (server != null) server.execute(() -> {
+                if (server.getPlayerList().getPlayers().isEmpty() || deathSpot == null) return;
+                ServerPlayer sp = server.getPlayerList().getPlayers().get(0);
+                // Stand OFF the pack's line, not on it. Straight behind, the player's own body
+                // hides the thing the clip is about - which is exactly what the last take
+                // produced: an empty meadow with the pack directly behind the avatar.
+                // Facing +z, +x is frame-LEFT, so standing 2.5 east puts the pack right of centre.
+                sp.connection.teleport(deathSpot.getX() + 2.5, deathSpot.getY(),
+                        deathSpot.getZ() - 4.0, 0f, 10f);
+                if (t == 50) {
+                    Packwork.LOGGER.info("[deathclip] block at the death spot: {}; walked back to {}",
+                            sp.serverLevel().getBlockState(deathSpot), sp.blockPosition());
+                }
+            });
+        }
+        // 2.5-5.0s: back on your feet, the pack standing exactly where you fell
+    }
+
+    private static void deathCapture(Minecraft mc) {
+        var target = mc.getMainRenderTarget();
+        if (target.width < 64 || target.height < 64) return;
+        if (deathDir == null) {
+            deathDir = new java.io.File(new java.io.File(mc.gameDirectory, "screenshots"), "deathclip");
+            if (!deathDir.exists() && !deathDir.mkdirs()) {
+                Packwork.LOGGER.error("[deathclip] could not create {}", deathDir);
+                return;
+            }
+            spinDir = deathDir;   // shared for the done-message
+        }
+        try (var img = Screenshot.takeScreenshot(target)) {
+            img.writeToFile(new java.io.File(deathDir,
+                    String.format(java.util.Locale.ROOT, "frame_%04d.png", deathFrame)));
+        } catch (Exception e) {
+            Packwork.LOGGER.error("[deathclip] frame {} failed", deathFrame, e);
         }
     }
 

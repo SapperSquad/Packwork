@@ -83,6 +83,10 @@ runs {
         if (project.hasProperty('wornhero')) {
             systemProperty 'packwork.wornhero', '1'
         }
+        // The place-at-death micro-clip: ./gradlew runClient -Pdeathclip.
+        if (project.hasProperty('deathclip')) {
+            systemProperty 'packwork.deathclip', '1'
+        }
     }
 
     server {

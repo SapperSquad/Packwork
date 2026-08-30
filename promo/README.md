@@ -117,3 +117,34 @@ earned a store slot — worn rendering is 1.1.0's headline and this is the first
 worth posting. The natural swap is for `gallery-8-jei-ring.png` (pick 6), which sells a
 compatibility detail rather than the mod. The six picks are his call, so nothing has been
 changed in the PUBLISHING table.
+
+## 1.2.0 additions — the place-at-death micro-clip
+
+`promo/packwork-death-place.gif` — 640x360, 100 frames at 5cs (20 fps), 5.0 s, 4.7 MB.
+`./gradlew runClient -Pdeathclip`. Survival player at a camp with a loaded Runed pack, a
+fatal fall, the death screen, and then standing back up to find the pack **standing upright
+where they fell** with an empty hotbar. It is the only visual 1.1.0's `death.handling`
+config has, and it says "your stuff doesn't scatter" in one beat.
+
+The clip flips the config with `PackworkConfig.setRemote(...)`, not `setLocalForTesting`:
+on an integrated server the client takes the config-sync payload on login and `get()` then
+prefers the REMOTE overlay, so a local-only override is read by nobody — including the death
+handler, which runs on the server in the same JVM.
+
+**Four takes, and each failure is worth knowing:**
+
+- **`setRespawnPosition` on a fresh world is refused** ("no home bed or charged respawn
+  anchor"), the message lands in the chat overlay where it sits in frame, and the respawn
+  goes to world spawn — underground, on take one. The script teleports the player back
+  instead, on three ticks running, because a single teleport races the position packet the
+  respawn sends after it.
+- **Respawning in single-player parks the client on "Loading terrain…"** for a couple of real
+  seconds. Those frames are a blurred panorama with a caption. The capture now freezes the
+  frame counter (so the script waits too) while `ReceivingLevelScreen` is up, which also
+  gives the clip a clean cut from death screen to standing.
+- **Do not stand the player on the pack's line.** Directly behind, their own body hides the
+  thing the clip is about — take three was an empty meadow. Standing 2.5 blocks to one side
+  puts the pack off-centre and clear.
+- **The window pauses itself on lost focus** and records the Game Menu over a frozen world.
+  Every capture chain now sets `pauseOnLostFocus = false` on the first tick; it cost a take
+  here and it would have cost one elsewhere eventually.
